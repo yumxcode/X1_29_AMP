@@ -1,22 +1,10 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# Copyright (c) 2025-2026, The RoboLab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 import os
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
 import robolab.tasks.manager_based.amp.mdp as mdp
-from robolab.tasks.manager_based.amp.managers import MotionDataTermCfg
-from robolab.tasks.manager_based.amp.amp_env_cfg import AmpEnvCfg, MotionDataCfg
-
-##
-# Pre-defined configs
-##
-
+from robolab.tasks.manager_based.amp.amp_env_cfg import AmpEnvCfg
 from robolab.assets.robots.x1 import X1_CFG
 from robolab import ROBOLAB_ROOT_DIR
 
@@ -34,8 +22,8 @@ AMP_NUM_STEPS = 3
 
 
 @configclass
-class X1AmpRewards:
-    """Reward terms for the MDP."""
+class X1AmpRewards():
+    """Reward terms for AMP — mirrors RPO AMP reward structure."""
 
     # -- Task
     track_lin_vel_xy_exp = RewTerm(
@@ -63,7 +51,7 @@ class X1AmpRewards:
     joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=0)
     joint_energy = RewTerm(func=mdp.joint_energy, weight=0)
     joint_regularization = RewTerm(func=mdp.joint_deviation_l1, weight=0)
-    shoulder_pitch_mean_offset = RewTerm(
+    arm_pitch_mean_offset = RewTerm(
         func=mdp.paired_joints_mean_deviation_l1,
         weight=0,
         params={
@@ -129,7 +117,6 @@ class X1AmpEnvCfg(AmpEnvCfg):
     rewards: X1AmpRewards = X1AmpRewards()
 
     def __post_init__(self):
-        # post init of parent
         super().__post_init__()
 
         # ------------------------------------------------------
@@ -147,22 +134,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
             ROBOLAB_ROOT_DIR, "data", "motions", "x1_lab"
         )
-        self.motion_data.motion_dataset.motion_data_weights={
-            # Walking
-            "127_06": 16,
-            "114_08": 8,
-            "114_09": 8,
-            # Standing
-            "A1-_Stand_stageii": 6.5,
-            # Lateral
-            "move_l": 4.5,
-            "move_r": 5,
-            # Turning
-            "turn_l": 3,
-            "turn_r": 3,
-            # Running (for higher-speed tracking)
-            "C3_-_run_stageii": 4,
-        }
+        # Motion weights will be configured after retarget produces x1_lab data.
+        # Start with equal weights for all motions.
+        self.motion_data.motion_dataset.motion_data_weights = None  # None = equal weights
 
         # ------------------------------------------------------
         # animation
@@ -170,9 +144,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.animation.animation.num_steps_to_use = AMP_NUM_STEPS
 
         # ------------------------------------------------------
-        # Observations
+        # Observations — discriminator
         # ------------------------------------------------------
-        # discriminator observations
         self.observations.disc.key_body_pos_b.params = {
             "asset_cfg": SceneEntityCfg(
                 name="robot",
@@ -181,20 +154,6 @@ class X1AmpEnvCfg(AmpEnvCfg):
             )
         }
         self.observations.disc.history_length = AMP_NUM_STEPS
-
-        # ------------------------------------------------------
-        # Events — adapt body names for X1
-        # ------------------------------------------------------
-        # torso_link → lumbar_pitch_link (X1's main torso body)
-        self.events.add_base_mass.params["asset_cfg"] = SceneEntityCfg(
-            "robot", body_names="lumbar_pitch_link"
-        )
-        self.events.randomize_rigid_body_com.params["asset_cfg"] = SceneEntityCfg(
-            "robot", body_names=["lumbar_pitch_link", "base_link"]
-        )
-        self.events.base_external_force_torque.params["asset_cfg"] = SceneEntityCfg(
-            "robot", body_names="lumbar_pitch_link"
-        )
 
         # ------------------------------------------------------
         # Rewards
@@ -215,7 +174,7 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
-        self.rewards.shoulder_pitch_mean_offset.weight = -0.1
+        self.rewards.arm_pitch_mean_offset.weight = -0.1
 
         # feet
         self.rewards.feet_slide.weight = -0.1
@@ -236,17 +195,11 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-1.5, 1.5)
 
         # ------------------------------------------------------
-        # Terminations
+        # Terminations — X1 body names
         # ------------------------------------------------------
         self.terminations.base_contact.params["sensor_cfg"].body_names = [
-            ".*_hip_.*_link",
-            "base_link",
-            ".*_shoulder_.*_link",
-            ".*_elbow_.*_link",
-            ".*_wrist_.*_link",
-            "lumbar_.*_link",
+            ".*_hip_.*_link", "base_link", ".*_shoulder_.*_link", ".*_elbow_.*_link",
         ]
-
         if self.__class__.__name__ == "X1AmpEnvCfg":
             self.disable_zero_weight_rewards()
 
@@ -255,6 +208,7 @@ class X1AmpEnvCfg(AmpEnvCfg):
 class X1AmpEnvCfg_PLAY(X1AmpEnvCfg):
     def __post_init__(self):
         super().__post_init__()
+
         self.scene.num_envs = 1
         self.scene.env_spacing = 2.5
         self.episode_length_s = 40.0

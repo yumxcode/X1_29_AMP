@@ -58,7 +58,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.x1_amp_env_cfg:X1AmpEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.x1_amp_agent_cfg:X1AmpRunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rpo_amp_agent_cfg:RslRlOnPolicyRunnerAmpCfg",
     },
 )
 
@@ -68,6 +68,6 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.x1_amp_env_cfg:X1AmpEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.x1_amp_agent_cfg:X1AmpRunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rpo_amp_agent_cfg:RslRlOnPolicyRunnerAmpCfg",
     },
 )

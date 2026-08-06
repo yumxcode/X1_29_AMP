@@ -1,3 +1,0 @@
-failed to store: 100001
-To https://github.com/yumxcode/X1_29_AMP.git
-   5000847..2e89c49  main -> main

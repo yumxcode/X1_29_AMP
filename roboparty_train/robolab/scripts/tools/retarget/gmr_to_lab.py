@@ -85,19 +85,7 @@ def extract_gmr_data(
     loop_mode: LoopMode,
     start_frame: int = 0,
     end_frame: int = -1,
-    gmr_to_lab_name_map: dict[str, str] | None = None,
-    default_dof_value: float | None = None,
 ):
-    """Convert GMR motion data to Isaac Lab format.
-
-    When ``gmr_to_lab_name_map`` is provided, each GMR DOF name is translated to
-    its Lab equivalent before lookup.  Lab DOFs that have no corresponding GMR
-    entry are filled with ``default_dof_value`` (0.0 if ``None`` but map is set).
-
-    When ``gmr_to_lab_name_map`` is *not* provided (legacy mode), Lab DOF names
-    must match GMR names exactly.  If ``default_dof_value`` is ``None`` (default),
-    unmapped DOFs raise ``ValueError`` (backward compatible with rpo).
-    """
     with open(gmr_file_path, 'rb') as f:
         gmr_data = pickle.load(f)
         
@@ -109,12 +97,12 @@ def extract_gmr_data(
 
     # Log the type and shape of each extracted term
     print("\n" + "="*60)
-    print("LOADED GMR DATA")
+    print("📥 LOADED GMR DATA")
     print("="*60)
-    print(f"  FPS:           type={type(fps).__name__}, value={fps}")
-    print(f"  Root Position: type={type(root_pos).__name__}, shape={root_pos.shape}")
-    print(f"  Root Rotation: type={type(root_rot_quat).__name__}, shape={root_rot_quat.shape}")
-    print(f"  DOF Position:  type={type(dof_pos).__name__}, shape={dof_pos.shape}")
+    print(f"⏱️  FPS:           type={type(fps).__name__}, value={fps}")
+    print(f"📍 Root Position: type={type(root_pos).__name__}, shape={root_pos.shape}")
+    print(f"🔄 Root Rotation: type={type(root_rot_quat).__name__}, shape={root_rot_quat.shape}")
+    print(f"🦴 DOF Position:  type={type(dof_pos).__name__}, shape={dof_pos.shape}")
     print("="*60 + "\n")
 
     # Verify shapes
@@ -131,36 +119,19 @@ def extract_gmr_data(
     if end_frame == -1 or end_frame > num_frames:
         end_frame = num_frames
     assert 0 <= start_frame < end_frame <= num_frames, "Invalid start_frame or end_frame."
-
-    # ------------------------------------------------------------------
-    # Build a lookup: lab_dof_name -> gmr_dof_index (or None if unmapped)
-    # ------------------------------------------------------------------
-    lab_to_gmr_idx: dict[str, int | None] = {}
-    if gmr_to_lab_name_map is not None:
-        # Resolve effective default for unmapped DOFs when map is provided
-        effective_default = 0.0 if default_dof_value is None else default_dof_value
-        for gmr_name, lab_name in gmr_to_lab_name_map.items():
-            if gmr_name not in gmr_dof_names:
-                raise ValueError(
-                    f"GMR DOF '{gmr_name}' (from name map) not found in gmr_dof_names."
-                )
-            lab_to_gmr_idx[lab_name] = gmr_dof_names.index(gmr_name)
-    else:
-        effective_default = default_dof_value  # may be None → raise on missing
-
-    # Fill dof_pos_lab column by column
-    dof_pos_lab = np.zeros((num_frames, len(lab_dof_names)), dtype=np.float64)
-    for i, lab_dof in enumerate(lab_dof_names):
-        if lab_dof in lab_to_gmr_idx and lab_to_gmr_idx[lab_dof] is not None:
-            dof_pos_lab[:, i] = dof_pos[:, lab_to_gmr_idx[lab_dof]]
-        elif gmr_to_lab_name_map is None and lab_dof in gmr_dof_names:
-            dof_pos_lab[:, i] = dof_pos[:, gmr_dof_names.index(lab_dof)]
+    
+    # Get the mapping indices from GMR to Isaac Lab
+    gmr_to_lab_indices = []
+    for lab_dof in lab_dof_names:
+        if lab_dof in gmr_dof_names:
+            gmr_index = gmr_dof_names.index(lab_dof)
+            gmr_to_lab_indices.append(gmr_index)
         else:
-            if effective_default is None:
-                raise ValueError(f"DOF name '{lab_dof}' not found in GMR DOF names.")
-            dof_pos_lab[:, i] = effective_default
+            raise ValueError(f"DOF name '{lab_dof}' not found in GMR DOF names.")
 
-    # set the elbow yaw joint to 0.0 (these joints do not need action)
+    dof_pos_lab = dof_pos[:, gmr_to_lab_indices]
+
+    # set the elbow yaw joint to 0.0, actually these joints do not need to do action for rpo
     for i, lab_dof in enumerate(lab_dof_names):
         if lab_dof.endswith("_elbow_yaw_joint"):
             dof_pos_lab[:, i] = 0.0
@@ -180,8 +151,7 @@ def run_simulator(
         sim: sim_utils.SimulationContext, 
         scene: InteractiveScene, 
         motion_data_dicts: list[dict[str, np.ndarray]], 
-        key_body_names: list[str],
-        lab_dof_names: list[str] | None = None):
+        key_body_names: list[str]):
     
     robot: Articulation = scene["robot"]
     # marker
@@ -221,41 +191,6 @@ def run_simulator(
     max_num_frames = max(num_frames_list)
     
     lab_body_names = robot.data.body_names
-    lab_joint_names = robot.data.joint_names
-
-    # ------------------------------------------------------------------
-    # DOF remapping: motion data may be in a different order than the
-    # robot's internal joint order.  Build a remap tensor so we can index
-    # motion dof_pos by robot order.
-    # ------------------------------------------------------------------
-    if lab_dof_names is not None:
-        dof_remap = []
-        print("\n" + "=" * 70)
-        print("DOF ORDER VERIFICATION")
-        print("=" * 70)
-        print(f"{'Idx':>3}  {'Robot Joint Name (runtime)':<40} {'YAML lab_dof_names Idx':>6}")
-        print("-" * 70)
-        for ri, rj_name in enumerate(lab_joint_names):
-            if rj_name not in lab_dof_names:
-                print(f"{'':>3}  {rj_name:<40} *** NOT FOUND IN YAML ***")
-                raise ValueError(
-                    f"Robot joint '{rj_name}' (index {ri}) not found in lab_dof_names. "
-                    f"Update the YAML config to include this joint."
-                )
-            yi = lab_dof_names.index(rj_name)
-            flag = "" if yi == ri else f"  <- remapped from yaml[{yi}]"
-            print(f"{ri:>3}  {rj_name:<40} {yi:>6}{flag}")
-            dof_remap.append(yi)
-        print("-" * 70)
-        if dof_remap == list(range(len(lab_joint_names))):
-            print("YAML order matches robot order exactly (identity remap).")
-        else:
-            print(f"WARNING: YAML order differs from robot order. Remap applied: {dof_remap}")
-        print("=" * 70 + "\n")
-        dof_remap_tensor = torch.tensor(dof_remap, device=scene.device, dtype=torch.long)
-    else:
-        dof_remap_tensor = None
-
     # print(f"[INFO]: Isaac Lab body names: {lab_body_names}")
     key_body_indices = []
     for name in key_body_names:
@@ -289,12 +224,8 @@ def run_simulator(
             root_states[motion_idx, 7:10] = 0.0  # zero linear velocity
             root_states[motion_idx, 10:13] = 0.0  # zero angular velocity
             
-            # set joint state (remap if needed)
-            raw_dof = dof_pos_list[motion_idx][frame_idx, :]
-            if dof_remap_tensor is not None:
-                joint_pos[motion_idx, :] = raw_dof[dof_remap_tensor]
-            else:
-                joint_pos[motion_idx, :] = raw_dof
+            # set joint state 
+            joint_pos[motion_idx, :] = dof_pos_list[motion_idx][frame_idx, :]
             
         robot.write_root_state_to_sim(root_states)
         robot.write_joint_state_to_sim(joint_pos, joint_vel)
@@ -326,13 +257,6 @@ def run_simulator(
         
     for motion_data_dict, key_body_pos_w in zip(motion_data_dicts, key_body_pos_w_list):
         motion_data_dict['key_body_pos'] = key_body_pos_w.cpu().numpy()
-
-    # Remap dof_pos to robot order so the saved pkl matches training robot DOFs
-    if dof_remap_tensor is not None:
-        for motion_data_dict, dof_tensor in zip(motion_data_dicts, dof_pos_list):
-            remapped = dof_tensor[:, dof_remap_tensor].cpu().numpy()
-            motion_data_dict['dof_pos'] = remapped
-        print("[run_simulator] dof_pos remapped to robot joint order in output.")
         
     return motion_data_dicts
     
@@ -341,17 +265,15 @@ def run_simulator(
 class ReplayMotionsSceneCfg(InteractiveSceneCfg):
     """Configuration for a replay motions scene."""
 
-    # ground plane - use simple plane without physics material for retarget
-    # (retarget only needs kinematic replay, no physics interaction)
-    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg(
-        physics_material=None,
-    ))
+    # ground plane
+    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
 
-    # lights - no texture_file to avoid Nucleus dependency in offline mode
+    # lights
     sky_light = AssetBaseCfg(
         prim_path="/World/skyLight",
         spawn=sim_utils.DomeLightCfg(
             intensity=750.0,
+            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
         ),
     )
 
