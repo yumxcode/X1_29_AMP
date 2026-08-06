@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """X1 retarget entry: install deps then run retarget.
 
-This script is designed to be called via gm-run.
-It installs robolab and rsl_rl packages, then runs the retarget.
+Called via gm-run with mainWorkDir=roboparty_train.
+Working directory is roboparty_train/, so paths are relative from there.
 """
 import subprocess
 import sys
@@ -14,52 +14,44 @@ def run(cmd, cwd=None):
     print(f"[run_x1_retarget] {' '.join(cmd)}", flush=True)
     result = subprocess.run(cmd, cwd=cwd, check=False)
     if result.returncode != 0:
-        print(f"[run_x1_retarget] Command failed with exit code {result.returncode}", flush=True)
+        print(f"[run_x1_retarget] FAILED exit={result.returncode}", flush=True)
         sys.exit(result.returncode)
 
 
 def main():
-    # Find workspace root (where the repo was cloned)
-    # gm-run clones the repo into the workspace, so the repo files are at /workspace/
-    workspace = os.environ.get("WORKSPACE", "/workspace")
-    
-    robolab_dir = os.path.join(workspace, "roboparty_train", "robolab")
-    rsl_rl_dir = os.path.join(workspace, "roboparty_train", "rsl_rl")
+    # mainWorkDir = roboparty_train, so cwd is roboparty_train/
+    cwd = os.getcwd()
+    print(f"[run_x1_retarget] CWD={cwd}", flush=True)
+    print(f"[run_x1_retarget] Contents: {os.listdir(cwd)}", flush=True)
 
     # Step 1: Install robolab
     print("=" * 60, flush=True)
-    print("STEP 1: Installing robolab package", flush=True)
+    print("STEP 1: Installing robolab + rsl_rl", flush=True)
     print("=" * 60, flush=True)
+
+    robolab_dir = os.path.join(cwd, "robolab")
+    rsl_rl_dir = os.path.join(cwd, "rsl_rl")
+    print(f"robolab_dir exists: {os.path.isdir(robolab_dir)} ({robolab_dir})", flush=True)
+    print(f"rsl_rl_dir exists: {os.path.isdir(rsl_rl_dir)} ({rsl_rl_dir})", flush=True)
+
     if os.path.isdir(robolab_dir):
         run([sys.executable, "-m", "pip", "install", "-e", robolab_dir, "-q"])
-    else:
-        print(f"WARNING: robolab dir not found at {robolab_dir}", flush=True)
-        # Try alternative paths
-        for alt in ["/workspace/roboparty_train/robolab", os.path.expanduser("~/roboparty_train/robolab")]:
-            if os.path.isdir(alt):
-                robolab_dir = alt
-                print(f"Found robolab at {alt}", flush=True)
-                run([sys.executable, "-m", "pip", "install", "-e", robolab_dir, "-q"])
-                break
-
-    # Step 2: Install rsl_rl
-    print("=" * 60, flush=True)
-    print("STEP 2: Installing rsl_rl package", flush=True)
-    print("=" * 60, flush=True)
     if os.path.isdir(rsl_rl_dir):
         run([sys.executable, "-m", "pip", "install", "-e", rsl_rl_dir, "-q"])
-    else:
-        print(f"WARNING: rsl_rl dir not found at {rsl_rl_dir}", flush=True)
 
-    # Step 3: Run retarget
+    # Step 2: Run retarget
     print("=" * 60, flush=True)
-    print("STEP 3: Running X1 retarget", flush=True)
+    print("STEP 2: Running X1 retarget", flush=True)
     print("=" * 60, flush=True)
 
-    retarget_script = os.path.join(workspace, "roboparty_train", "robolab", "scripts", "tools", "retarget", "dataset_retarget.py")
-    config_file = os.path.join(workspace, "roboparty_train", "robolab", "scripts", "tools", "retarget", "config", "x1.yaml")
-    input_dir = os.path.join(workspace, "roboparty_train", "robolab", "data", "motions", "rpo_gmr")
-    output_dir = os.path.join(workspace, "roboparty_train", "robolab", "data", "motions", "x1_lab")
+    retarget_script = os.path.join(cwd, "robolab", "scripts", "tools", "retarget", "dataset_retarget.py")
+    config_file = os.path.join(cwd, "robolab", "scripts", "tools", "retarget", "config", "x1.yaml")
+    input_dir = os.path.join(cwd, "robolab", "data", "motions", "rpo_gmr")
+    output_dir = os.path.join(cwd, "robolab", "data", "motions", "x1_lab")
+
+    print(f"retarget_script exists: {os.path.isfile(retarget_script)}", flush=True)
+    print(f"config_file exists: {os.path.isfile(config_file)}", flush=True)
+    print(f"input_dir exists: {os.path.isdir(input_dir)}", flush=True)
 
     run([
         sys.executable, retarget_script,

@@ -1,0 +1,26 @@
+{
+  "taskBaseInfo": {
+    "projectId": "PRO_20260805_001",
+    "taskType": "1",
+    "trainType": "1",
+    "taskName": "X1-retarget-v4",
+    "taskDescription": "GMR to X1 retargeting v4: installs robolab+rsl_rl deps first, then runs retarget.",
+    "taskTag": ["retarget", "x1"],
+    "goodsId": "ESKU000001",
+    "imageId": "BJX00000170",
+    "imageVersion": "V000212",
+    "personalDataPath": "/personal"
+  },
+  "taskCodeInfo": {
+    "codeType": "2",
+    "codeUrl": "[{\"codeUrl\":\"https://github.com/yumxcode/X1_29_AMP.git\",\"versionType\":\"1\",\"versionName\":\"main\"}]",
+    "mainCodeUri": "roboparty_train/run_x1_retarget.sh",
+    "hparamsPath": "roboparty_train/robolab/scripts/tools/retarget/config/x1.yaml",
+    "startScript": "gm-run roboparty_train/run_x1_retarget.sh",
+    "isOpen": "1"
+  },
+  "runtimeReminderConfig": {
+    "enableRuntimeReminder": false,
+    "reminderDurations": []
+  }
+}

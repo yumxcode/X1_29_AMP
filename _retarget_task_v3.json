@@ -1,0 +1,26 @@
+{
+  "taskBaseInfo": {
+    "projectId": "PRO_20260805_001",
+    "taskType": "1",
+    "trainType": "1",
+    "taskName": "X1-retarget-v3",
+    "taskDescription": "GMR to X1 retargeting v3: fixed paths relative to repo root (no X1_29_AMP/ prefix).",
+    "taskTag": ["retarget", "x1"],
+    "goodsId": "ESKU000001",
+    "imageId": "BJX00000170",
+    "imageVersion": "V000212",
+    "personalDataPath": "/personal"
+  },
+  "taskCodeInfo": {
+    "codeType": "2",
+    "codeUrl": "[{\"codeUrl\":\"https://github.com/yumxcode/X1_29_AMP.git\",\"versionType\":\"1\",\"versionName\":\"main\"}]",
+    "mainCodeUri": "roboparty_train/robolab/scripts/tools/retarget/dataset_retarget.py",
+    "hparamsPath": "roboparty_train/robolab/scripts/tools/retarget/config/x1.yaml",
+    "startScript": "gm-run roboparty_train/robolab/scripts/tools/retarget/dataset_retarget.py --robot x1 --input_dir roboparty_train/robolab/data/motions/rpo_gmr --output_dir roboparty_train/robolab/data/motions/x1_lab --config_file roboparty_train/robolab/scripts/tools/retarget/config/x1.yaml --loop clamp --headless",
+    "isOpen": "1"
+  },
+  "runtimeReminderConfig": {
+    "enableRuntimeReminder": false,
+    "reminderDurations": []
+  }
+}
