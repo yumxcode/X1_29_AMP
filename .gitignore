@@ -22,3 +22,6 @@ _remote_clone/
 
 # Large data - not tracked in git
 AMASS/
+
+# SMPLX body model - too large for git (>100MB), upload via Gradmotion storage
+AMASS_minimal/smplx/*.pkl
