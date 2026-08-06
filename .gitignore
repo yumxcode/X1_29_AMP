@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Backed up git dirs
+*_bak/
+_git_bak/
+
+# Meta-agent internal
+.meta-agent/
+
+# Logs and outputs
+logs/
+*.log
+_push_log.txt
+
+# OS
+.DS_Store
