@@ -1,12 +1,5 @@
 # X1 29-DOF retarget config
-#
-# gmr_dof_names: joint order produced by GMR (matches the MuJoCo XML joint order)
-# lab_dof_names: joint order in Isaac Lab after loading the URDF
-#                NOTE: This MUST be verified by running print_x1_joint_order.py
-#                on a machine with Isaac Lab installed. The order below is a
-#                best-guess based on URDF tree structure; update after verification.
-#
-# lab_key_body_names: key body names for AMP discriminator observations
+# VERIFIED by print_x1_joint_order.py on Gradmotion (Isaac Lab 2.3.2 / IsaacSim 5.1)
 
 gmr_dof_names:
   # MuJoCo XML joint order (from xyber_x1_serial.xml keyframe)
@@ -41,43 +34,42 @@ gmr_dof_names:
   - right_ankle_roll_joint
 
 lab_dof_names:
-  # TODO: Verify and update with actual Isaac Lab joint order
-  # Run: python scripts/tools/print_x1_joint_order.py --headless
-  # then replace this list with the printed order.
-  - lumbar_yaw_joint
-  - lumbar_roll_joint
-  - lumbar_pitch_joint
-  - left_shoulder_pitch_joint
-  - left_shoulder_roll_joint
-  - left_shoulder_yaw_joint
-  - left_elbow_pitch_joint
-  - left_elbow_yaw_joint
-  - left_wrist_pitch_joint
-  - left_wrist_roll_joint
-  - right_shoulder_pitch_joint
-  - right_shoulder_roll_joint
-  - right_shoulder_yaw_joint
-  - right_elbow_pitch_joint
-  - right_elbow_yaw_joint
-  - right_wrist_pitch_joint
-  - right_wrist_roll_joint
+  # VERIFIED order from Isaac Lab (TASK_20260810_036)
   - left_hip_pitch_joint
-  - left_hip_roll_joint
-  - left_hip_yaw_joint
-  - left_knee_pitch_joint
-  - left_ankle_pitch_joint
-  - left_ankle_roll_joint
+  - lumbar_yaw_joint
   - right_hip_pitch_joint
+  - left_hip_roll_joint
+  - lumbar_roll_joint
   - right_hip_roll_joint
+  - left_hip_yaw_joint
+  - lumbar_pitch_joint
   - right_hip_yaw_joint
+  - left_knee_pitch_joint
+  - left_shoulder_pitch_joint
+  - right_shoulder_pitch_joint
   - right_knee_pitch_joint
+  - left_ankle_pitch_joint
+  - left_shoulder_roll_joint
+  - right_shoulder_roll_joint
   - right_ankle_pitch_joint
+  - left_ankle_roll_joint
+  - left_shoulder_yaw_joint
+  - right_shoulder_yaw_joint
   - right_ankle_roll_joint
+  - left_elbow_pitch_joint
+  - right_elbow_pitch_joint
+  - left_elbow_yaw_joint
+  - right_elbow_yaw_joint
+  - left_wrist_pitch_joint
+  - right_wrist_pitch_joint
+  - left_wrist_roll_joint
+  - right_wrist_roll_joint
 
 lab_key_body_names:
-  - left_ankle_roll_link
-  - right_ankle_roll_link
+  # VERIFIED from Isaac Lab body names
   - left_knee_pitch_link
   - right_knee_pitch_link
+  - left_ankle_roll_link
+  - right_ankle_roll_link
   - left_elbow_yaw_link
   - right_elbow_yaw_link
