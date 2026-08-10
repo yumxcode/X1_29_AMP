@@ -8,6 +8,33 @@ Usage:
 """
 
 import argparse
+import subprocess
+import sys
+import os
+
+# Auto-install robolab if not found
+try:
+    import robolab
+except ImportError:
+    print("[INFO] robolab not found, installing...")
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
+    robolab_path = os.path.join(repo_root, "roboparty_train", "robolab")
+    rsl_rl_path = os.path.join(repo_root, "roboparty_train", "rsl_rl")
+    if os.path.isdir(robolab_path):
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", robolab_path])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", rsl_rl_path])
+        print("[INFO] robolab installed successfully.")
+    else:
+        # Try alternate path
+        robolab_path2 = os.path.join(repo_root, "X1_29_AMP", "roboparty_train", "robolab")
+        if os.path.isdir(robolab_path2):
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", robolab_path2])
+            rsl_rl_path2 = os.path.join(repo_root, "X1_29_AMP", "roboparty_train", "rsl_rl")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", rsl_rl_path2])
+            print("[INFO] robolab installed successfully (alt path).")
+        else:
+            print(f"[ERROR] Cannot find robolab at {robolab_path} or {robolab_path2}")
+            sys.exit(1)
 
 from isaaclab.app import AppLauncher
 
@@ -75,7 +102,6 @@ def main():
         print(f"  - {name}")
 
     print("\n--- YAML for key body names ---")
-    # Find feet and key bodies
     key_patterns = ["ankle_roll", "knee", "elbow_yaw"]
     print("lab_key_body_names:")
     for name in body_names:
