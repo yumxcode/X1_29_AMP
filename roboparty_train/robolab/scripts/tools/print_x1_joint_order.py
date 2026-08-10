@@ -12,6 +12,10 @@ import subprocess
 import sys
 import os
 
+# Force unbuffered stdout so logs appear in real-time
+import functools
+print = functools.partial(print, flush=True)
+
 # Step 1: Add robolab/rsl_rl source to sys.path BEFORE anything else
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 # Try multiple repo root candidates
@@ -93,10 +97,14 @@ class DiagSceneCfg(InteractiveSceneCfg):
 
 
 def main():
+    print("[STEP 1] Creating SimulationContext...")
     sim = sim_utils.SimulationContext(sim_utils.SimulationCfg(dt=0.01, device=args_cli.device))
+    print("[STEP 2] Creating InteractiveScene...")
     scene_cfg = DiagSceneCfg(num_envs=1, env_spacing=2.5)
     scene = InteractiveScene(scene_cfg)
+    print("[STEP 3] Calling sim.reset()...")
     sim.reset()
+    print("[STEP 4] Scene reset done. Reading robot data...")
 
     robot: Articulation = scene["robot"]
 
