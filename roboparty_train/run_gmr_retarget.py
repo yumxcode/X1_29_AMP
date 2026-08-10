@@ -374,23 +374,15 @@ def main():
 
 def git_push_results(gmr_output: Path, auto_config_path=None):
     """Commit and push GMR output + auto-IK config back to the git repo."""
-    import git
-
-    repo = git.Repo(str(REPO_ROOT))
-    origin = repo.remote("origin")
+    import subprocess
 
     # Configure git user if needed
-    with repo.config_writer() as cw:
-        if not cw.get_value("user", "email", fallback=""):
-            cw.set_value("user", "email", "bot@gradmotion.com")
-        if not cw.get_value("user", "name", fallback=""):
-            cw.set_value("user", "name", "Gradmotion Bot")
-
-    # Build push URL with token from environment
-    # Gradmotion injects GITHUB_TOKEN via the container's git credential helper
-    # Try using the existing remote first, fall back to token-based URL
-    git_token = os.environ.get("GITHUB_TOKEN", "")
-    git_user = os.environ.get("GITHUB_USER", "")
+    email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True,
+                           cwd=str(REPO_ROOT)).stdout.strip()
+    if not email:
+        subprocess.run(["git", "config", "user.email", "bot@gradmotion.com"], cwd=str(REPO_ROOT))
+        subprocess.run(["git", "config", "user.name", "Gradmotion Bot"], cwd=str(REPO_ROOT))
+        print("[INFO] Configured git user")
 
     # Add all pkl files
     pkl_files = list(gmr_output.glob("*.pkl"))
@@ -399,47 +391,44 @@ def git_push_results(gmr_output: Path, auto_config_path=None):
         return
 
     for f in pkl_files:
-        repo.index.add(str(f.relative_to(REPO_ROOT)))
+        rel = str(f.relative_to(REPO_ROOT))
+        subprocess.run(["git", "add", rel], cwd=str(REPO_ROOT), check=True)
     print(f"[INFO] Staged {len(pkl_files)} pkl files")
 
     # Add auto-IK config if available
-    if auto_config_path and auto_config_path.exists():
-        repo_copy = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
-        if repo_copy.exists():
-            repo.index.add(str(repo_copy.relative_to(REPO_ROOT)))
-            print(f"[INFO] Staged smplx_to_x1_auto.json")
+    auto_cfg_repo = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+    if auto_cfg_repo.exists():
+        subprocess.run(["git", "add", str(auto_cfg_repo.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
+        print("[INFO] Staged smplx_to_x1_auto.json")
 
     # Commit
     commit_msg = f"add GMR retargeted motion data ({len(pkl_files)} files, auto-IK calibrated)"
-    try:
-        repo.index.commit(commit_msg)
+    result = subprocess.run(["git", "commit", "-m", commit_msg], cwd=str(REPO_ROOT),
+                           capture_output=True, text=True)
+    if result.returncode == 0:
         print(f"[INFO] Committed: {commit_msg}")
-    except Exception as e:
-        print(f"[WARN] Commit failed (maybe nothing to commit): {e}")
-        return
+    else:
+        print(f"[WARN] Commit returned {result.returncode}: {result.stderr[:200]}")
 
     # Push
-    try:
-        origin.push(refspec="main")
+    result = subprocess.run(["git", "push", "origin", "main"], cwd=str(REPO_ROOT),
+                           capture_output=True, text=True)
+    if result.returncode == 0:
         print("[INFO] Git push succeeded!")
-    except Exception as e:
-        print(f"[WARN] Push via origin failed: {e}")
+    else:
+        print(f"[ERROR] Git push failed: {result.stderr[:300]}")
         # Try token-based push
-        if git_token and git_user:
-            token_url = f"https://{git_user}:{git_token}@github.com/yumxcode/X1_29_AMP.git"
-            try:
-                repo.create_remote("token_origin", token_url)
-                repo.remote("token_origin").push(refspec="main")
+        git_token = os.environ.get("GITHUB_TOKEN", "")
+        if git_token:
+            token_url = f"https://x-access-token:{git_token}@github.com/yumxcode/X1_29_AMP.git"
+            result2 = subprocess.run(
+                ["git", "push", token_url, "main"],
+                cwd=str(REPO_ROOT), capture_output=True, text=True
+            )
+            if result2.returncode == 0:
                 print("[INFO] Git push via token succeeded!")
-            except Exception as e2:
-                print(f"[ERROR] Token push also failed: {e2}")
-        else:
-            # Try with credential helper
-            try:
-                subprocess.run(["git", "push", "origin", "main"], cwd=str(REPO_ROOT), check=True)
-                print("[INFO] Git push via subprocess succeeded!")
-            except Exception as e2:
-                print(f"[ERROR] All push methods failed: {e2}")
+            else:
+                print(f"[ERROR] Token push also failed: {result2.stderr[:300]}")
 
 
 if __name__ == "__main__":
