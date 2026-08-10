@@ -110,23 +110,39 @@ def setup_gmr():
             shutil.copy2(smplx_pkl, target)
             print(f"[INFO] Copied SMPLX_{gender}.pkl to GMR body_models")
 
-    # Fix smplx library to use pkl extension instead of npz
-    # GMR README: "change ext in smplx/body_models.py from npz to pkl"
-    # The smplx library hardcodes '.npz' in multiple places, patch all of them
-    smplx_pkg_dir = venv_dir / "lib" / "python3.11" / "site-packages" / "smplx"
-    for py_file in smplx_pkg_dir.glob("*.py"):
-        content = py_file.read_text()
-        if ".npz" in content:
-            content = content.replace(".npz", ".pkl")
-            content = content.replace("'npz'", "'pkl'")
-            content = content.replace('"npz"', '"pkl"')
-            py_file.write_text(content)
-            print(f"[INFO] Patched {py_file.name}: npz → pkl")
-    # Also check __pycache__ - remove cached .pyc to ensure patches take effect
-    pycache = smplx_pkg_dir / "__pycache__"
-    if pycache.exists():
-        shutil.rmtree(pycache)
-        print("[INFO] Cleared smplx __pycache__")
+    # Convert .pkl → .npz (smplx library loads .npz by default)
+    # Run conversion in the venv (has torch + numpy)
+    convert_script = """
+import torch, numpy as np, pickle, sys
+from pathlib import Path
+
+body_models = Path(sys.argv[1])
+for gender in ['NEUTRAL', 'MALE', 'FEMALE']:
+    pkl_path = body_models / f'SMPLX_{gender}.pkl'
+    npz_path = body_models / f'SMPLX_{gender}.npz'
+    if npz_path.exists() or not pkl_path.exists():
+        print(f'  Skip {gender} (npz exists or pkl missing)', flush=True)
+        continue
+    print(f'  Converting {gender}...', flush=True)
+    data = torch.load(pkl_path, map_location='cpu', weights_only=False)
+    np_data = {}
+    for k, v in data.items():
+        if isinstance(v, torch.Tensor):
+            np_data[k] = v.numpy()
+        elif isinstance(v, (dict,)):
+            np_data[k] = {kk: vv.numpy() if isinstance(vv, torch.Tensor) else vv for kk, vv in v.items()}
+        else:
+            np_data[k] = v
+    np.savez(npz_path, **np_data)
+    print(f'  Saved {npz_path.name} ({npz_path.stat().st_size // 1024 // 1024}MB)', flush=True)
+"""
+    venv_python = str(venv_dir / "bin" / "python")
+    convert_path = REPO_ROOT / "_convert_smplx.py"
+    convert_path.write_text(convert_script)
+    print("[INFO] Converting SMPLX .pkl → .npz...")
+    subprocess.run([venv_python, str(convert_path), str(gmr_body_models)], check=True)
+    convert_path.unlink()
+    print("[INFO] SMPLX conversion done")
 
     return gmr_dir, venv_dir
 
