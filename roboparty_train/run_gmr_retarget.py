@@ -410,10 +410,33 @@ def package_results(gmr_output: Path, auto_config_path=None):
     torch.save(package, output_pt)
     size_mb = output_pt.stat().st_size / 1e6
     print(f"\n[INFO] Packaged {len(pkl_files)} files → {output_pt.name} ({size_mb:.1f}MB)")
-    print("[INFO] Waiting 60s for Gradmotion SDK to upload...")
-    import time
-    time.sleep(60)
-    print("[INFO] Wait complete. Check gm task model list for download URL.")
+
+    # Also try git push as backup
+    import subprocess, time
+    print("[INFO] Attempting git push of pkl files...")
+    email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True,
+                           cwd=str(REPO_ROOT)).stdout.strip()
+    if not email:
+        subprocess.run(["git", "config", "user.email", "bot@gradmotion.com"], cwd=str(REPO_ROOT))
+        subprocess.run(["git", "config", "user.name", "Gradmotion Bot"], cwd=str(REPO_ROOT))
+
+    for f in pkl_files:
+        subprocess.run(["git", "add", str(f.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
+    if auto_cfg_path and auto_cfg_path.exists():
+        subprocess.run(["git", "add", str(auto_cfg_path.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
+    subprocess.run(["git", "commit", "-m", f"add GMR retargeted motion data ({len(pkl_files)} files)"], cwd=str(REPO_ROOT))
+
+    push_result = subprocess.run(["git", "push", "origin", "main"], cwd=str(REPO_ROOT),
+                                capture_output=True, text=True)
+    if push_result.returncode == 0:
+        print("[INFO] Git push succeeded!")
+    else:
+        print(f"[WARN] Git push failed: {push_result.stderr[:200]}")
+
+    # Wait for SDK to upload the .pt file
+    print("[INFO] Waiting 120s for Gradmotion SDK to upload .pt file...")
+    time.sleep(120)
+    print("[INFO] Done waiting.")
 
 
 if __name__ == "__main__":
