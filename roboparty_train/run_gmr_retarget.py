@@ -96,13 +96,30 @@ def setup_gmr():
         print("[INFO] GMR venv ready")
 
     # Copy SMPLX body model
-    gmr_body_models = gmr_dir / "assets" / "body_models" / "smplx"
+    # smplx library expects: {model_path}/smplx/SMPLX_{gender}.{ext}
+    # So model_path should be the PARENT of smplx/
+    gmr_body_models_root = gmr_dir / "assets" / "body_models"
+    gmr_body_models = gmr_body_models_root / "smplx"
     gmr_body_models.mkdir(parents=True, exist_ok=True)
     smplx_pkl = REPO_ROOT / "AMASS_minimal" / "smplx" / "SMPLX_NEUTRAL.pkl"
-    target = gmr_body_models / "SMPLX_NEUTRAL.pkl"
-    if not target.exists() and smplx_pkl.exists():
-        shutil.copy2(smplx_pkl, target)
-        print(f"[INFO] Copied SMPLX_NEUTRAL.pkl to GMR body_models")
+    
+    # Copy NEUTRAL to all 3 genders (GMR requires all 3)
+    for gender in ["NEUTRAL", "MALE", "FEMALE"]:
+        target = gmr_body_models / f"SMPLX_{gender}.pkl"
+        if not target.exists() and smplx_pkl.exists():
+            shutil.copy2(smplx_pkl, target)
+            print(f"[INFO] Copied SMPLX_{gender}.pkl to GMR body_models")
+
+    # Fix smplx library to use pkl extension instead of npz
+    # GMR README: "change ext in smplx/body_models.py from npz to pkl"
+    smplx_init = venv_dir / "lib" / "python3.11" / "site-packages" / "smplx" / "body_models.py"
+    if smplx_init.exists():
+        content = smplx_init.read_text()
+        if "ext = 'npz'" in content or 'ext = "npz"' in content:
+            content = content.replace("ext = 'npz'", "ext = 'pkl'")
+            content = content.replace('ext = "npz"', 'ext = "pkl"')
+            smplx_init.write_text(content)
+            print("[INFO] Patched smplx body_models.py: npz → pkl")
 
     return gmr_dir, venv_dir
 
@@ -237,7 +254,7 @@ from general_motion_retargeting.utils.smpl import load_smplx_file, get_smplx_dat
 from general_motion_retargeting.kinematics_model import KinematicsModel
 
 repo_root = Path(os.environ["X1_REPO_ROOT"])
-smplx_folder = gmr_root / "assets" / "body_models" / "smplx"
+smplx_folder = gmr_root / "assets" / "body_models"  # smplx lib appends /smplx/ internally
 output_dir = repo_root / "roboparty_train" / "robolab" / "data" / "motions" / "x1_gmr"
 
 npz_files = []
