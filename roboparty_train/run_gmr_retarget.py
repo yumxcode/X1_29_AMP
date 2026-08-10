@@ -367,68 +367,51 @@ def main():
         print(f"Auto-IK config: {auto_config}")
     print("=" * 60)
 
-    # Step 6: Push results back to git
-    print("\n--- Step 6: Push Results to Git ---")
-    git_push_results(gmr_output, auto_config)
+    # Step 6: Package results as .pt for SDK auto-upload
+    print("\n--- Step 6: Package Results ---")
+    package_results(gmr_output, auto_config)
 
 
-def git_push_results(gmr_output: Path, auto_config_path=None):
-    """Commit and push GMR output + auto-IK config back to the git repo."""
-    import subprocess
+def package_results(gmr_output: Path, auto_config_path=None):
+    """Package all pkl files into a single .pt file for Gradmotion SDK auto-upload.
 
-    # Configure git user if needed
-    email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True,
-                           cwd=str(REPO_ROOT)).stdout.strip()
-    if not email:
-        subprocess.run(["git", "config", "user.email", "bot@gradmotion.com"], cwd=str(REPO_ROOT))
-        subprocess.run(["git", "config", "user.name", "Gradmotion Bot"], cwd=str(REPO_ROOT))
-        print("[INFO] Configured git user")
+    Gradmotion SDK auto-uploads .pt files to cloud storage. We package all
+    retargeted motion pkls + auto-IK config into one .pt file, which the SDK
+    will detect and upload. Then we can download via `gm task model list`.
+    """
+    import pickle
+    import struct
 
-    # Add all pkl files
-    pkl_files = list(gmr_output.glob("*.pkl"))
+    # Collect all pkl files
+    pkl_files = sorted(gmr_output.glob("*.pkl"))
     if not pkl_files:
-        print("[ERROR] No pkl files to push")
+        print("[ERROR] No pkl files to package")
         return
 
+    # Pack into a single dict and save as .pt (torch format)
+    # Use torch.save since the SDK recognizes .pt extension
+    import torch
+
+    package = {}
     for f in pkl_files:
-        rel = str(f.relative_to(REPO_ROOT))
-        subprocess.run(["git", "add", rel], cwd=str(REPO_ROOT), check=True)
-    print(f"[INFO] Staged {len(pkl_files)} pkl files")
+        with open(f, 'rb') as fh:
+            package[f.name] = fh.read()  # raw bytes
+        print(f"  Added: {f.name} ({f.stat().st_size // 1024}KB)")
 
     # Add auto-IK config if available
-    auto_cfg_repo = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
-    if auto_cfg_repo.exists():
-        subprocess.run(["git", "add", str(auto_cfg_repo.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
-        print("[INFO] Staged smplx_to_x1_auto.json")
+    auto_cfg_path = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+    if auto_cfg_path.exists():
+        package["smplx_to_x1_auto.json"] = auto_cfg_path.read_bytes()
+        print(f"  Added: smplx_to_x1_auto.json")
 
-    # Commit
-    commit_msg = f"add GMR retargeted motion data ({len(pkl_files)} files, auto-IK calibrated)"
-    result = subprocess.run(["git", "commit", "-m", commit_msg], cwd=str(REPO_ROOT),
-                           capture_output=True, text=True)
-    if result.returncode == 0:
-        print(f"[INFO] Committed: {commit_msg}")
-    else:
-        print(f"[WARN] Commit returned {result.returncode}: {result.stderr[:200]}")
-
-    # Push
-    result = subprocess.run(["git", "push", "origin", "main"], cwd=str(REPO_ROOT),
-                           capture_output=True, text=True)
-    if result.returncode == 0:
-        print("[INFO] Git push succeeded!")
-    else:
-        print(f"[ERROR] Git push failed: {result.stderr[:300]}")
-        # Try token-based push
-        git_token = os.environ.get("GITHUB_TOKEN", "")
-        if git_token:
-            token_url = f"https://x-access-token:{git_token}@github.com/yumxcode/X1_29_AMP.git"
-            result2 = subprocess.run(
-                ["git", "push", token_url, "main"],
-                cwd=str(REPO_ROOT), capture_output=True, text=True
-            )
-            if result2.returncode == 0:
-                print("[INFO] Git push via token succeeded!")
-            else:
-                print(f"[ERROR] Token push also failed: {result2.stderr[:300]}")
+    # Save as .pt in a location the SDK will detect
+    # SDK scans /workspace/isaaclab/X1_29_AMP/ recursively
+    output_pt = REPO_ROOT / "x1_gmr_results.pt"
+    torch.save(package, output_pt)
+    size_mb = output_pt.stat().st_size / 1e6
+    print(f"\n[INFO] Packaged {len(pkl_files)} files → {output_pt.name} ({size_mb:.1f}MB)")
+    print("[INFO] Gradmotion SDK should auto-upload this .pt file")
+    print("[INFO] Download via: gm task model list → policUrlDown")
 
 
 if __name__ == "__main__":
