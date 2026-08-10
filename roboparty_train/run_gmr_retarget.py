@@ -112,14 +112,21 @@ def setup_gmr():
 
     # Fix smplx library to use pkl extension instead of npz
     # GMR README: "change ext in smplx/body_models.py from npz to pkl"
-    smplx_init = venv_dir / "lib" / "python3.11" / "site-packages" / "smplx" / "body_models.py"
-    if smplx_init.exists():
-        content = smplx_init.read_text()
-        if "ext = 'npz'" in content or 'ext = "npz"' in content:
-            content = content.replace("ext = 'npz'", "ext = 'pkl'")
-            content = content.replace('ext = "npz"', 'ext = "pkl"')
-            smplx_init.write_text(content)
-            print("[INFO] Patched smplx body_models.py: npz → pkl")
+    # The smplx library hardcodes '.npz' in multiple places, patch all of them
+    smplx_pkg_dir = venv_dir / "lib" / "python3.11" / "site-packages" / "smplx"
+    for py_file in smplx_pkg_dir.glob("*.py"):
+        content = py_file.read_text()
+        if ".npz" in content:
+            content = content.replace(".npz", ".pkl")
+            content = content.replace("'npz'", "'pkl'")
+            content = content.replace('"npz"', '"pkl"')
+            py_file.write_text(content)
+            print(f"[INFO] Patched {py_file.name}: npz → pkl")
+    # Also check __pycache__ - remove cached .pyc to ensure patches take effect
+    pycache = smplx_pkg_dir / "__pycache__"
+    if pycache.exists():
+        shutil.rmtree(pycache)
+        print("[INFO] Cleared smplx __pycache__")
 
     return gmr_dir, venv_dir
 
