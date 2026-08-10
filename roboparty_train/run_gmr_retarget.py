@@ -426,17 +426,42 @@ def package_results(gmr_output: Path, auto_config_path=None):
         subprocess.run(["git", "add", str(auto_cfg_path.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
     subprocess.run(["git", "commit", "-m", f"add GMR retargeted motion data ({len(pkl_files)} files)"], cwd=str(REPO_ROOT))
 
-    push_result = subprocess.run(["git", "push", "origin", "main"], cwd=str(REPO_ROOT),
-                                capture_output=True, text=True)
+    # Push using token from environment or git credential helper
+    git_token = os.environ.get("GITHUB_TOKEN", "") or os.environ.get("GIT_TOKEN", "")
+    if not git_token:
+        # Try reading from Gradmotion's git credential config
+        try:
+            cred_result = subprocess.run(
+                ["git", "credential", "fill"],
+                input=b"protocol=https\nhost=github.com\n\n",
+                capture_output=True, cwd=str(REPO_ROOT)
+            )
+            cred_text = cred_result.stdout.decode()
+            if "password=" in cred_text:
+                git_token = cred_text.split("password=")[1].split("\n")[0]
+        except:
+            pass
+
+    if git_token:
+        token_url = f"https://x-access-token:{git_token}@github.com/yumxcode/X1_29_AMP.git"
+        push_result = subprocess.run(
+            ["git", "push", token_url, "main"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True
+        )
+    else:
+        push_result = subprocess.run(
+            ["git", "push", "origin", "main"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True
+        )
+
     if push_result.returncode == 0:
         print("[INFO] Git push succeeded!")
     else:
-        print(f"[WARN] Git push failed: {push_result.stderr[:200]}")
+        print(f"[WARN] Git push failed: {push_result.stderr[:300]}")
 
-    # Wait for SDK to upload the .pt file
-    print("[INFO] Waiting 120s for Gradmotion SDK to upload .pt file...")
-    time.sleep(120)
-    print("[INFO] Done waiting.")
+    # Wait for SDK to potentially upload the .pt file
+    print("[INFO] Waiting 60s for SDK...")
+    time.sleep(60)
 
 
 if __name__ == "__main__":
