@@ -31,7 +31,7 @@
 
     <mesh name="body_yaw" file="lumbar_yaw.STL" />
     <mesh name="body_roll" file="lumbar_roll.STL" />
-    <mesh name="body_pitch" file="lumbar_pitch.STL" />
+    <mesh name="body_pitch" file="lumbar_pitch.stl" />
 
 
     <mesh name="left_shoulder_pitch" file="left_shoulder_pitch.STL" />
