@@ -410,8 +410,10 @@ def package_results(gmr_output: Path, auto_config_path=None):
     torch.save(package, output_pt)
     size_mb = output_pt.stat().st_size / 1e6
     print(f"\n[INFO] Packaged {len(pkl_files)} files → {output_pt.name} ({size_mb:.1f}MB)")
-    print("[INFO] Gradmotion SDK should auto-upload this .pt file")
-    print("[INFO] Download via: gm task model list → policUrlDown")
+    print("[INFO] Waiting 60s for Gradmotion SDK to upload...")
+    import time
+    time.sleep(60)
+    print("[INFO] Wait complete. Check gm task model list for download URL.")
 
 
 if __name__ == "__main__":
