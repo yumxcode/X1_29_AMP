@@ -12,29 +12,40 @@ import subprocess
 import sys
 import os
 
-# Auto-install robolab if not found
+# Step 1: Add robolab/rsl_rl source to sys.path BEFORE anything else
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+# Try multiple repo root candidates
+for repo_root in [
+    os.path.abspath(os.path.join(_script_dir, "../../../..")),    # X1_29_AMP/
+    os.path.abspath(os.path.join(_script_dir, "../../../../../")),  # workspace root
+]:
+    for subdir in ["roboparty_train/robolab", "X1_29_AMP/roboparty_train/robolab"]:
+        candidate = os.path.join(repo_root, subdir)
+        if os.path.isdir(os.path.join(candidate, "robolab")):
+            sys.path.insert(0, candidate)
+            print(f"[INFO] Added to sys.path: {candidate}")
+            break
+    for subdir in ["roboparty_train/rsl_rl", "X1_29_AMP/roboparty_train/rsl_rl"]:
+        candidate = os.path.join(repo_root, subdir)
+        if os.path.isdir(os.path.join(candidate, "rsl_rl")):
+            sys.path.insert(0, candidate)
+            print(f"[INFO] Added to sys.path: {candidate}")
+            break
+
+# Step 2: Also try pip install as backup
 try:
     import robolab
 except ImportError:
-    print("[INFO] robolab not found, installing...")
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-    robolab_path = os.path.join(repo_root, "roboparty_train", "robolab")
-    rsl_rl_path = os.path.join(repo_root, "roboparty_train", "rsl_rl")
-    if os.path.isdir(robolab_path):
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", robolab_path])
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", rsl_rl_path])
-        print("[INFO] robolab installed successfully.")
-    else:
-        # Try alternate path
-        robolab_path2 = os.path.join(repo_root, "X1_29_AMP", "roboparty_train", "robolab")
-        if os.path.isdir(robolab_path2):
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", robolab_path2])
-            rsl_rl_path2 = os.path.join(repo_root, "X1_29_AMP", "roboparty_train", "rsl_rl")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", rsl_rl_path2])
-            print("[INFO] robolab installed successfully (alt path).")
-        else:
-            print(f"[ERROR] Cannot find robolab at {robolab_path} or {robolab_path2}")
-            sys.exit(1)
+    print("[INFO] robolab still not found after sys.path, trying pip install...")
+    for repo_root in [
+        os.path.abspath(os.path.join(_script_dir, "../../../..")),
+    ]:
+        robolab_path = os.path.join(repo_root, "roboparty_train", "robolab")
+        rsl_rl_path = os.path.join(repo_root, "roboparty_train", "rsl_rl")
+        if os.path.isdir(robolab_path):
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", rsl_rl_path, "-q"])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", robolab_path, "-q"])
+            print("[INFO] pip install done.")
 
 from isaaclab.app import AppLauncher
 
@@ -43,6 +54,25 @@ AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
+
+# Step 3: Re-add paths after AppLauncher (it may reset sys.path)
+for repo_root in [
+    os.path.abspath(os.path.join(_script_dir, "../../../..")),
+    os.path.abspath(os.path.join(_script_dir, "../../../../../")),
+]:
+    for subdir in ["roboparty_train/robolab", "X1_29_AMP/roboparty_train/robolab"]:
+        candidate = os.path.join(repo_root, subdir)
+        if os.path.isdir(os.path.join(candidate, "robolab")):
+            if candidate not in sys.path:
+                sys.path.insert(0, candidate)
+                print(f"[INFO] Re-added to sys.path after AppLauncher: {candidate}")
+            break
+    for subdir in ["roboparty_train/rsl_rl", "X1_29_AMP/roboparty_train/rsl_rl"]:
+        candidate = os.path.join(repo_root, subdir)
+        if os.path.isdir(os.path.join(candidate, "rsl_rl")):
+            if candidate not in sys.path:
+                sys.path.insert(0, candidate)
+            break
 
 import numpy as np
 import torch
