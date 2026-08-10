@@ -367,6 +367,80 @@ def main():
         print(f"Auto-IK config: {auto_config}")
     print("=" * 60)
 
+    # Step 6: Push results back to git
+    print("\n--- Step 6: Push Results to Git ---")
+    git_push_results(gmr_output, auto_config)
+
+
+def git_push_results(gmr_output: Path, auto_config_path=None):
+    """Commit and push GMR output + auto-IK config back to the git repo."""
+    import git
+
+    repo = git.Repo(str(REPO_ROOT))
+    origin = repo.remote("origin")
+
+    # Configure git user if needed
+    with repo.config_writer() as cw:
+        if not cw.get_value("user", "email", fallback=""):
+            cw.set_value("user", "email", "bot@gradmotion.com")
+        if not cw.get_value("user", "name", fallback=""):
+            cw.set_value("user", "name", "Gradmotion Bot")
+
+    # Build push URL with token from environment
+    # Gradmotion injects GITHUB_TOKEN via the container's git credential helper
+    # Try using the existing remote first, fall back to token-based URL
+    git_token = os.environ.get("GITHUB_TOKEN", "")
+    git_user = os.environ.get("GITHUB_USER", "")
+
+    # Add all pkl files
+    pkl_files = list(gmr_output.glob("*.pkl"))
+    if not pkl_files:
+        print("[ERROR] No pkl files to push")
+        return
+
+    for f in pkl_files:
+        repo.index.add(str(f.relative_to(REPO_ROOT)))
+    print(f"[INFO] Staged {len(pkl_files)} pkl files")
+
+    # Add auto-IK config if available
+    if auto_config_path and auto_config_path.exists():
+        repo_copy = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+        if repo_copy.exists():
+            repo.index.add(str(repo_copy.relative_to(REPO_ROOT)))
+            print(f"[INFO] Staged smplx_to_x1_auto.json")
+
+    # Commit
+    commit_msg = f"add GMR retargeted motion data ({len(pkl_files)} files, auto-IK calibrated)"
+    try:
+        repo.index.commit(commit_msg)
+        print(f"[INFO] Committed: {commit_msg}")
+    except Exception as e:
+        print(f"[WARN] Commit failed (maybe nothing to commit): {e}")
+        return
+
+    # Push
+    try:
+        origin.push(refspec="main")
+        print("[INFO] Git push succeeded!")
+    except Exception as e:
+        print(f"[WARN] Push via origin failed: {e}")
+        # Try token-based push
+        if git_token and git_user:
+            token_url = f"https://{git_user}:{git_token}@github.com/yumxcode/X1_29_AMP.git"
+            try:
+                repo.create_remote("token_origin", token_url)
+                repo.remote("token_origin").push(refspec="main")
+                print("[INFO] Git push via token succeeded!")
+            except Exception as e2:
+                print(f"[ERROR] Token push also failed: {e2}")
+        else:
+            # Try with credential helper
+            try:
+                subprocess.run(["git", "push", "origin", "main"], cwd=str(REPO_ROOT), check=True)
+                print("[INFO] Git push via subprocess succeeded!")
+            except Exception as e2:
+                print(f"[ERROR] All push methods failed: {e2}")
+
 
 if __name__ == "__main__":
     main()
