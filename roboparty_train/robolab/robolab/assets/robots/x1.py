@@ -35,7 +35,7 @@ X1_CFG = ArticulationCfg(
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.61),
+        pos=(0.0, 0.0, 0.75),  # base_link height in bent-knee standing pose (total robot height ~1.25m)
         joint_pos={
             # waist
             "lumbar_yaw_joint": 0.0,

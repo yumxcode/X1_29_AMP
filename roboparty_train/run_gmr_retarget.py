@@ -2,24 +2,22 @@
 """
 GMR retargeting pipeline for X1 humanoid on Gradmotion.
 
-This script:
-1. Reassembles SMPLX_NEUTRAL.pkl from git chunks
-2. Clones and installs GMR in a separate venv (avoids Isaac Lab numpy conflict)
-3. Registers X1 in GMR's params.py
-4. Runs GMR batch retargeting on AMASS data → x1_gmr/*.pkl
+Pipeline:
+1. Reassemble SMPLX_NEUTRAL.pkl from git chunks
+2. Clone and install GMR in a separate venv
+3. Register X1 in GMR's params.py
+4. Run GMR auto-IK generator → smplx_to_x1_auto.json (calibrated config)
+5. Run GMR batch retargeting on AMASS data → x1_gmr/*.pkl
 
 Usage:
     python run_gmr_retarget.py --headless
 """
 
-import argparse
 import functools
 import os
 import shutil
 import subprocess
 import sys
-import json
-import pickle
 import numpy as np
 from pathlib import Path
 
@@ -27,12 +25,9 @@ print = functools.partial(print, flush=True)
 
 # IMPORTANT: Do NOT import isaaclab or start AppLauncher.
 # GMR has its own MuJoCo-based pipeline that conflicts with Isaac Lab's numpy.
-# This script runs as a standalone Python script.
 
 # ── Step 0: Locate workspace and repo root ──────────────────────────
 SCRIPT_DIR = Path(__file__).parent.resolve()
-# On Gradmotion: /workspace/isaaclab/X1_29_AMP/...
-# Try to find repo root
 REPO_ROOT = None
 for candidate in [SCRIPT_DIR, SCRIPT_DIR.parent, SCRIPT_DIR.parent.parent,
                   SCRIPT_DIR.parent.parent.parent.parent]:
@@ -44,14 +39,13 @@ for candidate in [SCRIPT_DIR, SCRIPT_DIR.parent, SCRIPT_DIR.parent.parent,
         break
 
 if REPO_ROOT is None:
-    # Search from isaaclab workspace
     for p in [Path("/workspace/isaaclab/X1_29_AMP")]:
         if p.is_dir():
             REPO_ROOT = p
             break
 
 if REPO_ROOT is None:
-    print("[FATAL] Cannot find repo root with AMASS_minimal and roboparty_train")
+    print("[FATAL] Cannot find repo root")
     sys.exit(1)
 
 print(f"[INFO] REPO_ROOT = {REPO_ROOT}")
@@ -64,27 +58,19 @@ def reassemble_smplx():
     output_file = output_dir / "SMPLX_NEUTRAL.pkl"
 
     if output_file.exists():
-        print(f"[INFO] SMPLX_NEUTRAL.pkl already exists ({output_file.stat().st_size} bytes)")
+        print(f"[INFO] SMPLX_NEUTRAL.pkl exists ({output_file.stat().st_size} bytes)")
         return output_file
 
-    print("[INFO] Reassembling SMPLX_NEUTRAL.pkl from chunks...")
+    print("[INFO] Reassembling SMPLX_NEUTRAL.pkl...")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     chunks = sorted(chunks_dir.glob("SMPLX_NEUTRAL.pkl.part*"))
-    if not chunks:
-        print(f"[FATAL] No chunks found in {chunks_dir}")
-        sys.exit(1)
-
     with open(output_file, "wb") as f:
         for chunk in chunks:
             f.write(chunk.read_bytes())
 
     size = output_file.stat().st_size
-    print(f"[INFO] SMPLX_NEUTRAL.pkl reassembled: {size} bytes ({size / 1e6:.1f} MB)")
-    if size < 100_000_000:
-        print("[FATAL] File too small!")
-        sys.exit(1)
-
+    print(f"[INFO] Reassembled: {size} bytes ({size / 1e6:.1f} MB)")
     return output_file
 
 
@@ -92,29 +78,24 @@ def reassemble_smplx():
 def setup_gmr():
     gmr_dir = REPO_ROOT / "GMR"
 
-    if gmr_dir.exists() and (gmr_dir / "setup.py").exists():
-        print(f"[INFO] GMR already exists at {gmr_dir}")
-    else:
+    if not (gmr_dir / "setup.py").exists():
         print("[INFO] Cloning GMR...")
         subprocess.check_call([
             "git", "clone", "--depth", "1",
             "https://github.com/Roboparty/GMR.git", str(gmr_dir)
         ])
 
-    # Create isolated venv to avoid Isaac Lab numpy conflict
+    # Create isolated venv
     venv_dir = REPO_ROOT / "gmr_venv"
     if not venv_dir.exists():
         print("[INFO] Creating isolated venv for GMR...")
         subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
         pip = str(venv_dir / "bin" / "pip")
         subprocess.check_call([pip, "install", "--upgrade", "pip", "-q"])
-        # Install GMR + dependencies
         subprocess.check_call([pip, "install", "-e", str(gmr_dir), "-q"])
-        # Also install mujoco and other deps that GMR needs
-        subprocess.check_call([pip, "install", "mujoco", "mink", "qpsolvers", "scipy", "-q"])
         print("[INFO] GMR venv ready")
 
-    # Set up SMPLX body models for GMR
+    # Copy SMPLX body model
     gmr_body_models = gmr_dir / "assets" / "body_models" / "smplx"
     gmr_body_models.mkdir(parents=True, exist_ok=True)
     smplx_pkl = REPO_ROOT / "AMASS_minimal" / "smplx" / "SMPLX_NEUTRAL.pkl"
@@ -128,7 +109,6 @@ def setup_gmr():
 
 # ── Step 3: Register X1 in GMR ─────────────────────────────────────
 def register_x1_in_gmr(gmr_dir: Path):
-    """Add X1 to GMR's params.py and copy assets."""
     # 3a. Copy X1 MJCF + meshes to GMR assets
     x1_assets_src = REPO_ROOT / "gmr_x1_assets"
     x1_assets_dst = gmr_dir / "assets" / "x1"
@@ -137,33 +117,34 @@ def register_x1_in_gmr(gmr_dir: Path):
     shutil.copytree(x1_assets_src, x1_assets_dst)
     print(f"[INFO] Copied X1 assets to {x1_assets_dst}")
 
-    # 3b. Copy IK config
+    # 3b. Copy rough IK config (as input for auto-IK)
     ik_src = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1.json"
     ik_dst = gmr_dir / "general_motion_retargeting" / "ik_configs" / "smplx_to_x1.json"
     shutil.copy2(ik_src, ik_dst)
     print(f"[INFO] Copied IK config to {ik_dst}")
 
-    # 3c. Patch params.py
+    # 3c. Copy T-pose JSON
+    tpose_src = x1_assets_dst / "x1_tpose.json"
+    tpose_dst = gmr_dir / "ik_config_manager" / "pose_inits" / "x1_tpose.json"
+    shutil.copy2(tpose_src, tpose_dst)
+    print(f"[INFO] Copied T-pose to {tpose_dst}")
+
+    # 3d. Patch params.py
     params_file = gmr_dir / "general_motion_retargeting" / "params.py"
     content = params_file.read_text()
-
     if '"x1"' not in content:
-        # Add to ROBOT_XML_DICT
         content = content.replace(
             '"rpo": ASSET_ROOT / "rpo" / "rpo.xml",',
             '"rpo": ASSET_ROOT / "rpo" / "rpo.xml",\n    "x1": ASSET_ROOT / "x1" / "x1.xml",'
         )
-        # Add to IK_CONFIG_DICT["smplx"]
         content = content.replace(
             '"rpo": IK_CONFIG_ROOT / "smplx_to_rpo.json",',
             '"rpo": IK_CONFIG_ROOT / "smplx_to_rpo.json",\n        "x1": IK_CONFIG_ROOT / "smplx_to_x1.json",'
         )
-        # Add to ROBOT_BASE_DICT
         content = content.replace(
             '"rpo": "base_link",',
             '"rpo": "base_link",\n    "x1": "base_link",'
         )
-        # Add to VIEWER_CAM_DISTANCE_DICT
         content = content.replace(
             '"rpo": 2.0,\n}',
             '"rpo": 2.0,\n    "x1": 2.0,\n}'
@@ -173,20 +154,81 @@ def register_x1_in_gmr(gmr_dir: Path):
     else:
         print("[INFO] X1 already registered in params.py")
 
+    # 3e. Patch generate_keypoint_mapping_smplx.py to add x1 to choices
+    gen_file = gmr_dir / "ik_config_manager" / "generate_keypoint_mapping_smplx.py"
+    gen_content = gen_file.read_text()
+    if '"x1"' not in gen_content:
+        gen_content = gen_content.replace(
+            '"openloong", "tienkung","joyin","joyin_add", "rpo"]',
+            '"openloong", "tienkung","joyin","joyin_add", "rpo", "x1"]'
+        )
+        gen_file.write_text(gen_content)
+        print("[INFO] Patched generate_keypoint_mapping_smplx.py with x1 choice")
 
-# ── Step 4: Run GMR batch retargeting via subprocess ──────────────
+
+# ── Step 4: Run GMR auto-IK generator ──────────────────────────────
+def run_auto_ik(gmr_dir: Path, venv_dir: Path):
+    """Run GMR's auto-IK config generator to calibrate scale/offset/quaternion."""
+    output_config = gmr_dir / "general_motion_retargeting" / "ik_configs" / "smplx_to_x1_auto.json"
+
+    if output_config.exists():
+        print(f"[INFO] Auto-IK config already exists: {output_config}")
+        # Use it as the active config
+        active_config = gmr_dir / "general_motion_retargeting" / "ik_configs" / "smplx_to_x1.json"
+        shutil.copy2(output_config, active_config)
+        return output_config
+
+    venv_python = str(venv_dir / "bin" / "python")
+    gen_script = gmr_dir / "ik_config_manager" / "generate_keypoint_mapping_smplx.py"
+
+    cmd = [
+        venv_python, str(gen_script),
+        "--smplx_file", str(gmr_dir / "ik_config_manager" / "SMPLX_TPOSE_UNIFIED_AMASS.npz"),
+        "--robot", "x1",
+        "--robot_qpos_init", str(gmr_dir / "ik_config_manager" / "pose_inits" / "x1_tpose.json"),
+        "--ik_config_in", str(gmr_dir / "general_motion_retargeting" / "ik_configs" / "smplx_to_x1.json"),
+        "--ik_config_out", str(output_config),
+    ]
+
+    print(f"[INFO] Running auto-IK generator...")
+    print(f"[INFO] Command: {' '.join(cmd)}")
+
+    env = {**os.environ, "X1_REPO_ROOT": str(REPO_ROOT)}
+
+    result = subprocess.run(cmd, env=env, cwd=str(gmr_dir))
+
+    if result.returncode != 0:
+        print(f"[ERROR] Auto-IK failed with exit code {result.returncode}")
+        print("[WARN] Falling back to manual config")
+        return None
+
+    if output_config.exists():
+        print(f"[INFO] Auto-IK config generated: {output_config}")
+        # Copy as active config
+        active_config = gmr_dir / "general_motion_retargeting" / "ik_configs" / "smplx_to_x1.json"
+        shutil.copy2(output_config, active_config)
+        print(f"[INFO] Updated active IK config with auto-calibrated version")
+
+        # Also save to repo for reference
+        repo_copy = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+        shutil.copy2(output_config, repo_copy)
+
+        return output_config
+    else:
+        print("[ERROR] Auto-IK output not found")
+        return None
+
+
+# ── Step 5: Run GMR batch retargeting via subprocess ──────────────
 def run_gmr_retarget(gmr_dir: Path, venv_dir: Path):
-    """Run GMR retargeting in isolated venv via subprocess."""
     output_dir = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "x1_gmr"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write the retarget worker script
     worker_script = gmr_dir / "run_x1_batch.py"
     worker_code = '''
 import sys, os, pickle, numpy as np, torch
 from pathlib import Path
 
-# Ensure GMR is importable
 gmr_root = Path(__file__).parent
 sys.path.insert(0, str(gmr_root))
 
@@ -198,7 +240,6 @@ repo_root = Path(os.environ["X1_REPO_ROOT"])
 smplx_folder = gmr_root / "assets" / "body_models" / "smplx"
 output_dir = repo_root / "roboparty_train" / "robolab" / "data" / "motions" / "x1_gmr"
 
-# Collect AMASS npz files
 npz_files = []
 for subdir in ["CMU", "BMLrub_stageii"]:
     d = repo_root / "AMASS_minimal" / subdir
@@ -209,12 +250,15 @@ print(f"[GMR] Found {len(npz_files)} AMASS npz files", flush=True)
 
 kinematics_model = None
 retargeter = None
+successful = 0
+failed = 0
 
 for i, npz_file in enumerate(npz_files):
     out_name = npz_file.stem.replace("_stageii", "") + ".pkl"
     out_path = output_dir / out_name
     if out_path.exists():
         print(f"[GMR] [{i+1}/{len(npz_files)}] SKIP (exists): {out_name}", flush=True)
+        successful += 1
         continue
     print(f"[GMR] [{i+1}/{len(npz_files)}] Retargeting: {npz_file.name}", flush=True)
     try:
@@ -237,7 +281,6 @@ for i, npz_file in enumerate(npz_files):
         root_rot[:, [0, 1, 2, 3]] = root_rot[:, [1, 2, 3, 0]]
         dof_pos = qpos_list[:, 7:].copy()
 
-        # Height adjust
         body_pos, body_rot = kinematics_model.forward_kinematics(
             torch.tensor(root_pos, device="cuda:0", dtype=torch.float32),
             torch.tensor(root_rot, device="cuda:0", dtype=torch.float32),
@@ -248,44 +291,30 @@ for i, npz_file in enumerate(npz_files):
         root_pos[:, :2] -= root_pos[0, :2]
 
         motion_data = {
-            "fps": aligned_fps,
-            "root_pos": root_pos,
-            "root_rot": root_rot,
-            "dof_names": kinematics_model.dof_names,
-            "body_names": kinematics_model.body_names,
-            "dof_positions": dof_pos,
-            "dof_pos": dof_pos,
+            "fps": aligned_fps, "root_pos": root_pos, "root_rot": root_rot,
+            "dof_names": kinematics_model.dof_names, "body_names": kinematics_model.body_names,
+            "dof_positions": dof_pos, "dof_pos": dof_pos,
             "body_positions": body_pos.cpu().numpy(),
             "body_rotations": body_rot.cpu().numpy(),
             "local_body_pos": body_pos.cpu().numpy(),
         }
         with open(out_path, "wb") as f:
             pickle.dump(motion_data, f)
-        print(f"[GMR]   Saved: {out_path.name} ({len(qpos_list)} frames, {dof_pos.shape[1]} DOF)", flush=True)
+        print(f"[GMR]   OK: {out_path.name} ({len(qpos_list)} frames, {dof_pos.shape[1]} DOF)", flush=True)
+        successful += 1
     except Exception as e:
-        print(f"[GMR]   FAILED: {e}", flush=True)
+        print(f"[GMR]   FAIL: {e}", flush=True)
+        failed += 1
 
-print("[GMR] Batch retargeting complete.", flush=True)
+print(f"[GMR] Done: {successful} ok, {failed} fail", flush=True)
 '''
     worker_script.write_text(worker_code)
-    print(f"[INFO] Wrote worker script to {worker_script}")
 
-    # Run in venv
     venv_python = str(venv_dir / "bin" / "python")
     env = {**os.environ, "X1_REPO_ROOT": str(REPO_ROOT)}
 
-    print("[INFO] Running GMR batch retargeting in venv...")
-    result = subprocess.run(
-        [venv_python, str(worker_script)],
-        env=env,
-        capture_output=False,
-        text=True
-    )
-
-    if result.returncode != 0:
-        print(f"[ERROR] GMR retargeting failed with exit code {result.returncode}")
-    else:
-        print("[INFO] GMR retargeting completed successfully")
+    print("[INFO] Running GMR batch retargeting...")
+    result = subprocess.run([venv_python, str(worker_script)], env=env)
 
     pkl_count = len(list(output_dir.glob("*.pkl")))
     print(f"[INFO] Output: {output_dir} ({pkl_count} pkl files)")
@@ -295,24 +324,26 @@ print("[GMR] Batch retargeting complete.", flush=True)
 # ── Main ───────────────────────────────────────────────────────────
 def main():
     print("=" * 60)
-    print("X1 GMR Retargeting Pipeline")
+    print("X1 GMR Retargeting Pipeline (with Auto-IK)")
     print("=" * 60)
 
-    # Step 1
     reassemble_smplx()
-
-    # Step 2
     gmr_dir, venv_dir = setup_gmr()
-
-    # Step 3
     register_x1_in_gmr(gmr_dir)
 
-    # Step 4
+    # Step 4: Auto-IK calibration
+    print("\n--- Step 4: Auto-IK Config Generation ---")
+    auto_config = run_auto_ik(gmr_dir, venv_dir)
+
+    # Step 5: Batch retarget
+    print("\n--- Step 5: Batch Retargeting ---")
     gmr_output = run_gmr_retarget(gmr_dir, venv_dir)
 
     print("\n" + "=" * 60)
     print(f"DONE! GMR output: {gmr_output}")
     print(f"Files: {len(list(gmr_output.glob('*.pkl')))}")
+    if auto_config:
+        print(f"Auto-IK config: {auto_config}")
     print("=" * 60)
 
 
