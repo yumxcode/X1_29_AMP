@@ -218,11 +218,9 @@ def run_auto_ik(gmr_dir: Path, venv_dir: Path):
 
     result = subprocess.run(cmd, env=env, cwd=str(gmr_dir))
 
-    if result.returncode != 0:
-        print(f"[ERROR] Auto-IK failed with exit code {result.returncode}")
-        print("[WARN] Falling back to manual config")
-        return None
-
+    # NOTE: The auto-IK generator may exit with non-zero due to GLFWError
+    # (headless X11 display missing), but the config file is still generated.
+    # Check for the output file regardless of exit code.
     if output_config.exists():
         print(f"[INFO] Auto-IK config generated: {output_config}")
         # Copy as active config
@@ -236,7 +234,9 @@ def run_auto_ik(gmr_dir: Path, venv_dir: Path):
 
         return output_config
     else:
-        print("[ERROR] Auto-IK output not found")
+        if result.returncode != 0:
+            print(f"[ERROR] Auto-IK failed with exit code {result.returncode} and no output file")
+        print("[WARN] Falling back to manual config")
         return None
 
 
