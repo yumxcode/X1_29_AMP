@@ -4,10 +4,9 @@ GMR retargeting pipeline for X1 humanoid on Gradmotion.
 
 This script:
 1. Reassembles SMPLX_NEUTRAL.pkl from git chunks
-2. Clones and installs GMR
+2. Clones and installs GMR in a separate venv (avoids Isaac Lab numpy conflict)
 3. Registers X1 in GMR's params.py
 4. Runs GMR batch retargeting on AMASS data → x1_gmr/*.pkl
-5. Runs Isaac Lab dataset_retarget → x1_lab/*.pkl
 
 Usage:
     python run_gmr_retarget.py --headless
@@ -25,6 +24,10 @@ import numpy as np
 from pathlib import Path
 
 print = functools.partial(print, flush=True)
+
+# IMPORTANT: Do NOT import isaaclab or start AppLauncher.
+# GMR has its own MuJoCo-based pipeline that conflicts with Isaac Lab's numpy.
+# This script runs as a standalone Python script.
 
 # ── Step 0: Locate workspace and repo root ──────────────────────────
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -85,7 +88,7 @@ def reassemble_smplx():
     return output_file
 
 
-# ── Step 2: Clone and install GMR ──────────────────────────────────
+# ── Step 2: Clone and install GMR in separate venv ────────────────
 def setup_gmr():
     gmr_dir = REPO_ROOT / "GMR"
 
@@ -98,12 +101,18 @@ def setup_gmr():
             "https://github.com/Roboparty/GMR.git", str(gmr_dir)
         ])
 
-    # Install GMR
-    print("[INFO] Installing GMR...")
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "-e", str(gmr_dir), "-q"],
-        env={**os.environ, "PIP_NO_BUILD_ISOLATION": "1"}
-    )
+    # Create isolated venv to avoid Isaac Lab numpy conflict
+    venv_dir = REPO_ROOT / "gmr_venv"
+    if not venv_dir.exists():
+        print("[INFO] Creating isolated venv for GMR...")
+        subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+        pip = str(venv_dir / "bin" / "pip")
+        subprocess.check_call([pip, "install", "--upgrade", "pip", "-q"])
+        # Install GMR + dependencies
+        subprocess.check_call([pip, "install", "-e", str(gmr_dir), "-q"])
+        # Also install mujoco and other deps that GMR needs
+        subprocess.check_call([pip, "install", "mujoco", "mink", "qpsolvers", "scipy", "-q"])
+        print("[INFO] GMR venv ready")
 
     # Set up SMPLX body models for GMR
     gmr_body_models = gmr_dir / "assets" / "body_models" / "smplx"
@@ -114,7 +123,7 @@ def setup_gmr():
         shutil.copy2(smplx_pkl, target)
         print(f"[INFO] Copied SMPLX_NEUTRAL.pkl to GMR body_models")
 
-    return gmr_dir
+    return gmr_dir, venv_dir
 
 
 # ── Step 3: Register X1 in GMR ─────────────────────────────────────
@@ -165,112 +174,121 @@ def register_x1_in_gmr(gmr_dir: Path):
         print("[INFO] X1 already registered in params.py")
 
 
-# ── Step 4: Run GMR batch retargeting ──────────────────────────────
-def run_gmr_retarget(gmr_dir: Path):
-    """Run GMR smplx_to_robot_dataset.py on AMASS data."""
+# ── Step 4: Run GMR batch retargeting via subprocess ──────────────
+def run_gmr_retarget(gmr_dir: Path, venv_dir: Path):
+    """Run GMR retargeting in isolated venv via subprocess."""
     output_dir = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "x1_gmr"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Collect all AMASS npz files
-    amass_dir = REPO_ROOT / "AMASS_minimal"
-    npz_files = []
-    for subdir in ["CMU", "BMLrub_stageii"]:
-        d = amass_dir / subdir
-        if d.is_dir():
-            npz_files.extend(sorted(d.glob("**/*.npz")))
+    # Write the retarget worker script
+    worker_script = gmr_dir / "run_x1_batch.py"
+    worker_code = '''
+import sys, os, pickle, numpy as np, torch
+from pathlib import Path
 
-    print(f"[INFO] Found {len(npz_files)} AMASS npz files to retarget")
+# Ensure GMR is importable
+gmr_root = Path(__file__).parent
+sys.path.insert(0, str(gmr_root))
 
-    # Add GMR to sys.path
-    sys.path.insert(0, str(gmr_dir))
+from general_motion_retargeting import GeneralMotionRetargeting as GMR
+from general_motion_retargeting.utils.smpl import load_smplx_file, get_smplx_data_offline_fast
+from general_motion_retargeting.kinematics_model import KinematicsModel
 
-    from general_motion_retargeting import GeneralMotionRetargeting as GMR
-    from general_motion_retargeting.utils.smpl import load_smplx_file, get_smplx_data_offline_fast
-    from general_motion_retargeting.kinematics_model import KinematicsModel
+repo_root = Path(os.environ["X1_REPO_ROOT"])
+smplx_folder = gmr_root / "assets" / "body_models" / "smplx"
+output_dir = repo_root / "roboparty_train" / "robolab" / "data" / "motions" / "x1_gmr"
 
-    smplx_folder = gmr_dir / "assets" / "body_models" / "smplx"
+# Collect AMASS npz files
+npz_files = []
+for subdir in ["CMU", "BMLrub_stageii"]:
+    d = repo_root / "AMASS_minimal" / subdir
+    if d.is_dir():
+        npz_files.extend(sorted(d.glob("**/*.npz")))
 
-    successful = 0
-    failed = 0
+print(f"[GMR] Found {len(npz_files)} AMASS npz files", flush=True)
 
-    for i, npz_file in enumerate(npz_files):
-        out_name = npz_file.stem.replace("_stageii", "") + ".pkl"
-        out_path = output_dir / out_name
+kinematics_model = None
+retargeter = None
 
-        if out_path.exists():
-            print(f"[{i+1}/{len(npz_files)}] SKIP (exists): {out_name}")
-            successful += 1
-            continue
+for i, npz_file in enumerate(npz_files):
+    out_name = npz_file.stem.replace("_stageii", "") + ".pkl"
+    out_path = output_dir / out_name
+    if out_path.exists():
+        print(f"[GMR] [{i+1}/{len(npz_files)}] SKIP (exists): {out_name}", flush=True)
+        continue
+    print(f"[GMR] [{i+1}/{len(npz_files)}] Retargeting: {npz_file.name}", flush=True)
+    try:
+        smplx_data, body_model, smplx_output, actual_human_height = load_smplx_file(str(npz_file), str(smplx_folder))
+        src_fps = smplx_data["mocap_frame_rate"].item()
+        smplx_frame_data_list, aligned_fps = get_smplx_data_offline_fast(smplx_data, body_model, smplx_output, tgt_fps=src_fps)
 
-        print(f"[{i+1}/{len(npz_files)}] Retargeting: {npz_file.name}")
-
-        try:
-            # Load SMPLX data
-            smplx_data, body_model, smplx_output, actual_human_height = load_smplx_file(
-                str(npz_file), str(smplx_folder)
-            )
-            src_fps = smplx_data["mocap_frame_rate"].item()
-
-            smplx_frame_data_list, aligned_fps = get_smplx_data_offline_fast(
-                smplx_data, body_model, smplx_output, tgt_fps=src_fps
-            )
-
-            # Retarget
-            retargeter = GMR(
-                src_human="smplx",
-                tgt_robot="x1",
-                actual_human_height=actual_human_height,
-            )
-
-            qpos_list = []
-            for smplx_frame_data in smplx_frame_data_list:
-                qpos = retargeter.retarget(smplx_frame_data)
-                qpos_list.append(qpos.copy())
-
-            qpos_list = np.array(qpos_list)
-
-            # Process root pos/rot
-            root_pos = qpos_list[:, :3].copy()
-            root_rot = qpos_list[:, 3:7].copy()
-            # xyzw → wxyz
-            root_rot[:, [0, 1, 2, 3]] = root_rot[:, [1, 2, 3, 0]]
-            dof_pos = qpos_list[:, 7:].copy()
-
-            # Height adjust
+        if retargeter is None:
+            retargeter = GMR(src_human="smplx", tgt_robot="x1", actual_human_height=actual_human_height)
             kinematics_model = KinematicsModel(retargeter.xml_file, device="cuda:0")
-            body_pos, body_rot = kinematics_model.forward_kinematics(
-                torch.tensor(root_pos, device="cuda:0", dtype=torch.float32),
-                torch.tensor(root_rot, device="cuda:0", dtype=torch.float32),
-                torch.tensor(dof_pos, device="cuda:0", dtype=torch.float32),
-            )
-            lowest = torch.min(body_pos[..., 2]).item()
-            root_pos[:, 2] -= lowest
-            root_pos[:, :2] -= root_pos[0, :2]
 
-            motion_data = {
-                "fps": aligned_fps,
-                "root_pos": root_pos,
-                "root_rot": root_rot,
-                "dof_names": kinematics_model.dof_names,
-                "body_names": kinematics_model.body_names,
-                "dof_positions": dof_pos,
-                "dof_pos": dof_pos,
-                "body_positions": body_pos.cpu().numpy(),
-                "body_rotations": body_rot.cpu().numpy(),
-                "local_body_pos": body_pos.cpu().numpy(),
-            }
+        qpos_list = []
+        for smplx_frame_data in smplx_frame_data_list:
+            qpos = retargeter.retarget(smplx_frame_data)
+            qpos_list.append(qpos.copy())
+        qpos_list = np.array(qpos_list)
 
-            with open(out_path, "wb") as f:
-                pickle.dump(motion_data, f)
+        root_pos = qpos_list[:, :3].copy()
+        root_rot = qpos_list[:, 3:7].copy()
+        root_rot[:, [0, 1, 2, 3]] = root_rot[:, [1, 2, 3, 0]]
+        dof_pos = qpos_list[:, 7:].copy()
 
-            print(f"  → Saved: {out_path.name} ({len(qpos_list)} frames, {dof_pos.shape[1]} DOF)")
-            successful += 1
+        # Height adjust
+        body_pos, body_rot = kinematics_model.forward_kinematics(
+            torch.tensor(root_pos, device="cuda:0", dtype=torch.float32),
+            torch.tensor(root_rot, device="cuda:0", dtype=torch.float32),
+            torch.tensor(dof_pos, device="cuda:0", dtype=torch.float32),
+        )
+        lowest = torch.min(body_pos[..., 2]).item()
+        root_pos[:, 2] -= lowest
+        root_pos[:, :2] -= root_pos[0, :2]
 
-        except Exception as e:
-            print(f"  → FAILED: {e}")
-            failed += 1
+        motion_data = {
+            "fps": aligned_fps,
+            "root_pos": root_pos,
+            "root_rot": root_rot,
+            "dof_names": kinematics_model.dof_names,
+            "body_names": kinematics_model.body_names,
+            "dof_positions": dof_pos,
+            "dof_pos": dof_pos,
+            "body_positions": body_pos.cpu().numpy(),
+            "body_rotations": body_rot.cpu().numpy(),
+            "local_body_pos": body_pos.cpu().numpy(),
+        }
+        with open(out_path, "wb") as f:
+            pickle.dump(motion_data, f)
+        print(f"[GMR]   Saved: {out_path.name} ({len(qpos_list)} frames, {dof_pos.shape[1]} DOF)", flush=True)
+    except Exception as e:
+        print(f"[GMR]   FAILED: {e}", flush=True)
 
-    print(f"\n[INFO] GMR retargeting done: {successful} success, {failed} failed")
+print("[GMR] Batch retargeting complete.", flush=True)
+'''
+    worker_script.write_text(worker_code)
+    print(f"[INFO] Wrote worker script to {worker_script}")
+
+    # Run in venv
+    venv_python = str(venv_dir / "bin" / "python")
+    env = {**os.environ, "X1_REPO_ROOT": str(REPO_ROOT)}
+
+    print("[INFO] Running GMR batch retargeting in venv...")
+    result = subprocess.run(
+        [venv_python, str(worker_script)],
+        env=env,
+        capture_output=False,
+        text=True
+    )
+
+    if result.returncode != 0:
+        print(f"[ERROR] GMR retargeting failed with exit code {result.returncode}")
+    else:
+        print("[INFO] GMR retargeting completed successfully")
+
+    pkl_count = len(list(output_dir.glob("*.pkl")))
+    print(f"[INFO] Output: {output_dir} ({pkl_count} pkl files)")
     return output_dir
 
 
@@ -284,14 +302,13 @@ def main():
     reassemble_smplx()
 
     # Step 2
-    gmr_dir = setup_gmr()
+    gmr_dir, venv_dir = setup_gmr()
 
     # Step 3
     register_x1_in_gmr(gmr_dir)
 
     # Step 4
-    import torch  # needed for forward kinematics
-    gmr_output = run_gmr_retarget(gmr_dir)
+    gmr_output = run_gmr_retarget(gmr_dir, venv_dir)
 
     print("\n" + "=" * 60)
     print(f"DONE! GMR output: {gmr_output}")
