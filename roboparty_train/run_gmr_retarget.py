@@ -110,39 +110,20 @@ def setup_gmr():
             shutil.copy2(smplx_pkl, target)
             print(f"[INFO] Copied SMPLX_{gender}.pkl to GMR body_models")
 
-    # Convert .pkl → .npz (smplx library loads .npz by default)
-    # Run conversion in the venv (has torch + numpy)
-    convert_script = """
-import torch, numpy as np, pickle, sys
-from pathlib import Path
-
-body_models = Path(sys.argv[1])
-for gender in ['NEUTRAL', 'MALE', 'FEMALE']:
-    pkl_path = body_models / f'SMPLX_{gender}.pkl'
-    npz_path = body_models / f'SMPLX_{gender}.npz'
-    if npz_path.exists() or not pkl_path.exists():
-        print(f'  Skip {gender} (npz exists or pkl missing)', flush=True)
-        continue
-    print(f'  Converting {gender}...', flush=True)
-    data = torch.load(pkl_path, map_location='cpu', weights_only=False)
-    np_data = {}
-    for k, v in data.items():
-        if isinstance(v, torch.Tensor):
-            np_data[k] = v.numpy()
-        elif isinstance(v, (dict,)):
-            np_data[k] = {kk: vv.numpy() if isinstance(vv, torch.Tensor) else vv for kk, vv in v.items()}
-        else:
-            np_data[k] = v
-    np.savez(npz_path, **np_data)
-    print(f'  Saved {npz_path.name} ({npz_path.stat().st_size // 1024 // 1024}MB)', flush=True)
-"""
-    venv_python = str(venv_dir / "bin" / "python")
-    convert_path = REPO_ROOT / "_convert_smplx.py"
-    convert_path.write_text(convert_script)
-    print("[INFO] Converting SMPLX .pkl → .npz...")
-    subprocess.run([venv_python, str(convert_path), str(gmr_body_models)], check=True)
-    convert_path.unlink()
-    print("[INFO] SMPLX conversion done")
+    # Patch GMR's smpl.py to use ext='pkl' instead of default 'npz'
+    # smplx library constructs filename as f'SMPLX_{gender}.{ext}'
+    # Default ext='npz' → looks for .npz files we don't have
+    gmr_smpl_py = gmr_dir / "general_motion_retargeting" / "utils" / "smpl.py"
+    if gmr_smpl_py.exists():
+        content = gmr_smpl_py.read_text()
+        if "ext='pkl'" not in content and 'ext="pkl"' not in content:
+            # Add ext='pkl' to all smplx.create() calls
+            content = content.replace(
+                'use_pca=False,',
+                "use_pca=False,\n        ext='pkl',"
+            )
+            gmr_smpl_py.write_text(content)
+            print("[INFO] Patched GMR smpl.py: added ext='pkl' to smplx.create()")
 
     return gmr_dir, venv_dir
 
