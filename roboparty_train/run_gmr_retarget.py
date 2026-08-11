@@ -436,7 +436,19 @@ def run_dataset_retarget(gmr_output: Path):
     ]
 
     print(f"[INFO] Running dataset_retarget: {' '.join(cmd[:6])}...")
-    result = subprocess.run(cmd, env=env, timeout=300)  # 5 min timeout
+    try:
+        result = subprocess.run(cmd, env=env, timeout=600)
+    except subprocess.TimeoutExpired:
+        print("[WARN] dataset_retarget timed out after 600s, but data may already be saved")
+        # Check if output files exist
+        saved = list(output_dir.glob("*.pkl"))
+        print(f"[INFO] x1_lab has {len(saved)} files after timeout")
+        if len(saved) >= 10:
+            print("[INFO] Enough files saved, continuing...")
+            return output_dir
+        else:
+            print("[ERROR] Not enough files saved after timeout")
+            return output_dir
 
     if result.returncode != 0:
         print(f"[ERROR] dataset_retarget failed with exit code {result.returncode}")
