@@ -411,9 +411,23 @@ def package_results(gmr_output: Path, auto_config_path=None):
     size_mb = output_pt.stat().st_size / 1e6
     print(f"\n[INFO] Packaged {len(pkl_files)} files → {output_pt.name} ({size_mb:.1f}MB)")
 
-    # Also try git push as backup
-    import subprocess, time
-    print("[INFO] Attempting git push of pkl files...")
+    # Save results to personal storage (/personal mount)
+    import subprocess, time, shutil
+    personal_dir = Path("/personal/x1_gmr")
+    try:
+        personal_dir.mkdir(parents=True, exist_ok=True)
+        for f in pkl_files:
+            shutil.copy2(f, personal_dir / f.name)
+        if auto_cfg_path and auto_cfg_path.exists():
+            shutil.copy2(auto_cfg_path, personal_dir / "smplx_to_x1_auto.json")
+        # Also copy the .pt package
+        shutil.copy2(output_pt, personal_dir / output_pt.name)
+        print(f"[INFO] Copied {len(pkl_files)} files + config to /personal/x1_gmr/")
+    except Exception as e:
+        print(f"[WARN] Failed to copy to /personal: {e}")
+
+    # Also try git push
+    print("[INFO] Attempting git push...")
     email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True,
                            cwd=str(REPO_ROOT)).stdout.strip()
     if not email:
@@ -426,10 +440,21 @@ def package_results(gmr_output: Path, auto_config_path=None):
         subprocess.run(["git", "add", str(auto_cfg_path.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
     subprocess.run(["git", "commit", "-m", f"add GMR retargeted motion data ({len(pkl_files)} files)"], cwd=str(REPO_ROOT))
 
-    # Push using token from environment or git credential helper
-    git_token = os.environ.get("GITHUB_TOKEN", "") or os.environ.get("GIT_TOKEN", "")
+    # Try multiple credential sources for push
+    git_token = os.environ.get("GITHUB_TOKEN", "") or os.environ.get("GH_TOKEN", "")
     if not git_token:
-        # Try reading from Gradmotion's git credential config
+        # Check ~/.git-credentials
+        git_cred_file = Path.home() / ".git-credentials"
+        if git_cred_file.exists():
+            for line in git_cred_file.read_text().splitlines():
+                if "github.com" in line and ":" in line:
+                    # Format: https://username:token@github.com
+                    token_part = line.split("://")[1].split("@")[0]
+                    if ":" in token_part:
+                        git_token = token_part.split(":")[1]
+                        break
+    if not git_token:
+        # Try git credential fill
         try:
             cred_result = subprocess.run(
                 ["git", "credential", "fill"],
@@ -442,25 +467,32 @@ def package_results(gmr_output: Path, auto_config_path=None):
         except:
             pass
 
+    push_ok = False
     if git_token:
         token_url = f"https://x-access-token:{git_token}@github.com/yumxcode/X1_29_AMP.git"
         push_result = subprocess.run(
             ["git", "push", token_url, "main"],
             cwd=str(REPO_ROOT), capture_output=True, text=True
         )
+        push_ok = push_result.returncode == 0
+        if push_ok:
+            print("[INFO] Git push succeeded via token!")
+        else:
+            print(f"[WARN] Token push failed: {push_result.stderr[:200]}")
     else:
-        push_result = subprocess.run(
-            ["git", "push", "origin", "main"],
-            cwd=str(REPO_ROOT), capture_output=True, text=True
-        )
+        push_result = subprocess.run(["git", "push", "origin", "main"],
+                                    cwd=str(REPO_ROOT), capture_output=True, text=True)
+        push_ok = push_result.returncode == 0
+        if push_ok:
+            print("[INFO] Git push succeeded via origin!")
+        else:
+            print(f"[WARN] Origin push failed: {push_result.stderr[:200]}")
 
-    if push_result.returncode == 0:
-        print("[INFO] Git push succeeded!")
-    else:
-        print(f"[WARN] Git push failed: {push_result.stderr[:300]}")
+    if not push_ok:
+        print("[INFO] Git push failed. Results saved to /personal/x1_gmr/ — download via storage API.")
 
-    # Wait for SDK to potentially upload the .pt file
-    print("[INFO] Waiting 60s for SDK...")
+    # Wait for SDK
+    print("[INFO] Waiting 60s...")
     time.sleep(60)
 
 
