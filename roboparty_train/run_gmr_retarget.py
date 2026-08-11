@@ -405,7 +405,28 @@ def package_results(gmr_output: Path, auto_config_path=None):
         print(f"  Added: smplx_to_x1_auto.json")
 
     # Save as .pt in a location the SDK will detect
-    # SDK scans /workspace/isaaclab/X1_29_AMP/ recursively
+    # IMPORTANT: Delete old RPO .pt files first so SDK doesn't waste time
+    # uploading them instead of our results
+    old_pt_locations = [
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_lab",
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_gmr",
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_bm",
+    ]
+    deleted = 0
+    for loc in old_pt_locations:
+        if loc.exists():
+            for old_pt in loc.glob("*.pt"):
+                old_pt.unlink()
+                deleted += 1
+    # Also check GMR gvhmr_pt directory
+    gmr_pt_dir = REPO_ROOT / "GMR" / "gvhmr_pt"
+    if gmr_pt_dir.exists():
+        for old_pt in gmr_pt_dir.glob("*.pt"):
+            old_pt.unlink()
+            deleted += 1
+    if deleted:
+        print(f"[INFO] Deleted {deleted} old RPO .pt files to speed up SDK upload")
+
     output_pt = REPO_ROOT / "x1_gmr_results.pt"
     torch.save(package, output_pt)
     size_mb = output_pt.stat().st_size / 1e6
@@ -491,9 +512,10 @@ def package_results(gmr_output: Path, auto_config_path=None):
     if not push_ok:
         print("[INFO] Git push failed. Results saved to /personal/x1_gmr/ — download via storage API.")
 
-    # Wait for SDK
-    print("[INFO] Waiting 60s...")
-    time.sleep(60)
+    # Wait for SDK to upload our .pt file
+    print("[INFO] Waiting 180s for SDK to upload x1_gmr_results.pt...")
+    time.sleep(180)
+    print("[INFO] Done waiting.")
 
 
 if __name__ == "__main__":
