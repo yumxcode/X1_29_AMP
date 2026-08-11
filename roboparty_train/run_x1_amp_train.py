@@ -91,10 +91,13 @@ def main():
     robolab_src = REPO_ROOT / "roboparty_train" / "robolab"
     rsl_rl_src = REPO_ROOT / "roboparty_train" / "rsl_rl"
 
-    # Ensure robolab is installed
-    print("[INFO] Installing robolab/rsl_rl...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(rsl_rl_src), "-q"], check=True)
-    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(robolab_src), "-q"], check=True)
+    # Ensure robolab/rsl_rl are installed (force reinstall rsl_rl to override Isaac Lab's version)
+    print("[INFO] Installing robolab/rsl_rl (force rsl_rl to override Isaac Lab v3.1.2)...")
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "rsl-rl-lib", "-y", "-q"], check=False)
+    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(rsl_rl_src), "-q",
+                    "--force-reinstall", "--no-deps"], check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(robolab_src), "-q",
+                    "--no-deps"], check=True)
 
     # Add to sys.path for import
     for p in [str(robolab_src), str(rsl_rl_src)]:
