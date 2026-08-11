@@ -381,155 +381,128 @@ def main():
     else:
         print("[WARN] verify_retarget.py not found, skipping verification")
 
-    # Step 7: Package results as .pt for SDK auto-upload
-    print("\n--- Step 7: Package Results ---")
-    package_results(gmr_output, auto_config)
+    # Step 7: Isaac Lab dataset_retarget (GMR → Lab format with key_body_pos)
+    print("\n--- Step 7: Isaac Lab Dataset Retarget ---")
+    lab_output = run_dataset_retarget(gmr_output)
+
+    # Step 8: Package lab results as .pt for SDK auto-upload
+    print("\n--- Step 8: Package Lab Results ---")
+    package_lab_results(lab_output, auto_config)
 
 
-def package_results(gmr_output: Path, auto_config_path=None):
-    """Package all pkl files into a single .pt file for Gradmotion SDK auto-upload.
+def run_dataset_retarget(gmr_output: Path):
+    """Run dataset_retarget.py using Isaac Lab Python (not venv).
 
-    Gradmotion SDK auto-uploads .pt files to cloud storage. We package all
-    retargeted motion pkls + auto-IK config into one .pt file, which the SDK
-    will detect and upload. Then we can download via `gm task model list`.
+    This converts x1_gmr/*.pkl → x1_lab/*.pkl by:
+    - Reordering joints from GMR order to Isaac Lab order
+    - Computing key_body_pos via Isaac Lab simulation
     """
-    import pickle
-    import struct
+    output_dir = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "x1_lab"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Collect all pkl files
-    pkl_files = sorted(gmr_output.glob("*.pkl"))
+    # Check if already done
+    existing = list(output_dir.glob("*.pkl"))
+    if len(existing) >= 14:
+        print(f"[INFO] x1_lab already has {len(existing)} files, skipping")
+        return output_dir
+
+    # dataset_retarget.py needs robolab importable
+    # Set PYTHONPATH to include robolab and rsl_rl source
+    robolab_src = REPO_ROOT / "roboparty_train" / "robolab"
+    rsl_rl_src = REPO_ROOT / "roboparty_train" / "rsl_rl"
+    env = {**os.environ}
+    existing_pp = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{robolab_src}:{rsl_rl_src}:{existing_pp}"
+
+    # Also pip install robolab/rsl_rl (belt + suspenders)
+    print("[INFO] Installing robolab/rsl_rl for dataset_retarget...")
+    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(rsl_rl_src), "-q"],
+                   env=env, check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(robolab_src), "-q"],
+                   env=env, check=True)
+
+    config_file = REPO_ROOT / "roboparty_train" / "robolab" / "scripts" / "tools" / "retarget" / "config" / "x1.yaml"
+    script = REPO_ROOT / "roboparty_train" / "robolab" / "scripts" / "tools" / "retarget" / "dataset_retarget.py"
+
+    cmd = [
+        sys.executable, str(script),
+        "--robot", "x1",
+        "--input_dir", str(gmr_output),
+        "--output_dir", str(output_dir),
+        "--config_file", str(config_file),
+        "--loop", "clamp",
+        "--headless",
+    ]
+
+    print(f"[INFO] Running dataset_retarget: {' '.join(cmd[:6])}...")
+    result = subprocess.run(cmd, env=env)
+
+    if result.returncode != 0:
+        print(f"[ERROR] dataset_retarget failed with exit code {result.returncode}")
+    else:
+        pkl_count = len(list(output_dir.glob("*.pkl")))
+        print(f"[INFO] dataset_retarget complete: {pkl_count} lab files")
+
+    return output_dir
+
+
+def package_lab_results(lab_output: Path, auto_config_path=None):
+    """Package x1_lab/*.pkl + auto-IK config into a .pt for SDK upload."""
+    import torch
+
+    pkl_files = sorted(lab_output.glob("*.pkl"))
     if not pkl_files:
-        print("[ERROR] No pkl files to package")
+        print("[ERROR] No lab pkl files to package")
         return
 
-    # Pack into a single dict and save as .pt (torch format)
-    # Use torch.save since the SDK recognizes .pt extension
-    import torch
+    # Delete old RPO .pt files to avoid SDK uploading them
+    old_pt_dirs = [
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_lab",
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_gmr",
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_bm",
+        REPO_ROOT / "GMR" / "gvhmr_pt",
+    ]
+    deleted = 0
+    for d in old_pt_dirs:
+        if d.exists():
+            for pt in d.glob("*.pt"):
+                pt.unlink()
+                deleted += 1
+    if deleted:
+        print(f"[INFO] Deleted {deleted} old .pt files")
 
     package = {}
     for f in pkl_files:
         with open(f, 'rb') as fh:
-            package[f.name] = fh.read()  # raw bytes
+            package[f.name] = fh.read()
         print(f"  Added: {f.name} ({f.stat().st_size // 1024}KB)")
 
-    # Add auto-IK config if available
-    auto_cfg_path = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
-    if auto_cfg_path.exists():
-        package["smplx_to_x1_auto.json"] = auto_cfg_path.read_bytes()
-        print(f"  Added: smplx_to_x1_auto.json")
+    auto_cfg = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+    if auto_cfg.exists():
+        package["smplx_to_x1_auto.json"] = auto_cfg.read_bytes()
 
-    # Save as .pt in a location the SDK will detect
-    # IMPORTANT: Delete old RPO .pt files first so SDK doesn't waste time
-    # uploading them instead of our results
-    old_pt_locations = [
-        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_lab",
-        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_gmr",
-        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_bm",
-    ]
-    deleted = 0
-    for loc in old_pt_locations:
-        if loc.exists():
-            for old_pt in loc.glob("*.pt"):
-                old_pt.unlink()
-                deleted += 1
-    # Also check GMR gvhmr_pt directory
-    gmr_pt_dir = REPO_ROOT / "GMR" / "gvhmr_pt"
-    if gmr_pt_dir.exists():
-        for old_pt in gmr_pt_dir.glob("*.pt"):
-            old_pt.unlink()
-            deleted += 1
-    if deleted:
-        print(f"[INFO] Deleted {deleted} old RPO .pt files to speed up SDK upload")
-
-    output_pt = REPO_ROOT / "x1_gmr_results.pt"
+    output_pt = REPO_ROOT / "x1_lab_results.pt"
     torch.save(package, output_pt)
     size_mb = output_pt.stat().st_size / 1e6
-    print(f"\n[INFO] Packaged {len(pkl_files)} files → {output_pt.name} ({size_mb:.1f}MB)")
+    print(f"\n[INFO] Packaged {len(pkl_files)} lab files → {output_pt.name} ({size_mb:.1f}MB)")
 
-    # Save results to personal storage (/personal mount)
-    import subprocess, time, shutil
-    personal_dir = Path("/personal/x1_gmr")
+    # Copy to /personal
+    import shutil
     try:
+        personal_dir = Path("/personal/x1_lab")
         personal_dir.mkdir(parents=True, exist_ok=True)
         for f in pkl_files:
             shutil.copy2(f, personal_dir / f.name)
-        if auto_cfg_path and auto_cfg_path.exists():
-            shutil.copy2(auto_cfg_path, personal_dir / "smplx_to_x1_auto.json")
-        # Also copy the .pt package
         shutil.copy2(output_pt, personal_dir / output_pt.name)
-        print(f"[INFO] Copied {len(pkl_files)} files + config to /personal/x1_gmr/")
+        print(f"[INFO] Copied to /personal/x1_lab/")
     except Exception as e:
-        print(f"[WARN] Failed to copy to /personal: {e}")
+        print(f"[WARN] /personal copy failed: {e}")
 
-    # Also try git push
-    print("[INFO] Attempting git push...")
-    email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True,
-                           cwd=str(REPO_ROOT)).stdout.strip()
-    if not email:
-        subprocess.run(["git", "config", "user.email", "bot@gradmotion.com"], cwd=str(REPO_ROOT))
-        subprocess.run(["git", "config", "user.name", "Gradmotion Bot"], cwd=str(REPO_ROOT))
-
-    for f in pkl_files:
-        subprocess.run(["git", "add", str(f.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
-    if auto_cfg_path and auto_cfg_path.exists():
-        subprocess.run(["git", "add", str(auto_cfg_path.relative_to(REPO_ROOT))], cwd=str(REPO_ROOT))
-    subprocess.run(["git", "commit", "-m", f"add GMR retargeted motion data ({len(pkl_files)} files)"], cwd=str(REPO_ROOT))
-
-    # Try multiple credential sources for push
-    git_token = os.environ.get("GITHUB_TOKEN", "") or os.environ.get("GH_TOKEN", "")
-    if not git_token:
-        # Check ~/.git-credentials
-        git_cred_file = Path.home() / ".git-credentials"
-        if git_cred_file.exists():
-            for line in git_cred_file.read_text().splitlines():
-                if "github.com" in line and ":" in line:
-                    # Format: https://username:token@github.com
-                    token_part = line.split("://")[1].split("@")[0]
-                    if ":" in token_part:
-                        git_token = token_part.split(":")[1]
-                        break
-    if not git_token:
-        # Try git credential fill
-        try:
-            cred_result = subprocess.run(
-                ["git", "credential", "fill"],
-                input=b"protocol=https\nhost=github.com\n\n",
-                capture_output=True, cwd=str(REPO_ROOT)
-            )
-            cred_text = cred_result.stdout.decode()
-            if "password=" in cred_text:
-                git_token = cred_text.split("password=")[1].split("\n")[0]
-        except:
-            pass
-
-    push_ok = False
-    if git_token:
-        token_url = f"https://x-access-token:{git_token}@github.com/yumxcode/X1_29_AMP.git"
-        push_result = subprocess.run(
-            ["git", "push", token_url, "main"],
-            cwd=str(REPO_ROOT), capture_output=True, text=True
-        )
-        push_ok = push_result.returncode == 0
-        if push_ok:
-            print("[INFO] Git push succeeded via token!")
-        else:
-            print(f"[WARN] Token push failed: {push_result.stderr[:200]}")
-    else:
-        push_result = subprocess.run(["git", "push", "origin", "main"],
-                                    cwd=str(REPO_ROOT), capture_output=True, text=True)
-        push_ok = push_result.returncode == 0
-        if push_ok:
-            print("[INFO] Git push succeeded via origin!")
-        else:
-            print(f"[WARN] Origin push failed: {push_result.stderr[:200]}")
-
-    if not push_ok:
-        print("[INFO] Git push failed. Results saved to /personal/x1_gmr/ — download via storage API.")
-
-    # Wait for SDK to upload our .pt file
-    print("[INFO] Waiting 180s for SDK to upload x1_gmr_results.pt...")
+    # Wait for SDK upload
+    import time
+    print("[INFO] Waiting 180s for SDK upload...")
     time.sleep(180)
-    print("[INFO] Done waiting.")
+    print("[INFO] Done. Check gm task model list for x1_lab_results.pt")
 
 
 if __name__ == "__main__":
