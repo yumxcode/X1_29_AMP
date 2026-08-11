@@ -85,6 +85,29 @@ def main():
         print("[ERROR] Not enough lab files for AMP training!")
         sys.exit(1)
 
+    # Package retarget results for SDK upload (to logs/ dir where SDK scans)
+    print("\n--- Packaging Retarget Results for Download ---")
+    import torch, pickle, shutil
+    logs_dir = REPO_ROOT / "logs" / "x1_amp"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Package x1_lab + x1_gmr into a single .pt
+    retarget_pkg = {}
+    for f in sorted(lab_files):
+        retarget_pkg[f"x1_lab/{f.name}"] = f.read_bytes()
+    for f in sorted(gmr_output.glob("*.pkl")):
+        retarget_pkg[f"x1_gmr/{f.name}"] = f.read_bytes()
+    # Also include auto-IK config
+    auto_cfg = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+    if auto_cfg.exists():
+        retarget_pkg["smplx_to_x1_auto.json"] = auto_cfg.read_bytes()
+
+    retarget_pt = logs_dir / "x1_retarget_data.pt"
+    torch.save(retarget_pkg, retarget_pt)
+    size_mb = retarget_pt.stat().st_size / 1e6
+    print(f"[INFO] Packaged retarget data → {retarget_pt} ({size_mb:.1f}MB)")
+    print("[INFO] SDK will auto-upload from logs/x1_amp/ directory")
+
     # === Phase 3: AMP Training ===
     print("\n=== Phase 3: AMP Training ===\n")
 
