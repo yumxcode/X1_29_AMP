@@ -1,0 +1,26 @@
+{
+  "taskBaseInfo": {
+    "projectId": "PRO_20260810_010",
+    "taskType": "1",
+    "trainType": "1",
+    "taskName": "x1-flat-train-v1",
+    "taskDescription": "X1 29-DOF Flat terrain locomotion training (no motion data needed)",
+    "taskTag": ["train", "flat"],
+    "goodsId": "ESKU000001",
+    "imageId": "BJX00000178",
+    "imageVersion": "V000220",
+    "personalDataPath": "/personal"
+  },
+  "taskCodeInfo": {
+    "codeType": "2",
+    "codeUrl": "[{\"codeUrl\":\"https://github.com/yumxcode/X1_29_AMP.git\",\"versionType\":\"1\",\"versionName\":\"main\"}]",
+    "mainCodeUri": "X1_29_AMP/roboparty_train/robolab/scripts/rsl_rl/train.py",
+    "hparamsPath": "",
+    "startScript": "gm-run X1_29_AMP/roboparty_train/robolab/scripts/rsl_rl/train.py --task=X1-Flat --headless --logger=tensorboard --num_envs=4096",
+    "isOpen": "1"
+  },
+  "runtimeReminderConfig": {
+    "enableRuntimeReminder": false,
+    "reminderDurations": []
+  }
+}
