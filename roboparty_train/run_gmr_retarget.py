@@ -367,8 +367,22 @@ def main():
         print(f"Auto-IK config: {auto_config}")
     print("=" * 60)
 
-    # Step 6: Package results as .pt for SDK auto-upload
-    print("\n--- Step 6: Package Results ---")
+    # Step 6: Verify retarget quality
+    print("\n--- Step 6: Verify Retarget Quality ---")
+    verify_script = REPO_ROOT / "roboparty_train" / "verify_retarget.py"
+    if verify_script.exists():
+        venv_python = str(venv_dir / "bin" / "python")
+        result = subprocess.run(
+            [venv_python, str(verify_script), "--input_dir", str(gmr_output), "--verbose"],
+            env={**os.environ, "X1_REPO_ROOT": str(REPO_ROOT)}
+        )
+        if result.returncode != 0:
+            print("[WARN] Verification found issues! Proceeding anyway (for inspection).")
+    else:
+        print("[WARN] verify_retarget.py not found, skipping verification")
+
+    # Step 7: Package results as .pt for SDK auto-upload
+    print("\n--- Step 7: Package Results ---")
     package_results(gmr_output, auto_config)
 
 
