@@ -413,6 +413,7 @@ def run_dataset_retarget(gmr_output: Path):
     env = {**os.environ}
     existing_pp = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{robolab_src}:{rsl_rl_src}:{existing_pp}"
+    env["PYTHONUNBUFFERED"] = "1"
 
     # Also pip install robolab/rsl_rl (belt + suspenders)
     print("[INFO] Installing robolab/rsl_rl for dataset_retarget...")

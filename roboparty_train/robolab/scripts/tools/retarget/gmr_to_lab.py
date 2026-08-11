@@ -230,8 +230,8 @@ def run_simulator(
         robot.write_root_state_to_sim(root_states)
         robot.write_joint_state_to_sim(joint_pos, joint_vel)
         
-        # step without physics
-        sim.render()
+        # step without physics - use step instead of render for headless compatibility
+        sim.step(render=False)
         scene.update(dt)
         
         for motion_idx in range(num_motions):
