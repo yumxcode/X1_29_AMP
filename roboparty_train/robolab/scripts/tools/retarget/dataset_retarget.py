@@ -205,7 +205,10 @@ def main():
         print(f"Saved: {out_path}")
 
     print("Closing simulation app...")
-    simulation_app.close()
+    try:
+        simulation_app.close()
+    except Exception as e:
+        print(f"[WARN] simulation_app.close() failed: {e}")
     print("Done.")
 
 

@@ -436,7 +436,7 @@ def run_dataset_retarget(gmr_output: Path):
     ]
 
     print(f"[INFO] Running dataset_retarget: {' '.join(cmd[:6])}...")
-    result = subprocess.run(cmd, env=env)
+    result = subprocess.run(cmd, env=env, timeout=300)  # 5 min timeout
 
     if result.returncode != 0:
         print(f"[ERROR] dataset_retarget failed with exit code {result.returncode}")
