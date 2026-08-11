@@ -195,6 +195,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-1.5, 1.5)
 
         # ------------------------------------------------------
+        # Events — override RPO torso_link to X1 body names
+        # ------------------------------------------------------
+        self.events.add_base_mass.params["asset_cfg"].body_names = ["lumbar_pitch_link"]
+        self.events.randomize_rigid_body_com.params["asset_cfg"].body_names = ["lumbar_pitch_link", "base_link"]
+
+        # ------------------------------------------------------
         # Terminations — X1 body names
         # ------------------------------------------------------
         self.terminations.base_contact.params["sensor_cfg"].body_names = [
