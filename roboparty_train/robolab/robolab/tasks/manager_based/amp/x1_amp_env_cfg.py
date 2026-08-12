@@ -204,9 +204,18 @@ class X1AmpEnvCfg(AmpEnvCfg):
 
         # ------------------------------------------------------
         # Terminations — X1 body names
+        # X1 body structure: base_link → lumbar(yaw/roll/pitch) → arms
+        #                     base_link → hip(pitch/roll/yaw) → knee → ankle
+        # Terminate if any body except feet (ankle_*) touches ground
         # ------------------------------------------------------
         self.terminations.base_contact.params["sensor_cfg"].body_names = [
-            ".*_hip_.*_link", "base_link", ".*_shoulder_.*_link", ".*_elbow_.*_link",
+            ".*_hip_.*_link",          # 髋关节着地
+            ".*_knee_.*_link",         # 膝盖着地
+            "base_link",               # 骨盆着地
+            "lumbar_.*_link",          # 腰部着地
+            ".*_shoulder_.*_link",     # 肩膀着地
+            ".*_elbow_.*_link",        # 手肘着地
+            ".*_wrist_.*_link",        # 手腕着地
         ]
         if self.__class__.__name__ == "X1AmpEnvCfg":
             self.disable_zero_weight_rewards()
