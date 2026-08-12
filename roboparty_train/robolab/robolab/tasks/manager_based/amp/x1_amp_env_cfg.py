@@ -134,8 +134,23 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
             ROBOLAB_ROOT_DIR, "data", "motions", "x1_lab"
         )
-        # Motion weights: use empty dict = equal weights for all motions
-        self.motion_data.motion_dataset.motion_data_weights = {}
+        # Motion weights: must explicitly list motion names (empty dict = load nothing)
+        self.motion_data.motion_dataset.motion_data_weights = {
+            "114_08": 1.0,
+            "114_09": 1.0,
+            "127_04": 1.0,
+            "127_06": 4.0,
+            "36_01": 1.0,
+            "36_11": 1.0,
+            "0000_treadmill_norm": 2.0,
+            "0002_treadmill_slow": 2.0,
+            "0003_treadmill_jog": 2.0,
+            "0005_normal_walk1": 2.0,
+            "0007_normal_walk3": 2.0,
+            "0008_normal_walk4": 2.0,
+            "0009_normal_jog1": 2.0,
+            "0026_circle_walk": 2.0,
+        }
 
         # ------------------------------------------------------
         # animation
