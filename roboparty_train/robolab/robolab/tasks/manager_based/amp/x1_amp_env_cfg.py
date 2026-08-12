@@ -134,9 +134,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
             ROBOLAB_ROOT_DIR, "data", "motions", "x1_lab"
         )
-        # Motion weights will be configured after retarget produces x1_lab data.
-        # Start with equal weights for all motions.
-        self.motion_data.motion_dataset.motion_data_weights = None  # None = equal weights
+        # Motion weights: use empty dict = equal weights for all motions
+        self.motion_data.motion_dataset.motion_data_weights = {}
 
         # ------------------------------------------------------
         # animation
