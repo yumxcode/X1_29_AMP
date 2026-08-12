@@ -271,6 +271,7 @@ print(f"[GMR] Found {len(npz_files)} AMASS npz files", flush=True)
 
 kinematics_model = None
 retargeter = None
+last_human_height = None
 successful = 0
 failed = 0
 
@@ -287,9 +288,14 @@ for i, npz_file in enumerate(npz_files):
         src_fps = smplx_data["mocap_frame_rate"].item()
         smplx_frame_data_list, aligned_fps = get_smplx_data_offline_fast(smplx_data, body_model, smplx_output, tgt_fps=src_fps)
 
-        if retargeter is None:
+        # P5 fix: create retargeter per-file if human height differs
+        # (human_scale_table is baked in at construction time)
+        if retargeter is None or last_human_height is None or abs(last_human_height - actual_human_height) > 0.01:
+            print(f"[GMR]   Creating retargeter (height={actual_human_height:.3f}m)", flush=True)
             retargeter = GMR(src_human="smplx", tgt_robot="x1", actual_human_height=actual_human_height)
-            kinematics_model = KinematicsModel(retargeter.xml_file, device="cuda:0")
+            if kinematics_model is None:
+                kinematics_model = KinematicsModel(retargeter.xml_file, device="cuda:0")
+            last_human_height = actual_human_height
 
         qpos_list = []
         for smplx_frame_data in smplx_frame_data_list:
@@ -307,8 +313,12 @@ for i, npz_file in enumerate(npz_files):
             torch.tensor(root_rot, device="cuda:0", dtype=torch.float32),
             torch.tensor(dof_pos, device="cuda:0", dtype=torch.float32),
         )
+        # P6 fix: ankle_roll body origin is NOT the foot sole.
+        # X1 foot sole is ~4cm below ankle_roll_link origin.
+        # Subtract additional offset so the sole (not body origin) is at z=0.
+        FOOTSOLE_OFFSET = 0.04  # meters below ankle_roll body origin
         lowest = torch.min(body_pos[..., 2]).item()
-        root_pos[:, 2] -= lowest
+        root_pos[:, 2] -= (lowest - FOOTSOLE_OFFSET)
         root_pos[:, :2] -= root_pos[0, :2]
 
         motion_data = {
