@@ -92,7 +92,25 @@ def setup_gmr():
         subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
         pip = str(venv_dir / "bin" / "pip")
         subprocess.check_call([pip, "install", "--upgrade", "pip", "-q"])
-        subprocess.check_call([pip, "install", "-e", str(gmr_dir), "-q"])
+        # smplx git clone can fail in restricted networks — install deps separately first
+        subprocess.check_call([pip, "install", "mujoco", "mink", "qpsolvers[proxqp]", "scipy",
+                               "numpy", "rich", "tqdm", "opencv-python", "natsort", "psutil",
+                               "protobuf", "lxml", "matplotlib", "loop_rate_limiters", "-q"])
+        # Install smplx from git with retry
+        import time
+        for attempt in range(3):
+            try:
+                subprocess.check_call([pip, "install", "git+https://github.com/vchoutas/smplx", "-q"])
+                break
+            except subprocess.CalledProcessError:
+                print(f"[WARN] smpyx install attempt {attempt+1}/3 failed, retrying...")
+                time.sleep(5)
+        else:
+            print("[ERROR] smplx install failed after 3 retries, trying no-build-isolation...")
+            subprocess.check_call([pip, "install", "git+https://github.com/vchoutas/smplx",
+                                   "--no-build-isolation", "-q"])
+        # Now install GMR itself without deps (already installed above)
+        subprocess.check_call([pip, "install", "-e", str(gmr_dir), "--no-deps", "-q"])
         print("[INFO] GMR venv ready")
 
     # Copy SMPLX body model
