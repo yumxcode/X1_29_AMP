@@ -59,7 +59,7 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
     class_name = "AMPRunner"
     num_steps_per_env = 24
     max_iterations = 3000
-    save_interval = 500
+    save_interval = 100
     experiment_name = "x1_amp"
     wandb_project = "x1_amp"
     obs_groups = {

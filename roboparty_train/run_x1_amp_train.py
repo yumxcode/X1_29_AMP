@@ -93,6 +93,18 @@ def main():
     sdk_scan_dir = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
     sdk_scan_dir.mkdir(parents=True, exist_ok=True)
 
+    # Delete old RPO .pt files from repo (they pollute SDK's .pt scan)
+    old_pt_dirs = [
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_lab",
+        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_gmr",
+        REPO_ROOT / "GMR" / "gvhmr_pt",
+    ]
+    for d in old_pt_dirs:
+        if d.exists():
+            for pt in d.glob("*.pt"):
+                pt.unlink()
+                print(f"  Deleted old: {pt.relative_to(REPO_ROOT)}")
+
     # Use pickle (not torch) to avoid numpy/torch import conflicts
     retarget_pkg = {}
     for f in sorted(lab_files):
@@ -141,35 +153,48 @@ def main():
         "--num_envs=4096",
     ]
 
+    # Start a background thread to copy checkpoints to SDK scan directory
+    # SDK only scans the ROOT of logs/rsl_rl/x1_amp/ for .pt files
+    # Checkpoints are saved to logs/rsl_rl/x1_amp/{timestamp}/model_*.pt (subdirectory)
+    import threading, glob, shutil
+
+    sdk_root = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
+    sdk_root.mkdir(parents=True, exist_ok=True)
+    stop_monitor = threading.Event()
+
+    def checkpoint_monitor():
+        """Background thread: every 60s, copy latest checkpoint to SDK root dir."""
+        while not stop_monitor.is_set():
+            # Find latest run directory
+            run_dirs = sorted(sdk_root.glob("*/"), key=lambda x: x.stat().st_mtime)
+            if run_dirs:
+                latest_run = run_dirs[-1]
+                ckpts = sorted(latest_run.glob("model_*.pt"))
+                if ckpts:
+                    latest_ckpt = ckpts[-1]
+                    dst = sdk_root / "latest_checkpoint.pt"
+                    shutil.copy2(latest_ckpt, dst)
+            stop_monitor.wait(60)  # sleep 60s or until stopped
+
+    monitor_thread = threading.Thread(target=checkpoint_monitor, daemon=True)
+    monitor_thread.start()
+    print("[INFO] Background checkpoint monitor started (copies to logs/rsl_rl/x1_amp/latest_checkpoint.pt every 60s)")
+
     print(f"[INFO] Starting AMP training: {' '.join(cmd)}")
     result = subprocess.run(cmd)
 
-    # Phase 3b: Git push checkpoint (protect against balance exhaustion)
-    print("\n--- Phase 3b: Saving Checkpoint to Git ---")
-    import glob
-    log_root = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
-    if log_root.exists():
-        # Find latest run directory
-        run_dirs = sorted([d for d in log_root.iterdir() if d.is_dir()], key=lambda x: x.stat().st_mtime)
-        if run_dirs:
-            latest_run = run_dirs[-1]
-            # Find all checkpoints
-            checkpoints = sorted(latest_run.glob("model_*.pt"))
-            if checkpoints:
-                print(f"[INFO] Found {len(checkpoints)} checkpoints in {latest_run.name}")
-                latest_ckpt = checkpoints[-1]
-                print(f"[INFO] Latest: {latest_ckpt.name}")
-                # Copy to a stable path for SDK upload
-                stable_path = log_root / "latest_checkpoint.pt"
-                import shutil
-                shutil.copy2(latest_ckpt, stable_path)
-                print(f"[INFO] Copied to {stable_path}")
-            else:
-                print("[WARN] No checkpoints found in run directory")
-        else:
-            print("[WARN] No run directories found")
-    else:
-        print(f"[WARN] Log root {log_root} does not exist")
+    # Stop monitor
+    stop_monitor.set()
+    monitor_thread.join(timeout=5)
+
+    # Final checkpoint copy
+    run_dirs = sorted(sdk_root.glob("*/"), key=lambda x: x.stat().st_mtime) if sdk_root.exists() else []
+    if run_dirs:
+        latest_run = run_dirs[-1]
+        ckpts = sorted(latest_run.glob("model_*.pt"))
+        if ckpts:
+            shutil.copy2(ckpts[-1], sdk_root / "latest_checkpoint.pt")
+            print(f"[INFO] Final checkpoint: {ckpts[-1].name} → logs/rsl_rl/x1_amp/latest_checkpoint.pt")
 
     if result.returncode != 0:
         print(f"[ERROR] AMP training exited with code {result.returncode}")
