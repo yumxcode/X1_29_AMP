@@ -86,12 +86,17 @@ def main():
         sys.exit(1)
 
     # Package retarget results for SDK upload
-    # train.py saves to: logs/rsl_rl/{experiment_name}/{timestamp_run}/
-    # SDK scans {log_dir} root = logs/rsl_rl/{experiment_name}/ for .pt files
+    # SDK scans: logs/{exp}/exported_data/{load_run}/model_*.pt
+    # Must use model_ prefix and exported_data directory structure
     print("\n--- Packaging Retarget Results for Download ---")
     import pickle as _pkl
-    sdk_scan_dir = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
-    sdk_scan_dir.mkdir(parents=True, exist_ok=True)
+    from datetime import datetime as _dt
+
+    # SDK upload path: logs/rsl_rl/x1_amp/exported_data/{run_name}/
+    sdk_run_name = _dt.now().strftime("%Y-%m-%d_%H-%M-%S") + "x1_amp"
+    sdk_export_dir = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp" / "exported_data" / sdk_run_name
+    sdk_export_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] SDK export dir: {sdk_export_dir}")
 
     # Delete old RPO .pt files from repo (they pollute SDK's .pt scan)
     old_pt_dirs = [
@@ -116,13 +121,13 @@ def main():
     if auto_cfg.exists():
         retarget_pkg["smplx_to_x1_auto.json"] = auto_cfg.read_bytes()
 
-    retarget_pt = sdk_scan_dir / "x1_retarget_data.pt"
+    # Must use model_ prefix for SDK to detect and upload
+    retarget_pt = sdk_export_dir / "model_retarget_data.pt"
     with open(retarget_pt, "wb") as fh:
         _pkl.dump(retarget_pkg, fh)
     size_mb = retarget_pt.stat().st_size / 1e6
-    print(f"[INFO] Packaged retarget data → {retarget_pt.name} ({size_mb:.1f}MB)")
-    print(f"[INFO] Written to {retarget_pt}")
-    print("[INFO] SDK will auto-upload from logs/rsl_rl/x1_amp/ when task completes")
+    print(f"[INFO] Packaged retarget data → {retarget_pt.relative_to(REPO_ROOT)} ({size_mb:.1f}MB)")
+    print("[INFO] SDK will scan exported_data/ for model_*.pt files")
 
     # === Phase 3: AMP Training ===
     print("\n=== Phase 3: AMP Training ===\n")
@@ -154,31 +159,36 @@ def main():
     ]
 
     # Start a background thread to copy checkpoints to SDK scan directory
-    # SDK only scans the ROOT of logs/rsl_rl/x1_amp/ for .pt files
+    # SDK scans: logs/{exp}/exported_data/{load_run}/model_*.pt
     # Checkpoints are saved to logs/rsl_rl/x1_amp/{timestamp}/model_*.pt (subdirectory)
+    # We copy them to exported_data/{run_name}/ for SDK upload
     import threading, glob, shutil
 
-    sdk_root = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
-    sdk_root.mkdir(parents=True, exist_ok=True)
+    rsl_rl_log_root = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
+    rsl_rl_log_root.mkdir(parents=True, exist_ok=True)
     stop_monitor = threading.Event()
 
     def checkpoint_monitor():
-        """Background thread: every 60s, copy latest checkpoint to SDK root dir."""
+        """Background thread: every 60s, copy new checkpoints to exported_data dir."""
+        uploaded = set()
         while not stop_monitor.is_set():
-            # Find latest run directory
-            run_dirs = sorted(sdk_root.glob("*/"), key=lambda x: x.stat().st_mtime)
-            if run_dirs:
-                latest_run = run_dirs[-1]
-                ckpts = sorted(latest_run.glob("model_*.pt"))
-                if ckpts:
-                    latest_ckpt = ckpts[-1]
-                    dst = sdk_root / "latest_checkpoint.pt"
-                    shutil.copy2(latest_ckpt, dst)
+            # Find latest run directory (Isaac Lab creates timestamped subdirs)
+            run_dirs = sorted(rsl_rl_log_root.glob("*/"), key=lambda x: x.stat().st_mtime)
+            for run_dir in run_dirs:
+                # Skip exported_data itself
+                if run_dir.name == "exported_data":
+                    continue
+                for ckpt in sorted(run_dir.glob("model_*.pt")):
+                    if ckpt.name not in uploaded:
+                        dst = sdk_export_dir / ckpt.name
+                        shutil.copy2(ckpt, dst)
+                        uploaded.add(ckpt.name)
+                        print(f"[MONITOR] Copied {ckpt.name} → exported_data/{sdk_run_name}/")
             stop_monitor.wait(60)  # sleep 60s or until stopped
 
     monitor_thread = threading.Thread(target=checkpoint_monitor, daemon=True)
     monitor_thread.start()
-    print("[INFO] Background checkpoint monitor started (copies to logs/rsl_rl/x1_amp/latest_checkpoint.pt every 60s)")
+    print(f"[INFO] Background checkpoint monitor started → exported_data/{sdk_run_name}/")
 
     print(f"[INFO] Starting AMP training: {' '.join(cmd)}")
     result = subprocess.run(cmd)
@@ -187,19 +197,33 @@ def main():
     stop_monitor.set()
     monitor_thread.join(timeout=5)
 
-    # Final checkpoint copy
-    run_dirs = sorted(sdk_root.glob("*/"), key=lambda x: x.stat().st_mtime) if sdk_root.exists() else []
-    if run_dirs:
-        latest_run = run_dirs[-1]
-        ckpts = sorted(latest_run.glob("model_*.pt"))
-        if ckpts:
-            shutil.copy2(ckpts[-1], sdk_root / "latest_checkpoint.pt")
-            print(f"[INFO] Final checkpoint: {ckpts[-1].name} → logs/rsl_rl/x1_amp/latest_checkpoint.pt")
+    # Final checkpoint copy: copy ALL checkpoints to exported_data
+    run_dirs = sorted(rsl_rl_log_root.glob("*/"), key=lambda x: x.stat().st_mtime) if rsl_rl_log_root.exists() else []
+    for run_dir in run_dirs:
+        if run_dir.name == "exported_data":
+            continue
+        for ckpt in sorted(run_dir.glob("model_*.pt")):
+            dst = sdk_export_dir / ckpt.name
+            if not dst.exists():
+                shutil.copy2(ckpt, dst)
+                print(f"[FINAL] Copied {ckpt.name} → exported_data/{sdk_run_name}/")
+
+    # List what we have for SDK upload
+    exported_files = sorted(sdk_export_dir.glob("model_*.pt"))
+    print(f"\n[INFO] Exported {len(exported_files)} files to SDK scan path:")
+    for f in exported_files:
+        print(f"  {f.name} ({f.stat().st_size // 1024}KB)")
 
     if result.returncode != 0:
         print(f"[ERROR] AMP training exited with code {result.returncode}")
     else:
         print("[INFO] AMP training completed!")
+
+    # Wait for SDK to detect and upload files
+    import time
+    print("[INFO] Waiting 120s for SDK file upload...")
+    time.sleep(120)
+    print("[INFO] Done waiting.")
 
 
 if __name__ == "__main__":
