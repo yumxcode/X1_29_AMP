@@ -58,8 +58,8 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
     """X1 AMP runner config — symmetry DISABLED (29 DOF mirror indices TBD)."""
     class_name = "AMPRunner"
     num_steps_per_env = 24
-    max_iterations = 5000
-    save_interval = 100
+    max_iterations = 3000
+    save_interval = 500
     experiment_name = "x1_amp"
     wandb_project = "x1_amp"
     obs_groups = {

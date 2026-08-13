@@ -85,11 +85,13 @@ def main():
         print("[ERROR] Not enough lab files for AMP training!")
         sys.exit(1)
 
-    # Package retarget results for SDK upload (to logs/ dir where SDK scans)
+    # Package retarget results for SDK upload
+    # train.py saves to: logs/rsl_rl/{experiment_name}/{timestamp_run}/
+    # SDK scans {log_dir} root = logs/rsl_rl/{experiment_name}/ for .pt files
     print("\n--- Packaging Retarget Results for Download ---")
     import pickle as _pkl
-    logs_dir = REPO_ROOT / "logs" / "x1_amp"
-    logs_dir.mkdir(parents=True, exist_ok=True)
+    sdk_scan_dir = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
+    sdk_scan_dir.mkdir(parents=True, exist_ok=True)
 
     # Use pickle (not torch) to avoid numpy/torch import conflicts
     retarget_pkg = {}
@@ -102,13 +104,13 @@ def main():
     if auto_cfg.exists():
         retarget_pkg["smplx_to_x1_auto.json"] = auto_cfg.read_bytes()
 
-    retarget_pt = logs_dir / "x1_retarget_data.pt"
+    retarget_pt = sdk_scan_dir / "x1_retarget_data.pt"
     with open(retarget_pt, "wb") as fh:
         _pkl.dump(retarget_pkg, fh)
     size_mb = retarget_pt.stat().st_size / 1e6
     print(f"[INFO] Packaged retarget data → {retarget_pt.name} ({size_mb:.1f}MB)")
     print(f"[INFO] Written to {retarget_pt}")
-    print("[INFO] SDK will auto-upload from logs/x1_amp/ directory")
+    print("[INFO] SDK will auto-upload from logs/rsl_rl/x1_amp/ when task completes")
 
     # === Phase 3: AMP Training ===
     print("\n=== Phase 3: AMP Training ===\n")
@@ -142,8 +144,35 @@ def main():
     print(f"[INFO] Starting AMP training: {' '.join(cmd)}")
     result = subprocess.run(cmd)
 
+    # Phase 3b: Git push checkpoint (protect against balance exhaustion)
+    print("\n--- Phase 3b: Saving Checkpoint to Git ---")
+    import glob
+    log_root = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
+    if log_root.exists():
+        # Find latest run directory
+        run_dirs = sorted([d for d in log_root.iterdir() if d.is_dir()], key=lambda x: x.stat().st_mtime)
+        if run_dirs:
+            latest_run = run_dirs[-1]
+            # Find all checkpoints
+            checkpoints = sorted(latest_run.glob("model_*.pt"))
+            if checkpoints:
+                print(f"[INFO] Found {len(checkpoints)} checkpoints in {latest_run.name}")
+                latest_ckpt = checkpoints[-1]
+                print(f"[INFO] Latest: {latest_ckpt.name}")
+                # Copy to a stable path for SDK upload
+                stable_path = log_root / "latest_checkpoint.pt"
+                import shutil
+                shutil.copy2(latest_ckpt, stable_path)
+                print(f"[INFO] Copied to {stable_path}")
+            else:
+                print("[WARN] No checkpoints found in run directory")
+        else:
+            print("[WARN] No run directories found")
+    else:
+        print(f"[WARN] Log root {log_root} does not exist")
+
     if result.returncode != 0:
-        print(f"[ERROR] AMP training failed with exit code {result.returncode}")
+        print(f"[ERROR] AMP training exited with code {result.returncode}")
     else:
         print("[INFO] AMP training completed!")
 
