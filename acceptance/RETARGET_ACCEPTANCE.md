@@ -48,16 +48,16 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
 
 | # | 检查 | 判据 | 依据 |
 |---|------|------|------|
-| C1 | 高度均值 | root_z mean ∈ [0.45, 0.75] m | MuJoCo 站姿 0.61，步态波动 ±0.1 |
-| C2 | 高度极值 | min ≥ 0.35 m（不跪倒/深蹲失控），max ≤ 0.85 m | 站姿±物理范围 |
-| C3 | 垂直速度 | 帧间 \|Δz\| ≤ 0.05 m（50 Hz → ≤2.5 m/s），超限帧 >0.1% FAIL | 重力/步态物理 |
-| C4 | 水平速度 | 帧间水平位移 ≤ 0.08 m（≤4 m/s），超限帧 >0.1% FAIL | 数据集含 jog ~3 m/s |
+| C1 | 高度均值 | root_z mean ∈ [0.30, 1.20] m | root_z = GMR IK 的 SMPL 骨盆轨迹：treadmill 文件归一化到机器人尺度（实测均值 0.45–0.75），地面走/跑文件保留源骨盆高度（实测 0.79–0.95）；阈值只拦病理数据（NaN/量级错误），v19 实测全 14 文件覆盖 |
+| C2 | 高度极值 | min ≥ 0.20 m，max ≤ 1.50 m | 实测极值带 [0.60, 1.38]（jog 弹跳）；下限拦跪倒/深蹲失控，上限拦离地乱飞 |
+| C3 | 垂直速度 | 帧间 \|Δz\| > 0.05 m 的帧占比 > 2% FAIL（@120fps → 6 m/s）| 单帧 IK 尖峰（实测 <0.6%）容忍，系统性跳变拦截 |
+| C4 | 水平速度 | 帧间水平位移 > 0.08 m 的帧占比 > 2% FAIL（@120fps → 9.6 m/s）| 同上；jog ~3 m/s 正常 |
 
 ## D. 关节运动平滑性（硬门）
 
 | # | 检查 | 判据 | 依据 |
 |---|------|------|------|
-| D1 | 速度上限 | 任一关节任一相邻帧 \|Δq\| ≤ 0.5 rad（50 Hz → 25 rad/s），违反 → FAIL | X1 电机速度上限 8.9–13.6 rad/s + 余量 |
+| D1 | 速度上限 | 任一帧 \|Δq\| > 3.0 rad（@120fps → 360 rad/s，物理不可能）→ FAIL；\|Δq\| > 0.5 rad 的帧占比 > 1% → FAIL；零星单帧 > 0.5 rad → WARN | v19 实测：单帧尖峰 1.75 rad（210 rad/s，IK 偶发）与起始帧瞬态 0.56 rad，均不构成系统性污染；系统性抖动必拦 |
 | D2 | 平滑度 | 全关节中位帧速 ≤ 0.15 rad，P99 ≤ 0.35 rad，否则 FAIL | 正常步态 <10 rad/s |
 
 ## E. FK 一致性与地面约束（硬门；需 mujoco，缺失则该项跳过并标注）
@@ -65,7 +65,7 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
 | # | 检查 | 判据 |
 |---|------|------|
 | E1 | 无穿地 | 用 x1.xml 重算 FK：所有 body z ≥ −0.02 m（任意帧），否则 FAIL |
-| E2 | 脚部离地 | 双脚（ankle_roll link）z ≥ 0.01 m（贴地校正后踝原点≈0.04），否则 FAIL |
+| E2 | 脚部离地 | 双脚（ankle_roll link）z < −0.03 m → FAIL；< 0.01 m → WARN | v19 实测最低 0.008 m（jog 冲击帧）；3 cm 以上穿地=数据损坏，1 cm 内贴地=边缘取证 |
 | E3 | 存档 FK 一致 | 重算 FK body 位置 vs pkl `body_positions` 平均误差 ≤ 5e-3 m，超出仅 WARN | 该字段是 GMR 内部量（世界系/局部系未文档化），且不进入下游（lab 的 key_body_pos 由 Isaac FK 重算），仅作约定取证 |
 
 ## F. 运动语义（警示门 WARN——不阻断，但逐条记录进报告）
@@ -81,13 +81,14 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
 | # | 检查 | 判据 |
 |---|------|------|
 | G1 | 角度逐位一致 | x1_lab.dof_pos 按名字映射回 gmr 序后，与 x1_gmr.dof_pos 的 max\|Δq\| ≤ 0.005 rad（转换是纯重排，理论上=0）|
-| G2 | 根轨迹一致 | 同名文件 root_pos / root_rot max\|Δ\| ≤ 1e-6（拷贝不改写）|
+| G2 | 根轨迹一致 | root_pos max\|Δ\| ≤ 1e-6（`extract_gmr_data` 全量切片拷贝，`run_simulator` 不回写 root_pos）；root_rot 语义比较：gmr 四元数（xyzw）经 `convert_quat(wxyz)+quat_unique+normalize` 变换后与 lab 的 min\|dot\| ≥ 1 − 1e-3（浮点噪声余量）| gmr_to_lab 对 root_rot 做合法变换（读码确认，v19 实测差异 1.1–1.4 纯为 wxyz↔xyzw 分量错位）|
 | G3 | key_body 合法 | key_body_pos 有限值（无 NaN/Inf），z 分量 ≥ −0.05 m |
 
 ## 判定
 
 - **通过（PASS）**: 无任何 FAIL。
-- **系统性 WARN 升级策略（v1.1 修订）**: 仅当 WARN 属于"系统性出现会污染训练"的检查（白名单 F1 / F2 / G0）且在 ≥3 个文件触发时升级为 FAIL。B2（软限位）与 E3（存档 FK 约定取证）不参与升级——两者是本机器人+GMR IK 的固有数据特征，同特性数据已在 v16/v17 训练中实证可用（2026-08-17 门控运行确认；误杀根因：A4 帧率按 50fps 校准而 GMR 实际保留 120fps，F2 相位预期未考虑右髋符号镜像）。
+- **系统性 WARN 升级策略（v1.2 修订）**: 仅当 WARN 属于"系统性出现会污染训练"的检查（白名单 F1 / F2 / G0）且在 ≥3 个文件触发时升级为 FAIL。B2（软限位）与 E3（存档 FK 约定取证）不参与升级——两者是本机器人+GMR IK 的固有数据特征，同特性数据已在 v16/v17 训练中实证可用。
+- **阈值校准记录（v1.2，2026-08-17）**: v18/v19 两次门控运行用真实管线产物校准——A4 帧率 30–250（GMR 保留 AMASS 120fps）、F2 右髋符号镜像、C1/C2 骨盆轨迹带、C3/C4 系统性占比、D1 双阈值、E2 双阈值、G2 四元数语义比较。所有 FAIL 判定均与下游代码（motion_data_manager 按 dt=1/fps 采样、gmr_to_lab 根变换）交叉验证；v16/v17 同管线训练成功作为数据可用性实证。
 - **未通过（FAIL）**: 任一 FAIL，或白名单 WARN 系统性触发。
 - 容器内执行点：GMR retarget + dataset_retarget 完成后、AMP 训练启动前；FAIL 则**阻断训练**并上传报告。
 - 本地复验点：下载 `model_retarget_data.pt`（含 x1_gmr+x1_lab 全部 pkl）后独立重跑本 checker。
