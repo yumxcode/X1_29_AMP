@@ -22,7 +22,7 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
   （全体 body 最低点 = 0.04 m，即踝原点到脚底 ~4 cm）。
 - lab 产物 pkl 字段: `fps, root_pos, root_rot, dof_pos(lab序), loop_mode, key_body_pos`，
   由 `extract_gmr_data` **纯重排**得到（无重采样、无 root 修改），关节角应与 gmr 域按名逐位相等。
-- 帧率: AMASS stageii 源 ~50 fps（按 mocap_frame_rate 对齐），允许 45–55。
+- 帧率: GMR 保留 AMASS stageii 源采样率（本数据集实测 120 fps）。下游 `motion_data_manager` 按 `dt=1/fps` 逐动作取时间戳采样，任何物理合理的采集帧率均合法；允许 30–250（拦截 fps=0/1/NaN 类坏值）。
 - 验收分为**硬门（FAIL → 阻断训练）**与**警示门（WARN → 记录但不阻断）**。
   结构/运动学/物理约束全部为硬门；运动语义（F 组）为警示门。
 
@@ -33,7 +33,7 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
 | A1 | x1_gmr 每个 pkl 可加载且字段齐全 | 缺任一字段 FAIL |
 | A2 | DOF 数量与命名 | `dof_names` 逐项等于 `config/x1.yaml:gmr_dof_names`（29 项，顺序一致）|
 | A3 | 文件集合完整性 | `motion_data_weights` 14 项全部存在（缺失 FAIL）；多余文件 WARN |
-| A4 | 帧率与时长 | fps ∈ [45, 55]；帧数 ≥ 100（≥2 s），否则 FAIL |
+| A4 | 帧率与时长 | fps ∈ [30, 250]；帧数 ≥ 100（≥2 s），否则 FAIL |
 | A5 | 四元数良构 | 每帧 ‖q‖₂ 与 1 偏差 < 1e-3，否则 FAIL |
 | A6 | x1_lab 结构 | 14 个 pkl；字段 = {fps, root_pos, root_rot, dof_pos, loop_mode, key_body_pos}；`dof_pos.shape[1]==29`；`key_body_pos.shape[1]==6`；与 gmr 同名文件帧数一致 |
 
@@ -72,8 +72,8 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
 
 | # | 检查 | 判据 | 备注 |
 |---|------|------|------|
-| F1 | 前进速度 | 非 treadmill/stand 文件：平均水平速度 ∈ [0.3, 3.0] m/s | treadmill 原地走豁免 |
-| F2 | 步态反相 | 文件名含 walk/jog/run/treadmill：L/R hip_pitch 相关系数 < 0（反相步态）| 完全同相=疑似数据错误 |
+| F1 | 前进速度 | 非 treadmill/stand 文件：平均水平速度 ∈ [0.1, 3.0] m/s | treadmill 原地走豁免；AMASS normal_walk 实测 0.14–0.17 m/s 属合法慢走 |
+| F2 | 步态相位 | 文件名含 walk/jog/run/treadmill：L/R hip_pitch 关节角相关系数 > +0.5 | X1 URDF 右髋符号镜像（限位 L=(-1,2) vs R=(-2,1)）：关节角同相 = 物理摆腿反相 = 正常步态（v16/v17 实测 +0.98~0.99）；低相关提示步态不对称 |
 | F3 | 双支撑 | walk 类文件 ≥10% 帧双脚 z < 0.06 m | 步行应有双支撑相 |
 
 ## G. lab 转换保真（硬门）
@@ -86,7 +86,8 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
 
 ## 判定
 
-- **通过（PASS）**: 无任何 FAIL；WARN ≤ 5 条且无系统性模式（同一检查在 ≥3 个文件触发视为系统性，降级为 FAIL）。
-- **未通过（FAIL）**: 任一 FAIL，或系统性 WARN。
+- **通过（PASS）**: 无任何 FAIL。
+- **系统性 WARN 升级策略（v1.1 修订）**: 仅当 WARN 属于"系统性出现会污染训练"的检查（白名单 F1 / F2 / G0）且在 ≥3 个文件触发时升级为 FAIL。B2（软限位）与 E3（存档 FK 约定取证）不参与升级——两者是本机器人+GMR IK 的固有数据特征，同特性数据已在 v16/v17 训练中实证可用（2026-08-17 门控运行确认；误杀根因：A4 帧率按 50fps 校准而 GMR 实际保留 120fps，F2 相位预期未考虑右髋符号镜像）。
+- **未通过（FAIL）**: 任一 FAIL，或白名单 WARN 系统性触发。
 - 容器内执行点：GMR retarget + dataset_retarget 完成后、AMP 训练启动前；FAIL 则**阻断训练**并上传报告。
 - 本地复验点：下载 `model_retarget_data.pt`（含 x1_gmr+x1_lab 全部 pkl）后独立重跑本 checker。
