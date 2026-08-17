@@ -58,8 +58,10 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
     """X1 AMP runner config — symmetry DISABLED (29 DOF mirror indices TBD)."""
     class_name = "AMPRunner"
     num_steps_per_env = 24
-    max_iterations = 3000
-    save_interval = 100
+    # v18: 3000 -> 4000. v16/v17 curves plateaued (lin kernel 0.835-0.839);
+    # extra 1000 iters to close the gap toward the 0.85 TARGET (AMP_ACCEPTANCE.md).
+    max_iterations = 4000
+    save_interval = 500  # v18: 100 -> 500, keep SDK auto-upload volume sane
     experiment_name = "x1_amp"
     wandb_project = "x1_amp"
     obs_groups = {
@@ -102,7 +104,10 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 hidden_dims=[1024, 512],
                 activation="elu",
                 style_reward_scale=1.5,
-                task_style_lerp=0.6
+                # v18: 0.6 -> 0.75. Style reward collapsed to ~1% of its 30/ep
+                # ceiling in v16/v17 (disc saturates at -0.996); shifting lerp
+                # toward task gives the tracking terms full gradient weight.
+                task_style_lerp=0.75
             ),
             loss_type="LSGAN"
         ),

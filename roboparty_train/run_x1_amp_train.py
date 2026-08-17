@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """
-Full X1 AMP training pipeline: retarget + train in one container.
+X1 AMP training pipeline v18 (acceptance-gated).
 
-1. Reassemble SMPLX
-2. GMR retarget (isolated venv)
-3. Isaac Lab dataset_retarget
-4. AMP training
+Phases:
+  1. GMR retarget (SMPLX -> X1, isolated venv, installed OUTSIDE repo tree)
+  2. Isaac Lab dataset_retarget (x1_gmr -> x1_lab)
+  3. STRICT retarget acceptance gate (acceptance/check_retarget.py)
+     -> FAIL aborts BEFORE burning GPU-hours on training
+  4. AMP training (cwd=REPO_ROOT so logs land inside the SDK-scanned tree;
+     stdout captured to file) with checkpoint upload monitor
+  5. Play rollout + video (X1-AMP-Play, command 1.0 m/s forward)
+  6. AMP training acceptance (acceptance/check_amp.py)
+  7. Artifacts mirrored to repo-tree model_upload/ (SDK scans repo tree for
+     *.pt during the run — this is the upload path that verifiably worked for
+     gvhmr_pt in v16/v17) + exported_data/ paths.
 
 Usage:
     python run_x1_amp_train.py --headless
@@ -13,10 +21,13 @@ Usage:
 
 import functools
 import os
+import pickle as _pkl
 import shutil
 import subprocess
 import sys
-import numpy as np
+import threading
+import time
+from datetime import datetime as _dt
 from pathlib import Path
 
 print = functools.partial(print, flush=True)
@@ -41,101 +52,177 @@ if REPO_ROOT is None:
     sys.exit(1)
 print(f"[INFO] REPO_ROOT = {REPO_ROOT}")
 
-# Import the GMR pipeline functions (reuse from run_gmr_retarget.py)
 sys.path.insert(0, str(SCRIPT_DIR))
 from run_gmr_retarget import (
     reassemble_smplx, setup_gmr, register_x1_in_gmr,
     run_auto_ik, run_gmr_retarget, run_dataset_retarget
 )
 
+# Repo-tree upload dir: SDK periodic scan registers *.pt here (proven pattern).
+UPLOAD_DIR = REPO_ROOT / "model_upload"
+MOTIONS_DIR = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions"
+TRAIN_LOG_FILE = REPO_ROOT / "train_stdout.log"
+PLAY_LOG_FILE = REPO_ROOT / "play_stdout.log"
 
-def main():
-    print("=" * 60)
-    print("X1 Full AMP Training Pipeline")
-    print("=" * 60)
 
-    # === Phase 1: GMR Retarget ===
-    print("\n=== Phase 1: GMR Retarget ===\n")
+def wrap_json_for_upload(name: str, obj) -> Path:
+    """SDK only uploads .pt files — wrap JSON payloads in a pickle .pt."""
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    p = UPLOAD_DIR / name
+    with open(p, "wb") as f:
+        _pkl.dump(obj, f)
+    print(f"[UPLOAD] {p.relative_to(REPO_ROOT)} ({p.stat().st_size // 1024}KB)")
+    return p
+
+
+def wait_for_sdk(seconds: int, why: str):
+    print(f"[INFO] Waiting {seconds}s for SDK upload queue ({why})...")
+    time.sleep(seconds)
+
+
+# ────────────────────────────────────────────────────────────────────
+def phase_retarget():
+    print("\n=== Phase 1-2: GMR Retarget + Isaac Lab dataset_retarget ===\n")
     reassemble_smplx()
     gmr_dir, venv_dir = setup_gmr()
     register_x1_in_gmr(gmr_dir)
 
     print("\n--- Auto-IK Calibration ---")
-    auto_config = run_auto_ik(gmr_dir, venv_dir)
+    run_auto_ik(gmr_dir, venv_dir)
 
-    print("\n--- Batch Retargeting ---")
-    gmr_output = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "x1_gmr"
+    gmr_output = MOTIONS_DIR / "x1_gmr"
     if gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 14:
         print(f"[INFO] x1_gmr already has {len(list(gmr_output.glob('*.pkl')))} files, skipping GMR retarget")
     else:
         run_gmr_retarget(gmr_dir, venv_dir)
 
-    # === Phase 2: Isaac Lab Dataset Retarget ===
-    print("\n=== Phase 2: Isaac Lab Dataset Retarget ===\n")
-    lab_output = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "x1_lab"
+    lab_output = MOTIONS_DIR / "x1_lab"
     if lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 14:
         print(f"[INFO] x1_lab already has {len(list(lab_output.glob('*.pkl')))} files, skipping dataset_retarget")
     else:
         run_dataset_retarget(gmr_output)
 
-    # Verify lab files
     lab_files = list(lab_output.glob("*.pkl"))
     print(f"\n[INFO] x1_lab: {len(lab_files)} files")
-    if len(lab_files) < 10:
-        print("[ERROR] Not enough lab files for AMP training!")
+    if len(lab_files) < 14:
+        print("[ERROR] Expected 14 lab files for AMP training!")
         sys.exit(1)
+    return gmr_output, lab_output, venv_dir
 
-    # Package retarget results for SDK upload
-    # SDK scans: logs/{exp}/exported_data/{load_run}/model_*.pt
-    # Must use model_ prefix and exported_data directory structure
-    print("\n--- Packaging Retarget Results for Download ---")
-    import pickle as _pkl
-    from datetime import datetime as _dt
 
-    # SDK upload path: logs/rsl_rl/x1_amp/exported_data/{run_name}/
-    sdk_run_name = _dt.now().strftime("%Y-%m-%d_%H-%M-%S") + "x1_amp"
-    sdk_export_dir = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp" / "exported_data" / sdk_run_name
-    sdk_export_dir.mkdir(parents=True, exist_ok=True)
-    print(f"[INFO] SDK export dir: {sdk_export_dir}")
-
-    # Delete old RPO .pt files from repo (they pollute SDK's .pt scan)
-    old_pt_dirs = [
-        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_lab",
-        REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "rpo_gmr",
-        REPO_ROOT / "GMR" / "gvhmr_pt",
+def phase_retarget_acceptance(venv_dir: Path) -> bool:
+    """Strict gate: acceptance/check_retarget.py. Returns True on PASS."""
+    print("\n=== Phase 3: STRICT Retarget Acceptance Gate ===\n")
+    checker = REPO_ROOT / "acceptance" / "check_retarget.py"
+    report_json = UPLOAD_DIR / "retarget_acceptance_report.json"
+    venv_python = str(venv_dir / "bin" / "python")
+    cmd = [
+        "python" if not Path(venv_python).exists() else venv_python,
+        str(checker), "--repo-root", str(REPO_ROOT),
+        "--json", str(report_json),
     ]
-    for d in old_pt_dirs:
-        if d.exists():
-            for pt in d.glob("*.pt"):
-                pt.unlink()
-                print(f"  Deleted old: {pt.relative_to(REPO_ROOT)}")
+    print(f"[INFO] Running: {' '.join(cmd)}")
+    result = subprocess.run(cmd, cwd=str(REPO_ROOT))
 
-    # Use pickle (not torch) to avoid numpy/torch import conflicts
+    payload = {"phase": "retarget_acceptance",
+               "passed": result.returncode == 0,
+               "checker": "acceptance/check_retarget.py",
+               "spec": "acceptance/RETARGET_ACCEPTANCE.md"}
+    if report_json.exists():
+        payload["report"] = report_json.read_text()
+    wrap_json_for_upload("model_retarget_report.pt", payload)
+
+    if result.returncode != 0:
+        print("\n[FATAL] Retarget acceptance FAILED — blocking training start.")
+        print("[INFO] Report wrapped for upload. Aborting (no GPU-hours spent).")
+        wait_for_sdk(180, "upload failure report")
+        sys.exit(1)
+    print("\n[INFO] Retarget acceptance PASSED — proceeding to training.")
+    return True
+
+
+def phase_package_retarget(gmr_output: Path, lab_output: Path):
+    print("\n=== Phase 3.5: Package retarget artifacts ===")
     retarget_pkg = {}
-    for f in sorted(lab_files):
+    for f in sorted(lab_output.glob("*.pkl")):
         retarget_pkg[f"x1_lab/{f.name}"] = f.read_bytes()
-        print(f"  Added: x1_lab/{f.name} ({f.stat().st_size // 1024}KB)")
     for f in sorted(gmr_output.glob("*.pkl")):
         retarget_pkg[f"x1_gmr/{f.name}"] = f.read_bytes()
     auto_cfg = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
     if auto_cfg.exists():
         retarget_pkg["smplx_to_x1_auto.json"] = auto_cfg.read_bytes()
-
-    # Must use model_ prefix for SDK to detect and upload
-    retarget_pt = sdk_export_dir / "model_retarget_data.pt"
-    with open(retarget_pt, "wb") as fh:
+    p = UPLOAD_DIR / "model_retarget_data.pt"
+    with open(p, "wb") as fh:
         _pkl.dump(retarget_pkg, fh)
-    size_mb = retarget_pt.stat().st_size / 1e6
-    print(f"[INFO] Packaged retarget data → {retarget_pt.relative_to(REPO_ROOT)} ({size_mb:.1f}MB)")
-    print("[INFO] SDK will scan exported_data/ for model_*.pt files")
+    print(f"[UPLOAD] {p.relative_to(REPO_ROOT)} ({p.stat().st_size / 1e6:.1f}MB)")
 
-    # === Phase 3: AMP Training ===
-    print("\n=== Phase 3: AMP Training ===\n")
+
+def find_checkpoint_roots():
+    """train.py writes logs relative to ITS cwd. We pass cwd=REPO_ROOT, but
+    also sweep the process cwd root as belt-and-braces (v16/v17 bug: logs went
+    to /workspace/isaaclab/logs while monitor watched REPO_ROOT/logs)."""
+    roots = [REPO_ROOT / "logs" / "rsl_rl" / "x1_amp",
+             Path.cwd() / "logs" / "rsl_rl" / "x1_amp"]
+    return [r for r in roots if r.exists()]
+
+
+def latest_run_dir():
+    run_dirs = []
+    for root in find_checkpoint_roots():
+        for d in root.glob("*/"):
+            if d.name == "exported_data":
+                continue
+            if list(d.glob("model_*.pt")):
+                run_dirs.append(d)
+    if not run_dirs:
+        return None
+    return max(run_dirs, key=lambda d: d.stat().st_mtime)
+
+
+def all_checkpoints():
+    ckpts = {}
+    for root in find_checkpoint_roots():
+        for d in root.glob("*/"):
+            if d.name == "exported_data":
+                continue
+            for c in d.glob("model_*.pt"):
+                ckpts[c.name] = c  # later roots overwrite earlier
+    return ckpts
+
+
+def mirror_checkpoint(ckpt: Path, tag: str):
+    """Mirror a checkpoint into every SDK-visible location."""
+    copied = []
+    # 1) repo tree upload dir (verifiably scanned during run)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    dst = UPLOAD_DIR / ckpt.name
+    if not dst.exists():
+        shutil.copy2(ckpt, dst)
+        copied.append(dst)
+    # 2) exported_data pattern logs/{exp}/exported_data/{run}/model_*.pt
+    for root in [REPO_ROOT / "logs", Path.cwd() / "logs"]:
+        exp = root / "x1_amp" / "exported_data" / tag
+        try:
+            exp.mkdir(parents=True, exist_ok=True)
+            dst2 = exp / ckpt.name
+            if not dst2.exists():
+                shutil.copy2(ckpt, dst2)
+                copied.append(dst2)
+        except OSError:
+            pass
+    for c in copied:
+        try:
+            print(f"[MONITOR] {ckpt.name} -> {c}")
+        except Exception:
+            pass
+
+
+def phase_train() -> int:
+    print("\n=== Phase 4: AMP Training ===\n")
 
     robolab_src = REPO_ROOT / "roboparty_train" / "robolab"
     rsl_rl_src = REPO_ROOT / "roboparty_train" / "rsl_rl"
 
-    # Ensure robolab/rsl_rl are installed (force reinstall rsl_rl to override Isaac Lab's version)
     print("[INFO] Installing robolab/rsl_rl (force rsl_rl to override Isaac Lab v3.1.2)...")
     subprocess.run([sys.executable, "-m", "pip", "uninstall", "rsl-rl-lib", "-y", "-q"], check=False)
     subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(rsl_rl_src), "-q",
@@ -143,87 +230,163 @@ def main():
     subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(robolab_src), "-q",
                     "--no-deps"], check=True)
 
-    # Add to sys.path for import
-    for p in [str(robolab_src), str(rsl_rl_src)]:
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    train_script = robolab_src / "scripts" / "rsl_rl" / "train.py"
+    cmd = [sys.executable, str(train_script),
+           "--task=X1-AMP", "--headless", "--logger=tensorboard", "--num_envs=4096"]
 
-    train_script = REPO_ROOT / "roboparty_train" / "robolab" / "scripts" / "rsl_rl" / "train.py"
-
-    cmd = [
-        sys.executable, str(train_script),
-        "--task=X1-AMP",
-        "--headless",
-        "--logger=tensorboard",
-        "--num_envs=4096",
-    ]
-
-    # Start a background thread to copy checkpoints to SDK scan directory
-    # SDK scans: logs/{exp}/exported_data/{load_run}/model_*.pt
-    # Checkpoints are saved to logs/rsl_rl/x1_amp/{timestamp}/model_*.pt (subdirectory)
-    # We copy them to exported_data/{run_name}/ for SDK upload
-    import threading, glob, shutil
-
-    rsl_rl_log_root = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp"
-    rsl_rl_log_root.mkdir(parents=True, exist_ok=True)
+    tag = _dt.now().strftime("%Y-%m-%d_%H-%M-%S") + "x1_amp"
     stop_monitor = threading.Event()
+    mirrored = set()
 
-    def checkpoint_monitor():
-        """Background thread: every 60s, copy new checkpoints to exported_data dir."""
-        uploaded = set()
+    def monitor():
+        """Every 30s mirror milestone checkpoints (every 1000th) into the
+        depth-2 repo-tree upload dir (proven SDK pattern) + exported_data."""
         while not stop_monitor.is_set():
-            # Find latest run directory (Isaac Lab creates timestamped subdirs)
-            run_dirs = sorted(rsl_rl_log_root.glob("*/"), key=lambda x: x.stat().st_mtime)
-            for run_dir in run_dirs:
-                # Skip exported_data itself
-                if run_dir.name == "exported_data":
-                    continue
-                for ckpt in sorted(run_dir.glob("model_*.pt")):
-                    if ckpt.name not in uploaded:
-                        dst = sdk_export_dir / ckpt.name
-                        shutil.copy2(ckpt, dst)
-                        uploaded.add(ckpt.name)
-                        print(f"[MONITOR] Copied {ckpt.name} → exported_data/{sdk_run_name}/")
-            stop_monitor.wait(60)  # sleep 60s or until stopped
+            try:
+                for name, c in sorted(all_checkpoints().items()):
+                    if name in mirrored:
+                        continue
+                    stem = name[len("model_"):-len(".pt")] if name.startswith("model_") else ""
+                    if not (stem.isdigit() and int(stem) % 1000 == 0):
+                        continue  # milestones only; natural logs path covers the rest
+                    mirror_checkpoint(c, tag)
+                    mirrored.add(name)
+            except Exception as e:
+                print(f"[MONITOR] error: {e}")
+            stop_monitor.wait(30)
 
-    monitor_thread = threading.Thread(target=checkpoint_monitor, daemon=True)
-    monitor_thread.start()
-    print(f"[INFO] Background checkpoint monitor started → exported_data/{sdk_run_name}/")
+    threading.Thread(target=monitor, daemon=True).start()
 
     print(f"[INFO] Starting AMP training: {' '.join(cmd)}")
-    result = subprocess.run(cmd)
-
-    # Stop monitor
+    print(f"[INFO] cwd={REPO_ROOT}  stdout -> {TRAIN_LOG_FILE.name}")
+    with open(TRAIN_LOG_FILE, "wb") as logf:
+        proc = subprocess.Popen(cmd, cwd=str(REPO_ROOT), stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        for raw in iter(proc.stdout.readline, b""):
+            logf.write(raw)
+            logf.flush()
+            try:
+                print(raw.decode(errors="replace"), end="")
+            except Exception:
+                pass
+        rc = proc.wait()
     stop_monitor.set()
-    monitor_thread.join(timeout=5)
+    time.sleep(2)
 
-    # Final checkpoint copy: copy ALL checkpoints to exported_data
-    run_dirs = sorted(rsl_rl_log_root.glob("*/"), key=lambda x: x.stat().st_mtime) if rsl_rl_log_root.exists() else []
-    for run_dir in run_dirs:
-        if run_dir.name == "exported_data":
-            continue
-        for ckpt in sorted(run_dir.glob("model_*.pt")):
-            dst = sdk_export_dir / ckpt.name
-            if not dst.exists():
-                shutil.copy2(ckpt, dst)
-                print(f"[FINAL] Copied {ckpt.name} → exported_data/{sdk_run_name}/")
+    # Final sweep: mirror everything that exists (covers final + stragglers)
+    print("\n[INFO] Final checkpoint sweep:")
+    ckpts = all_checkpoints()
+    if not ckpts:
+        print("[ERROR] NO CHECKPOINTS FOUND anywhere under logs/ roots!")
+    for name, c in sorted(ckpts.items()):
+        if name not in mirrored:
+            mirror_checkpoint(c, tag)
+            mirrored.add(name)
+    print(f"[INFO] Mirrored {len(mirrored)} checkpoints. Run dir: {latest_run_dir()}")
+    return rc
 
-    # List what we have for SDK upload
-    exported_files = sorted(sdk_export_dir.glob("model_*.pt"))
-    print(f"\n[INFO] Exported {len(exported_files)} files to SDK scan path:")
-    for f in exported_files:
+
+def final_checkpoint() -> Path | None:
+    ckpts = all_checkpoints()
+    if not ckpts:
+        return None
+    def key(name):
+        stem = name[len("model_"):-len(".pt")]
+        return (0, int(stem)) if stem.isdigit() else (1, 0)
+    best = max(ckpts, key=key)
+    return ckpts[best]
+
+
+def phase_play_video(ckpt: Path):
+    """Record a fixed-command walk video with the final policy."""
+    print("\n=== Phase 5: Play rollout + video ===\n")
+    if ckpt is None:
+        print("[WARN] No checkpoint — skipping play/video")
+        return None
+    play_script = REPO_ROOT / "roboparty_train" / "robolab" / "scripts" / "rsl_rl" / "play_amp.py"
+    cmd = [sys.executable, str(play_script),
+           "--task", "X1-AMP-Play",
+           "--num_envs", "1",
+           "--checkpoint", str(ckpt),
+           "--video", "--video_length", "600",   # 600 steps = 12 s @ 50 Hz
+           "--headless"]
+    print(f"[INFO] {' '.join(cmd)}")
+    try:
+        with open(PLAY_LOG_FILE, "wb") as logf:
+            rc = subprocess.run(cmd, cwd=str(REPO_ROOT), stdout=logf,
+                                stderr=subprocess.STDOUT, timeout=1500).returncode
+    except subprocess.TimeoutExpired:
+        rc = -1
+        print("[WARN] play timed out after 1500s (killed) — continuing without fresh video")
+    print(f"[INFO] play exit={rc} (log: {PLAY_LOG_FILE.name})")
+
+    # locate produced mp4(s)
+    videos = []
+    for root in [REPO_ROOT / "logs", Path.cwd() / "logs"]:
+        videos += list(root.rglob("*.mp4"))
+    if not videos:
+        print("[WARN] No mp4 found after play!")
+        return None
+    video = max(videos, key=lambda v: v.stat().st_mtime)
+    # mirror to SDK video-scan locations: logs/{exp}/*.mp4 + upload dir
+    dests = [REPO_ROOT / "logs" / "x1_amp" / f"x1_walk_{_dt.now():%H%M%S}.mp4",
+             UPLOAD_DIR / f"x1_walk_{_dt.now():%H%M%S}.mp4"]
+    for d in dests:
+        d.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(video, d)
+        try:
+            print(f"[VIDEO] -> {d}")
+        except Exception:
+            pass
+    return video
+
+
+def phase_amp_acceptance(video: Path | None):
+    print("\n=== Phase 6: AMP Training Acceptance ===\n")
+    checker = REPO_ROOT / "acceptance" / "check_amp.py"
+    report_json = UPLOAD_DIR / "amp_acceptance_report.json"
+    max_iter = 4000
+    cmd = [sys.executable, str(checker), "--log", str(TRAIN_LOG_FILE),
+           "--max-iters", str(max_iter), "--json", str(report_json)]
+    if video is not None:
+        cmd += ["--video", str(video)]
+    if PLAY_LOG_FILE.exists():
+        cmd += ["--play-log", str(PLAY_LOG_FILE)]
+    rc = subprocess.run(cmd).returncode
+
+    payload = {"phase": "amp_acceptance", "passed": rc == 0,
+               "checker": "acceptance/check_amp.py",
+               "spec": "acceptance/AMP_ACCEPTANCE.md", "max_iterations": max_iter}
+    if report_json.exists():
+        payload["report"] = report_json.read_text()
+    wrap_json_for_upload("model_amp_report.pt", payload)
+    return rc
+
+
+def main():
+    print("=" * 60)
+    print("X1 AMP Pipeline v18 (acceptance-gated)")
+    print("=" * 60)
+
+    gmr_output, lab_output, venv_dir = phase_retarget()
+    phase_retarget_acceptance(venv_dir)
+    phase_package_retarget(gmr_output, lab_output)
+
+    rc = phase_train()
+    if rc != 0:
+        print(f"[ERROR] AMP training exited with code {rc}")
+    ckpt = final_checkpoint()
+    print(f"[INFO] Final checkpoint: {ckpt}")
+
+    video = phase_play_video(ckpt)
+    amp_rc = phase_amp_acceptance(video)
+
+    print("\n=== Phase 7: wrap-up ===")
+    print(f"[INFO] Artifacts in {UPLOAD_DIR}:")
+    for f in sorted(UPLOAD_DIR.glob("*")):
         print(f"  {f.name} ({f.stat().st_size // 1024}KB)")
-
-    if result.returncode != 0:
-        print(f"[ERROR] AMP training exited with code {result.returncode}")
-    else:
-        print("[INFO] AMP training completed!")
-
-    # Wait for SDK to detect and upload files
-    import time
-    print("[INFO] Waiting 120s for SDK file upload...")
-    time.sleep(120)
-    print("[INFO] Done waiting.")
+    wait_for_sdk(300, "final checkpoint + video + reports")
+    print("[INFO] Pipeline done.")
 
 
 if __name__ == "__main__":

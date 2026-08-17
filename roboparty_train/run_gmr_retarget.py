@@ -76,7 +76,12 @@ def reassemble_smplx():
 
 # ── Step 2: Clone and install GMR in separate venv ────────────────
 def setup_gmr():
-    gmr_dir = REPO_ROOT / "GMR"
+    # v18: install OUTSIDE the repo working tree. The Gradmotion SDK scans the
+    # repo tree for *.pt during the run; GMR bundles gvhmr_pt/*.pt which were
+    # uploaded as junk "models" in v16/v17 (loadRun=gvhmr_pt). The parent dir
+    # of the repo clone is not scanned while the task is running.
+    gmr_parent = REPO_ROOT.parent if REPO_ROOT.name == "X1_29_AMP" else Path("/workspace")
+    gmr_dir = gmr_parent / "GMR_X1"
 
     if not (gmr_dir / "setup.py").exists():
         print("[INFO] Cloning GMR...")
@@ -86,7 +91,7 @@ def setup_gmr():
         ])
 
     # Create isolated venv
-    venv_dir = REPO_ROOT / "gmr_venv"
+    venv_dir = gmr_parent / "gmr_x1_venv"
     if not venv_dir.exists():
         print("[INFO] Creating isolated venv for GMR...")
         subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])

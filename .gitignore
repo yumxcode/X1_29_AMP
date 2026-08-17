@@ -25,3 +25,7 @@ AMASS/
 
 # SMPLX body model - too large for git (>100MB), upload via Gradmotion storage
 AMASS_minimal/smplx/*.pkl
+
+# local venv-target libs and acceptance scratch
+pylibs/
+acceptance/cache/
