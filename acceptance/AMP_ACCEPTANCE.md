@@ -59,7 +59,11 @@ v18 相对 v16/v17 的两处改动（用于逼近 TARGET）: `max_iterations` 30
 
 ## 3. 执行与证据链
 
+**验证策略：所有验收一律在 Gradmotion 训练容器内执行（Linux/GPU）；本地 Mac 仅做代码静态检查，不跑任何验证。**
+
 1. **容器内**（v18 pipeline 自动执行）: 训练 stdout 全量落盘 → check_amp.py →
    `amp_acceptance_report.json` 随产物上传；play 视频存 `logs/x1_amp/`。
-2. **本地复验**: `gm task data get` 拉平台曲线，交叉核对容器内报告（防日志裁剪）。
-3. 判定输出: PASS/FAIL 逐项清单 + TARGET 达成表。
+2. **sim2sim**（独立轻量任务）: 挂载最终 checkpoint → MuJoCo (x1.xml) rollout →
+   行走视频 + 存活/跟踪指标（`sim2sim/run_sim2sim_task.py`）。
+3. **平台侧复核**: `gm task data get` 拉训练曲线，与容器内报告交叉核对（防日志裁剪）。
+4. 判定输出: PASS/FAIL 逐项清单 + TARGET 达成表。
