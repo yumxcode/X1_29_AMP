@@ -115,6 +115,7 @@ def phase_retarget_acceptance(venv_dir: Path) -> bool:
     print("\n=== Phase 3: STRICT Retarget Acceptance Gate ===\n")
     checker = REPO_ROOT / "acceptance" / "check_retarget.py"
     report_json = UPLOAD_DIR / "retarget_acceptance_report.json"
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)  # checker json write needs it
     venv_python = str(venv_dir / "bin" / "python")
     cmd = [
         "python" if not Path(venv_python).exists() else venv_python,

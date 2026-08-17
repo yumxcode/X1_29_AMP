@@ -436,6 +436,9 @@ def main():
     print("=" * 72)
 
     if args.json:
+        # parent dir may not exist yet when invoked by the train pipeline gate
+        # (TASK_20260817_046 crashed here: model_upload/ created only later)
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps({
             "verdict": verdict, "fails": rep.fails, "warns": rep.warns,
             "files": stats}, indent=1, default=str))
