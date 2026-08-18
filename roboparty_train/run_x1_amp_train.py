@@ -238,8 +238,31 @@ def mirror_checkpoint(ckpt: Path, tag: str):
             pass
 
 
+def purge_gmr_junk_pt():
+    """Delete GMR's bundled gvhmr_pt/*.pt immediately after the retarget phase.
+
+    v21b evidence: these junk reference-policy .pt registered on the platform
+    at task-start+8min (from OUTSIDE-repo GMR_X1 — so the SDK scans beyond the
+    repo tree), while every real training checkpoint stayed unregistered —
+    consistent with a 5-per-task quota consumed by junk. The retarget pkl
+    data is fully extracted by the time this runs, so deletion is safe."""
+    roots = [REPO_ROOT.parent / "GMR_X1" / "gvhmr_pt",
+             REPO_ROOT / "GMR" / "gvhmr_pt"]
+    n = 0
+    for r in roots:
+        if r.is_dir():
+            for pt in r.glob("*.pt"):
+                try:
+                    pt.unlink()
+                    n += 1
+                except OSError:
+                    pass
+    print(f"[PURGE] removed {n} GMR gvhmr junk .pt files (before training)")
+
+
 def phase_train() -> int:
     print("\n=== Phase 4: AMP Training ===\n")
+    purge_gmr_junk_pt()
 
     robolab_src = REPO_ROOT / "roboparty_train" / "robolab"
     rsl_rl_src = REPO_ROOT / "roboparty_train" / "rsl_rl"
@@ -260,21 +283,20 @@ def phase_train() -> int:
     mirrored = set()
 
     def monitor():
-        """Every 30s mirror milestone checkpoints (every 1000th) into the
-        depth-2 repo-tree upload dir (proven SDK pattern) + exported_data."""
+        """Watch training checkpoints (logging only — mirrors happen in the
+        final sweep). v22: during-training mirroring removed; v16-v21b
+        evidence suggests a 5-per-task registration quota, so intermediate
+        checkpoints must NOT be pushed into SDK-visible paths."""
+        last = None
         while not stop_monitor.is_set():
             try:
-                for name, c in sorted(all_checkpoints().items()):
-                    if name in mirrored:
-                        continue
-                    stem = name[len("model_"):-len(".pt")] if name.startswith("model_") else ""
-                    if not (stem.isdigit() and int(stem) % 1000 == 0):
-                        continue  # milestones only; natural logs path covers the rest
-                    mirror_checkpoint(c, tag)
-                    mirrored.add(name)
+                names = sorted(all_checkpoints())
+                if names != last:
+                    print(f"[MONITOR] checkpoints on disk: {names}")
+                    last = names
             except Exception as e:
                 print(f"[MONITOR] error: {e}")
-            stop_monitor.wait(30)
+            stop_monitor.wait(60)
 
     threading.Thread(target=monitor, daemon=True).start()
 
@@ -294,16 +316,21 @@ def phase_train() -> int:
     stop_monitor.set()
     time.sleep(2)
 
-    # Final sweep: mirror everything that exists (covers final + stragglers)
+    # v22 final sweep: mirror ONLY the final checkpoint. Reports are written
+    # to UPLOAD_DIR by the packaging/acceptance phases. Keeping the total
+    # SDK-visible .pt count small protects the final ckpt + reports against
+    # a possible 5-per-task registration quota (v16-v21b: gvhmr junk took
+    # all 5 slots every single run).
     print("\n[INFO] Final checkpoint sweep:")
     ckpts = all_checkpoints()
     if not ckpts:
         print("[ERROR] NO CHECKPOINTS FOUND anywhere under logs/ roots!")
-    for name, c in sorted(ckpts.items()):
-        if name not in mirrored:
-            mirror_checkpoint(c, tag)
-            mirrored.add(name)
-    print(f"[INFO] Mirrored {len(mirrored)} checkpoints. Run dir: {latest_run_dir()}")
+    final = final_checkpoint()
+    if final is not None:
+        mirror_checkpoint(final, tag)
+        mirrored.add(final.name)
+    print(f"[INFO] Mirrored final only: {final.name if final else None}. "
+          f"Run dir: {latest_run_dir()}")
     return rc
 
 
@@ -375,57 +402,154 @@ def phase_play_video(ckpt: Path):
     if video is None:
         print("[WARN] No video from any source")
         return None
-    # mirror to SDK-visible locations: outside-repo (primary), logs/{exp}/
-    # (skill-documented video scan path), upload dir
+    # mirror ALL sim2sim products (videos + metric jsons) to SDK-visible
+    # locations; metrics jsons also get wrapped as .pt for registration
     stamp = f"{_dt.now():%H%M%S}"
-    dests = [OUTSIDE_DIR / f"x1_walk_{stamp}.mp4",
-             REPO_ROOT / "logs" / "x1_amp" / f"x1_walk_{stamp}.mp4",
-             UPLOAD_DIR / f"x1_walk_{stamp}.mp4"]
-    for d in dests:
-        try:
-            d.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(video, d)
-            print(f"[VIDEO] -> {d}")
-        except OSError as e:
-            print(f"[VIDEO] mirror failed {d}: {e}")
+    to_mirror = [video]
+    sim_dir = OUTSIDE_DIR / "sim2sim"
+    if sim_dir.exists():
+        to_mirror += sorted(sim_dir.glob("x1_sim2sim_*.mp4"))
+        for js in sorted(sim_dir.glob("x1_sim2sim_*.json")):
+            try:
+                import json as _json
+                obj = _json.loads(js.read_text())
+                p = wrap_json_for_upload(f"sim2sim_{js.stem}.pt", obj)
+                print(f"[UPLOAD] {p.name} ({p.stat().st_size // 1024}KB)")
+            except Exception as e:
+                print(f"[WARN] wrap {js.name}: {e}")
+    seen = set()
+    for v in to_mirror:
+        if v in seen:
+            continue
+        seen.add(v)
+        dests = [OUTSIDE_DIR / f"{v.stem}_{stamp}.mp4" if v == video else OUTSIDE_DIR / v.name,
+                 REPO_ROOT / "logs" / "x1_amp" / v.name,
+                 UPLOAD_DIR / v.name]
+        for d in dests:
+            try:
+                d.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(v, d)
+                print(f"[VIDEO] -> {d}")
+            except OSError as e:
+                print(f"[VIDEO] mirror failed {d}: {e}")
     return video
 
 
+def _mujoco_env_matrix(sys_ok: bool, pylibs: Path):
+    """Env attempt matrix for headless MuJoCo rendering (v22).
+
+    v21b post-mortem: pip --target pylibs mujoco pulled a BROKEN PyOpenGL
+    (import crash in OpenGL/GL/VERSION/GL_1_1.py) which killed both egl and
+    osmesa. The container python already ships mujoco 3.6.0 (pip conflict
+    log) and imageio (moviepy dep) — so try the SYSTEM interpreter first
+    with NO PYTHONPATH shadowing, then a pylibs fallback whose broken
+    OpenGL copy has been stripped (mujoco falls back to system OpenGL)."""
+    attempts = []
+    if sys_ok:
+        attempts += [
+            ("sys-egl", dict(os.environ, MUJOCO_GL="egl")),
+            ("sys-osmesa", dict(os.environ, MUJOCO_GL="osmesa",
+                                PYOPENGL_PLATFORM="osmesa")),
+        ]
+    pp = str(pylibs)
+    attempts += [
+        ("pylibs-egl", dict(os.environ, MUJOCO_GL="egl", PYTHONPATH=pp)),
+        ("pylibs-osmesa", dict(os.environ, MUJOCO_GL="osmesa",
+                               PYOPENGL_PLATFORM="osmesa", PYTHONPATH=pp)),
+    ]
+    return attempts
+
+
 def sim2sim_fallback_video(ckpt: Path):
-    """Render a walking video of the final policy in MuJoCo (no Isaac render
-    stack needed). Also doubles as the sim2sim deliverable."""
+    """Render walking videos of the final policy in MuJoCo — 3 rollouts
+    (walk 1.0 / walk 1.5 / walk+turn) with metrics JSON. Doubles as the
+    sim2sim deliverable. Returns the first video path, None on failure."""
     try:
         import subprocess as _sp
+
+        sys_ok = _sp.run([sys.executable, "-c", "import mujoco, imageio.v2"],
+                         capture_output=True).returncode == 0
+        print(f"[INFO] system python mujoco+imageio probe: {'OK' if sys_ok else 'missing'}")
+
         pylibs = REPO_ROOT / "pylibs"
         pylibs.mkdir(exist_ok=True)
         _sp.run([sys.executable, "-m", "pip", "install", "-q", "--target", str(pylibs),
-                 "mujoco", "imageio"], check=True, timeout=600)
+                 "mujoco", "imageio", "imageio-ffmpeg"], check=True, timeout=600)
+        # v21b root cause fix: strip the broken pip PyOpenGL from pylibs so
+        # mujoco's GL bindings resolve to the system OpenGL instead
+        for bad in list(pylibs.glob("OpenGL")) + list(pylibs.glob("PyOpenGL*")):
+            shutil.rmtree(bad, ignore_errors=True)
+            print(f"[INFO] stripped {bad.name} from pylibs (broken PyOpenGL)")
+
         rollout = REPO_ROOT / "sim2sim" / "mujoco_rollout.py"
         out_dir = OUTSIDE_DIR / "sim2sim"
         out_dir.mkdir(parents=True, exist_ok=True)
-        cmd = [sys.executable, str(rollout), "--ckpt", str(ckpt),
-               "--repo-root", str(REPO_ROOT),
-               "--cmd", "1.0", "0.0", "0.0", "--duration", "12",
-               "--video", str(out_dir / "x1_walk_mj.mp4"),
-               "--json", str(out_dir / "x1_walk_mj.json")]
-        print(f"[INFO] mujoco fallback: {' '.join(cmd)}")
+        rollouts = [
+            ("walk_1.0", ["--cmd", "1.0", "0.0", "0.0", "--duration", "12"]),
+            ("walk_1.5", ["--cmd", "1.5", "0.0", "0.0", "--duration", "8"]),
+            ("walk_turn", ["--cmd", "1.0", "0.0", "0.8", "--duration", "8"]),
+        ]
+        good_env, videos = None, []
         logf = open(REPO_ROOT / "mujoco_fallback.log", "wb")
-        for gl in ("egl", "osmesa"):
-            env = dict(os.environ, PYTHONPATH=str(pylibs), MUJOCO_GL=gl)
-            logf.write(f"\n===== MUJOCO_GL={gl} =====\n".encode())
-            logf.flush()
-            try:
+        try:
+            for label, env in _mujoco_env_matrix(sys_ok, pylibs):
+                logf.write(f"\n===== {label} MUJOCO_GL={env.get('MUJOCO_GL')} =====\n".encode())
+                logf.flush()
+                ok = True
+                for name, extra in rollouts:
+                    mp4 = out_dir / f"x1_sim2sim_{name}.mp4"
+                    js = out_dir / f"x1_sim2sim_{name}.json"
+                    cmd = [sys.executable, str(rollout), "--ckpt", str(ckpt),
+                           "--repo-root", str(REPO_ROOT), "--video", str(mp4),
+                           "--json", str(js)] + extra
+                    try:
+                        rc = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=900,
+                                     stdout=logf, stderr=_sp.STDOUT).returncode
+                    except Exception as run_err:
+                        print(f"[WARN] mujoco {label}/{name} run error: {run_err}")
+                        rc = -1
+                    if rc != 0 or not (mp4.exists() and mp4.stat().st_size > 100_000):
+                        ok = False
+                        break
+                    videos.append(mp4)
+                if ok:
+                    good_env = label
+                    break
+                videos.clear()
+        finally:
+            logf.close()
+        if good_env:
+            print(f"[INFO] mujoco rollouts OK via {good_env}: {[v.name for v in videos]}")
+            return videos[0]
+        # last resort: install system GL libs and retry osmesa via pylibs
+        try:
+            print("[INFO] last resort: apt-get install libosmesa6 + retry")
+            _sp.run(["apt-get", "install", "-y", "-q", "libosmesa6", "libegl1"],
+                    timeout=300, stdout=logf, stderr=_sp.STDOUT)
+            logf = open(REPO_ROOT / "mujoco_fallback.log", "ab")
+            env = dict(os.environ, MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa",
+                       PYTHONPATH=str(pylibs))
+            ok = True
+            for name, extra in rollouts:
+                mp4 = out_dir / f"x1_sim2sim_{name}.mp4"
+                js = out_dir / f"x1_sim2sim_{name}.json"
+                cmd = [sys.executable, str(rollout), "--ckpt", str(ckpt),
+                       "--repo-root", str(REPO_ROOT), "--video", str(mp4),
+                       "--json", str(js)] + extra
                 rc = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=900,
                              stdout=logf, stderr=_sp.STDOUT).returncode
-            except Exception as run_err:
-                print(f"[WARN] mujoco {gl} run error: {run_err}")
-                rc = -1
-            if rc == 0:
-                v = out_dir / "x1_walk_mj.mp4"
-                if v.exists() and v.stat().st_size > 100_000:
-                    logf.close()
-                    return v
-        logf.close()
+                if rc != 0 or not (mp4.exists() and mp4.stat().st_size > 100_000):
+                    ok = False
+                    break
+                videos.append(mp4)
+            if ok:
+                print(f"[INFO] mujoco rollouts OK via apt-osmesa: {[v.name for v in videos]}")
+                logf.close()
+                return videos[0]
+            videos.clear()
+            logf.close()
+        except Exception as apt_err:
+            print(f"[WARN] apt osmesa retry failed: {apt_err}")
         log = (REPO_ROOT / "mujoco_fallback.log").read_text(errors="replace")
         print("[INFO] mujoco tail: " + " | ".join(
             l.strip()[:120] for l in log.splitlines()[-8:]))
