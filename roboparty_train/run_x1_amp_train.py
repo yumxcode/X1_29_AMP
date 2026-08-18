@@ -76,12 +76,24 @@ PLAY_LOG_FILE = REPO_ROOT / "play_stdout.log"
 
 
 def wrap_json_for_upload(name: str, obj) -> Path:
-    """SDK only uploads .pt files — wrap JSON payloads in a pickle .pt."""
+    """SDK only uploads .pt files — wrap JSON payloads in a pickle .pt.
+
+    v22 probe (TASK_20260818_075) proved the SDK scanner is NON-RECURSIVE:
+    only .pt files lying FLAT in the repo root /workspace/isaaclab/X1_29_AMP/
+    are uploaded+registered (loadRun=repo dir name); model_upload/ and any
+    subdirectory are 'detected globally' but never uploaded. So the PRIMARY
+    destination is the repo root; model_upload/ keeps a redundant copy."""
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     p = UPLOAD_DIR / name
     with open(p, "wb") as f:
         _pkl.dump(obj, f)
-    print(f"[UPLOAD] {p.relative_to(REPO_ROOT)} ({p.stat().st_size // 1024}KB)")
+    flat = REPO_ROOT / name
+    try:
+        shutil.copy2(p, flat)
+        print(f"[UPLOAD] {name} -> repo-root FLAT ({p.stat().st_size // 1024}KB) "
+              f"+ model_upload/")
+    except OSError as e:
+        print(f"[WARN] flat copy failed: {e}")
     return p
 
 
@@ -202,35 +214,43 @@ def all_checkpoints():
 
 
 def mirror_checkpoint(ckpt: Path, tag: str):
-    """Mirror a checkpoint into every SDK-visible location."""
+    """Mirror the final checkpoint to SDK-visible locations.
+
+    v22 probe-verified rule: SDK uploads ONLY .pt files flat in the repo
+    root (non-recursive scan of /workspace/isaaclab/X1_29_AMP). Destinations:
+      0) PRIMARY: REPO_ROOT/ckpt.name  (flat, probe-proven registration)
+      1) exported_data pattern logs/{exp}/exported_data/{run}/ (skill doc)
+      2) outside-repo dir (artifact archive)"""
     copied = []
-    # 0) PRIMARY: outside-repo dir (proven registration path, see OUTSIDE_DIR)
+    # 0) PRIMARY: flat in repo root (probe TASK_20260818_075 verified upload)
     try:
-        od = OUTSIDE_DIR / tag
-        od.mkdir(parents=True, exist_ok=True)
-        dst0 = od / ckpt.name
+        dst0 = REPO_ROOT / ckpt.name
         if not dst0.exists():
             shutil.copy2(ckpt, dst0)
             copied.append(dst0)
     except OSError as e:
-        print(f"[MONITOR] outside mirror failed: {e}")
-    # 1) repo tree upload dir (kept for redundancy)
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    dst = UPLOAD_DIR / ckpt.name
-    if not dst.exists():
-        shutil.copy2(ckpt, dst)
-        copied.append(dst)
-    # 2) exported_data pattern logs/{exp}/exported_data/{run}/model_*.pt
+        print(f"[MONITOR] flat mirror failed: {e}")
+    # 1) skill-documented exported_data pattern
     for root in [REPO_ROOT / "logs", Path.cwd() / "logs"]:
-        exp = root / "x1_amp" / "exported_data" / tag
         try:
+            exp = root / "x1_amp" / "exported_data" / tag
             exp.mkdir(parents=True, exist_ok=True)
-            dst2 = exp / ckpt.name
-            if not dst2.exists():
-                shutil.copy2(ckpt, dst2)
-                copied.append(dst2)
+            dst1 = exp / ckpt.name
+            if not dst1.exists():
+                shutil.copy2(ckpt, dst1)
+                copied.append(dst1)
         except OSError:
             pass
+    # 2) outside-repo archive
+    try:
+        od = OUTSIDE_DIR / tag
+        od.mkdir(parents=True, exist_ok=True)
+        dst2 = od / ckpt.name
+        if not dst2.exists():
+            shutil.copy2(ckpt, dst2)
+            copied.append(dst2)
+    except OSError as e:
+        print(f"[MONITOR] outside mirror failed: {e}")
     for c in copied:
         try:
             print(f"[MONITOR] {ckpt.name} -> {c}")
