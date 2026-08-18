@@ -456,26 +456,21 @@ def phase_play_video(ckpt: Path):
 
 
 def _mujoco_env_matrix(sys_ok: bool, pylibs: Path):
-    """Env attempt matrix for headless MuJoCo rendering (v22).
+    """(label, env, render_mode) attempts for headless rollout video.
 
-    v21b post-mortem: pip --target pylibs mujoco pulled a BROKEN PyOpenGL
-    (import crash in OpenGL/GL/VERSION/GL_1_1.py) which killed both egl and
-    osmesa. The container python already ships mujoco 3.6.0 (pip conflict
-    log) and imageio (moviepy dep) — so try the SYSTEM interpreter first
-    with NO PYTHONPATH shadowing, then a pylibs fallback whose broken
-    OpenGL copy has been stripped (mujoco falls back to system OpenGL)."""
+    v22 verdict: the container has NO usable GL stack at all (system
+    PyOpenGL from isaac_sim site-packages, pip PyOpenGL, EGL, OSMesa and
+    apt-installed osmesa all crash in OpenGL/GL/VERSION/GL_1_1.py), so
+    matplotlib 'soft' stick-figure rendering goes FIRST — it needs no GL.
+    GL attempts are kept only as quality upgrades."""
     attempts = []
-    if sys_ok:
-        attempts += [
-            ("sys-egl", dict(os.environ, MUJOCO_GL="egl")),
-            ("sys-osmesa", dict(os.environ, MUJOCO_GL="osmesa",
-                                PYOPENGL_PLATFORM="osmesa")),
-        ]
     pp = str(pylibs)
     attempts += [
-        ("pylibs-egl", dict(os.environ, MUJOCO_GL="egl", PYTHONPATH=pp)),
-        ("pylibs-osmesa", dict(os.environ, MUJOCO_GL="osmesa",
-                               PYOPENGL_PLATFORM="osmesa", PYTHONPATH=pp)),
+        ("sys-soft", dict(os.environ), "soft"),
+        ("sys-egl-gl", dict(os.environ, MUJOCO_GL="egl"), "gl"),
+        ("pylibs-soft", dict(os.environ, PYTHONPATH=pp), "soft"),
+        ("pylibs-osmesa-gl", dict(os.environ, MUJOCO_GL="osmesa",
+                                  PYOPENGL_PLATFORM="osmesa", PYTHONPATH=pp), "gl"),
     ]
     return attempts
 
@@ -512,8 +507,8 @@ def sim2sim_fallback_video(ckpt: Path):
         good_env, videos = None, []
         logf = open(REPO_ROOT / "mujoco_fallback.log", "wb")
         try:
-            for label, env in _mujoco_env_matrix(sys_ok, pylibs):
-                logf.write(f"\n===== {label} MUJOCO_GL={env.get('MUJOCO_GL')} =====\n".encode())
+            for label, env, rmode in _mujoco_env_matrix(sys_ok, pylibs):
+                logf.write(f"\n===== {label} render={rmode} =====\n".encode())
                 logf.flush()
                 ok = True
                 for name, extra in rollouts:
@@ -521,7 +516,7 @@ def sim2sim_fallback_video(ckpt: Path):
                     js = out_dir / f"x1_sim2sim_{name}.json"
                     cmd = [sys.executable, str(rollout), "--ckpt", str(ckpt),
                            "--repo-root", str(REPO_ROOT), "--video", str(mp4),
-                           "--json", str(js)] + extra
+                           "--json", str(js), "--render", rmode] + extra
                     try:
                         rc = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=900,
                                      stdout=logf, stderr=_sp.STDOUT).returncode

@@ -170,6 +170,78 @@ def run_policy(layers, mean, std, obs):
     return x @ w.T + (b if b is not None else 0)
 
 
+class SoftRenderer:
+    """Pure-CPU stick-figure renderer (matplotlib Agg, no GL at all).
+
+    v22 evidence: the container has NO usable GL stack — system PyOpenGL
+    (isaac_sim site-packages), pip PyOpenGL, EGL and OSMesa all fail, so
+    mujoco.Renderer can never initialize. This renderer draws the mj
+    skeleton (body world positions + parent edges) with matplotlib 3D and
+    feeds frames to imageio — guaranteed to work headless."""
+
+    def __init__(self, model, height=480, width=840):
+        import os as _os
+        import matplotlib
+        if not _os.environ.get("MPLCONFIGDIR"):
+            # containers may have no writable home; font cache needs a home
+            try:
+                d = Path.cwd() / "mplcache"
+                d.mkdir(exist_ok=True)
+                _os.environ["MPLCONFIGDIR"] = str(d)
+            except Exception:
+                pass
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        self._plt = plt
+        self.model = model
+        try:
+            self.parent = [int(model.body_parentid[i]) for i in range(model.nbody)]
+        except Exception:
+            self.parent = [int(model.body(i).parentid) for i in range(model.nbody)]
+        self.foot_ids = [i for i in range(model.nbody)
+                         if model.body(i).name.endswith("ankle_roll_link")]
+        self.trail = []
+        dpi = 100
+        self.fig = plt.figure(figsize=(width / dpi, height / dpi), dpi=dpi)
+        self.ax = self.fig.add_subplot(111, projection="3d")
+
+    def capture(self, data) -> np.ndarray:
+        import numpy as _np
+        ax, plt = self.ax, self._plt
+        P = data.xpos.copy()
+        root = P[1]  # body 1 = torso (child of world)
+        self.trail.append(root.copy())
+        if len(self.trail) > 100:
+            self.trail.pop(0)
+        ax.clear()
+        for i in range(1, self.model.nbody):
+            a, b = P[self.parent[i]], P[i]
+            ax.plot([a[0], b[0]], [a[1], b[1]], [a[2], b[2]], color="0.25", lw=1.8)
+        for fi in self.foot_ids:
+            f = P[fi]
+            ax.scatter([f[0]], [f[1]], [f[2]], color="crimson", s=42)
+        tr = _np.array(self.trail)
+        ax.plot(tr[:, 0], tr[:, 1], tr[:, 2], color="steelblue", lw=1.2, alpha=0.8)
+        ax.scatter([root[0]], [root[1]], [root[2]], color="navy", s=60)
+        # camera follows root; fixed 3m box
+        ax.set_xlim(root[0] - 1.5, root[0] + 1.5)
+        ax.set_ylim(root[1] - 1.5, root[1] + 1.5)
+        ax.set_zlim(0.0, 1.6)
+        ax.view_init(elev=-18, azim=-75)
+        ax.set_box_aspect((1, 1, 0.53))
+        ax.set_axis_off()
+        self.fig.canvas.draw()
+        buf = _np.asarray(self.fig.canvas.buffer_rgba())
+        return buf[:, :, :3].copy()
+
+    def close(self):
+        try:
+            self._plt.close(self.fig)
+        except Exception:
+            pass
+
+
 def main():
     import mujoco
 
@@ -182,6 +254,8 @@ def main():
     ap.add_argument("--settle", type=float, default=0.5,
                     help="hold default pose before applying command (s)")
     ap.add_argument("--json", default=None)
+    ap.add_argument("--render", choices=["gl", "soft"], default="gl",
+                    help="soft = matplotlib stick figure (no GL needed)")
     args = ap.parse_args()
 
     root = Path(args.repo_root).resolve()
@@ -228,8 +302,12 @@ def main():
     frames = []
     vxy_err, yaw_err, alive_steps = [], [], 0
     video = None
+    soft = None
     if args.video:
-        video = mujoco.Renderer(model, height=480, width=840)
+        if args.render == "soft":
+            soft = SoftRenderer(model, height=480, width=840)
+        else:
+            video = mujoco.Renderer(model, height=480, width=840)
 
     rng = np.random.default_rng(0)
     for step in range(n_steps):
@@ -273,13 +351,16 @@ def main():
             if base_z < FALL_Z or tilt > FALL_TILT:
                 print(f"[FALL] step {step} t={step*CONTROL_DT:.2f}s base_z={base_z:.3f} tilt={tilt:.1f}")
                 break
-        if video:
-            cam = video.camera
-            lookat = data.qpos[0:3].copy()
-            cam.lookat[:] = lookat + [0, 0, 0.1]
-            cam.distance, cam.azimuth, cam.elevation = 3.2, 90.0, -12.0
-            video.update_scene(data)
-            frames.append(video.render())
+        if video or soft:
+            if soft is not None:
+                frames.append(soft.capture(data))
+            else:
+                cam = video.camera
+                lookat = data.qpos[0:3].copy()
+                cam.lookat[:] = lookat + [0, 0, 0.1]
+                cam.distance, cam.azimuth, cam.elevation = 3.2, 90.0, -12.0
+                video.update_scene(data)
+                frames.append(video.render())
 
     print(f"[INFO] survived {alive_steps} steps = {alive_steps*CONTROL_DT:.2f}s of "
           f"{n_steps - settle_steps} commanded steps")
@@ -288,10 +369,11 @@ def main():
               f"mean |yaw error| = {np.mean(yaw_err):.3f} rad/s, "
               f"distance = {np.linalg.norm(data.qpos[:2]):.2f} m")
 
-    if video and frames and args.video:
+    if args.video and frames:
         import imageio.v2 as imageio
         imageio.mimwrite(args.video, frames, fps=int(1 / CONTROL_DT), quality=8)
-        print(f"[VIDEO] {args.video} ({len(frames)} frames)")
+        print(f"[VIDEO] {args.video} ({len(frames)} frames, "
+              f"{Path(args.video).stat().st_size // 1024}KB)")
 
     if args.json:
         Path(args.json).write_text(json.dumps({
@@ -305,6 +387,8 @@ def main():
             "final_base_z": float(data.qpos[2]),
             "fell": bool(alive_steps < n_steps - settle_steps),
         }, indent=1))
+    if soft:
+        soft.close()
     if video:
         video.close()
 
