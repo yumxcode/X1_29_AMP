@@ -104,10 +104,13 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 hidden_dims=[1024, 512],
                 activation="elu",
                 style_reward_scale=1.5,
-                # v18: 0.6 -> 0.75. Style reward collapsed to ~1% of its 30/ep
-                # ceiling in v16/v17 (disc saturates at -0.996); shifting lerp
-                # toward task gives the tracking terms full gradient weight.
-                task_style_lerp=0.75
+                # v21: 0.75 -> back to 0.6. v20 (lerp 0.75, 4000 iters) empirical:
+                # lin kernel 0.8422 vs v16 (lerp 0.6, 3000 iters) 0.8391 — the
+                # +0.003 gain is noise-level, but style reward halved
+                # 0.335 -> 0.146 (below P5a=0.15 threshold). 0.6 passes BOTH
+                # P3a (0.839 >= 0.82, expected to reach ~0.84 with 4000 iters)
+                # and P5a (0.335 >> 0.15) with large margins.
+                task_style_lerp=0.6
             ),
             loss_type="LSGAN"
         ),

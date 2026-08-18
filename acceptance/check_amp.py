@@ -128,9 +128,10 @@ def main():
           f"metrics={len(M)}  window=last100")
     print("=" * 72)
 
-    # P1 completeness
-    check("P1_iters", iters[-1] >= total_cfg,
-          f"completed {iters[-1]}/{total_cfg} iterations")
+    # P1 completeness — rsl_rl logs iterations 0-indexed: max_iterations=4000
+    # ends at "Learning iteration 3999" (v20: iters=3999/4000, off-by-one FAIL)
+    check("P1_iters", iters[-1] >= total_cfg - 1,
+          f"completed {iters[-1] + 1}/{total_cfg} iterations")
 
     # P2 stability
     ep = win(M["Mean episode length"])

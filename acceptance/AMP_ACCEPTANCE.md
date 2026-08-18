@@ -31,7 +31,7 @@
 
 | # | 指标 | 阈值 | 依据 |
 |---|------|------|------|
-| P1 | 训练完整性 | 达到配置 max_iterations（v18: 4000/4000）；最终 checkpoint 文件存在 | 流程完备 |
+| P1 | 训练完整性 | 达到配置 max_iterations（rsl_rl 迭代号 0-indexed：4000 次 = 最后日志行 "iteration 3999"，v20 曾因 off-by-one 误判）；最终 checkpoint 文件存在 | 流程完备 |
 | P2a | Mean episode length | ≥ 950 / 1000 | 不跌倒 |
 | P2b | time_out 占比 | ≥ 0.95 | 不跌倒 |
 | P2c | base_contact 占比 | = 0.000 | 不跌倒（非脚部触地）|
@@ -43,7 +43,7 @@
 | P4 | 无后期崩溃 | 末 100 iter mean_reward ≥ 0.9 × 全程最佳 rolling(100) 均值 | 收敛性 |
 | P5a | AMP style reward | ≥ 0.15 | 判别器未完全压死风格信号（基线 0.33）|
 | P5b | disc_loss | ≤ 0.05 且有限 | 判别器数值稳定 |
-| P6 | 固定指令行走验证 | X1-AMP-Play, 指令 (1.0, 0, 0)：≥10 s 视频，期间无 base_contact 终止；视频文件产出 | 行走证据（可视化验收）|
+| P6 | 固定指令行走验证 | X1-AMP-Play, 指令 (1.0, 0, 0)：≥10 s 视频且 >100KB，期间无 base_contact 终止；视频文件产出。视频来源允许 Isaac RecordVideo 或 MuJoCo sim2sim 兜底渲染（v20 中 Isaac RecordVideo 未产出 mp4，play exit=0）| 行走证据（可视化验收）|
 
 ## 2. 目标线（TARGET，非阻断；达标即宣告"85% 速度跟踪"达成）
 
@@ -67,3 +67,19 @@ v18 相对 v16/v17 的两处改动（用于逼近 TARGET）: `max_iterations` 30
    行走视频 + 存活/跟踪指标（`sim2sim/run_sim2sim_task.py`）。
 3. **平台侧复核**: `gm task data get` 拉训练曲线，与容器内报告交叉核对（防日志裁剪）。
 4. 判定输出: PASS/FAIL 逐项清单 + TARGET 达成表。
+
+## 决策记录（阈值与超参的实证依据）
+
+- **v20（2026-08-17，TASK_20260817_083，lerp 0.75 / 4000 iter）实测**：P2/P3/P4 全过
+  （lin kernel 0.8422、ang 0.5540、ep_len 991.7、timeout 0.984、无后期崩溃）；
+  P5a style 0.146 < 0.15（FAIL，边缘）；P1 因迭代号 0-indexed 语义误判（已修）；
+  P6 因 Isaac RecordVideo 未产出 mp4 而无证据（v21 增加 MuJoCo 兜底）。
+- **task_style_lerp 终选 0.6**：lerp 0.75 相对 0.6 的 lin kernel 收益 +0.003（噪声级），
+  而 style 0.335→0.146 腰斩跌破 P5a。0.6 在 P3a/P5a 双侧均有大余量（0.839/0.335），
+  4000 iter 预计 lin ~0.84。
+- **TARGET（用户 85% 跟踪）现状**：v16 0.8391、v20 0.8422，两次独立配置均未达 0.85；
+  属平台期结构性差距，验收以 P3a=0.82 为准并如实报告 TARGET 差距。
+- **checkpoint 上传机制（v16-v20 三连败根因，v21 修复）**：SDK 仅注册**仓库工作树外**
+  的 .pt（唯一实证=gvhmr_pt 垃圾文件成功注册 4 次）；`logs/` 被 .gitignore 挡住、
+  `model_upload/` 无 exported_data 模式从未注册。v21 起主镜像路径 =
+  `/workspace/isaaclab/x1_upload/{tag}/`（树外），报告/视频/导出模型同路径镜像。

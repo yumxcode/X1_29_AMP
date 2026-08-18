@@ -60,6 +60,16 @@ from run_gmr_retarget import (
 
 # Repo-tree upload dir: SDK periodic scan registers *.pt here (proven pattern).
 UPLOAD_DIR = REPO_ROOT / "model_upload"
+# v21: PRIMARY mirror location OUTSIDE the repo working tree. Empirical SDK
+# behavior across v16-v20: the ONLY .pt files ever registered as models
+# (loadRun=gvhmr_pt, v16/v18/v19/v20 model lists) lived outside the repo at
+# /workspace/isaaclab/GMR_X1/**. In-repo mirrors never registered:
+#  - logs/**  : blocked by .gitignore ('logs/') for the in-repo scanner
+#  - model_upload/** : detected ("New file detected globally") but never
+#    registered as a model (no exported_data pattern).
+# Outside-repo .pt files get registered within ~20 min of appearing (gvhmr
+# precedent: created ~12:50, registered 13:04 in v18/v19).
+OUTSIDE_DIR = REPO_ROOT.parent / "x1_upload" if REPO_ROOT.parent.name == "isaaclab" else Path("/workspace/isaaclab/x1_upload")
 MOTIONS_DIR = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions"
 TRAIN_LOG_FILE = REPO_ROOT / "train_stdout.log"
 PLAY_LOG_FILE = REPO_ROOT / "play_stdout.log"
@@ -194,7 +204,17 @@ def all_checkpoints():
 def mirror_checkpoint(ckpt: Path, tag: str):
     """Mirror a checkpoint into every SDK-visible location."""
     copied = []
-    # 1) repo tree upload dir (verifiably scanned during run)
+    # 0) PRIMARY: outside-repo dir (proven registration path, see OUTSIDE_DIR)
+    try:
+        od = OUTSIDE_DIR / tag
+        od.mkdir(parents=True, exist_ok=True)
+        dst0 = od / ckpt.name
+        if not dst0.exists():
+            shutil.copy2(ckpt, dst0)
+            copied.append(dst0)
+    except OSError as e:
+        print(f"[MONITOR] outside mirror failed: {e}")
+    # 1) repo tree upload dir (kept for redundancy)
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     dst = UPLOAD_DIR / ckpt.name
     if not dst.exists():
@@ -321,25 +341,97 @@ def phase_play_video(ckpt: Path):
         print("[WARN] play timed out after 1500s (killed) — continuing without fresh video")
     print(f"[INFO] play exit={rc} (log: {PLAY_LOG_FILE.name})")
 
-    # locate produced mp4(s)
+    # v20 postmortem: play exit=0 but no mp4 under logs/ — RecordVideo
+    # produced nothing. v21: search widely + dump diagnostics + mujoco
+    # sim2sim fallback so P6 always has video evidence when a policy exists.
     videos = []
-    for root in [REPO_ROOT / "logs", Path.cwd() / "logs"]:
-        videos += list(root.rglob("*.mp4"))
-    if not videos:
-        print("[WARN] No mp4 found after play!")
-        return None
-    video = max(videos, key=lambda v: v.stat().st_mtime)
-    # mirror to SDK video-scan locations: logs/{exp}/*.mp4 + upload dir
-    dests = [REPO_ROOT / "logs" / "x1_amp" / f"x1_walk_{_dt.now():%H%M%S}.mp4",
-             UPLOAD_DIR / f"x1_walk_{_dt.now():%H%M%S}.mp4"]
-    for d in dests:
-        d.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(video, d)
+    search_roots = [REPO_ROOT / "logs", Path.cwd() / "logs", REPO_ROOT,
+                    ckpt.parent / "videos", REPO_ROOT.parent / "x1_upload"]
+    for root in search_roots:
         try:
-            print(f"[VIDEO] -> {d}")
-        except Exception:
+            if root.exists():
+                videos += [v for v in root.rglob("*.mp4")]
+        except OSError:
             pass
+    print(f"[INFO] mp4 search ({len(videos)} found) under: "
+          f"{[str(r) for r in search_roots]}")
+    # diagnostics: video_folder listing + play log tail (postmortem evidence)
+    vf = ckpt.parent / "videos" / "play"
+    if vf.exists():
+        print(f"[INFO] video_folder {vf}: {[p.name for p in vf.iterdir()]}")
+    else:
+        print(f"[INFO] video_folder {vf} does not exist")
+    if PLAY_LOG_FILE.exists():
+        tail = PLAY_LOG_FILE.read_text(errors="replace").splitlines()[-12:]
+        print("[INFO] play_stdout.log tail: " + " | ".join(t.strip()[:120] for t in tail))
+
+    video = None
+    if videos:
+        video = max(videos, key=lambda v: v.stat().st_mtime)
+    else:
+        print("[WARN] No mp4 from Isaac play — falling back to MuJoCo sim2sim rollout")
+        video = sim2sim_fallback_video(ckpt)
+
+    if video is None:
+        print("[WARN] No video from any source")
+        return None
+    # mirror to SDK-visible locations: outside-repo (primary), logs/{exp}/
+    # (skill-documented video scan path), upload dir
+    stamp = f"{_dt.now():%H%M%S}"
+    dests = [OUTSIDE_DIR / f"x1_walk_{stamp}.mp4",
+             REPO_ROOT / "logs" / "x1_amp" / f"x1_walk_{stamp}.mp4",
+             UPLOAD_DIR / f"x1_walk_{stamp}.mp4"]
+    for d in dests:
+        try:
+            d.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(video, d)
+            print(f"[VIDEO] -> {d}")
+        except OSError as e:
+            print(f"[VIDEO] mirror failed {d}: {e}")
     return video
+
+
+def sim2sim_fallback_video(ckpt: Path):
+    """Render a walking video of the final policy in MuJoCo (no Isaac render
+    stack needed). Also doubles as the sim2sim deliverable."""
+    try:
+        import subprocess as _sp
+        pylibs = REPO_ROOT / "pylibs"
+        pylibs.mkdir(exist_ok=True)
+        _sp.run([sys.executable, "-m", "pip", "install", "-q", "--target", str(pylibs),
+                 "mujoco", "imageio"], check=True, timeout=600)
+        rollout = REPO_ROOT / "sim2sim" / "mujoco_rollout.py"
+        out_dir = OUTSIDE_DIR / "sim2sim"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        cmd = [sys.executable, str(rollout), "--ckpt", str(ckpt),
+               "--repo-root", str(REPO_ROOT),
+               "--cmd", "1.0", "0.0", "0.0", "--duration", "12",
+               "--video", str(out_dir / "x1_walk_mj.mp4"),
+               "--json", str(out_dir / "x1_walk_mj.json")]
+        print(f"[INFO] mujoco fallback: {' '.join(cmd)}")
+        logf = open(REPO_ROOT / "mujoco_fallback.log", "wb")
+        for gl in ("egl", "osmesa"):
+            env = dict(os.environ, PYTHONPATH=str(pylibs), MUJOCO_GL=gl)
+            logf.write(f"\n===== MUJOCO_GL={gl} =====\n".encode())
+            logf.flush()
+            try:
+                rc = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=900,
+                             stdout=logf, stderr=_sp.STDOUT).returncode
+            except Exception as run_err:
+                print(f"[WARN] mujoco {gl} run error: {run_err}")
+                rc = -1
+            if rc == 0:
+                v = out_dir / "x1_walk_mj.mp4"
+                if v.exists() and v.stat().st_size > 100_000:
+                    logf.close()
+                    return v
+        logf.close()
+        log = (REPO_ROOT / "mujoco_fallback.log").read_text(errors="replace")
+        print("[INFO] mujoco tail: " + " | ".join(
+            l.strip()[:120] for l in log.splitlines()[-8:]))
+    except Exception as e:
+        print(f"[WARN] mujoco fallback failed: {e}")
+    return None
 
 
 def phase_amp_acceptance(video: Path | None):
@@ -386,7 +478,28 @@ def main():
     print(f"[INFO] Artifacts in {UPLOAD_DIR}:")
     for f in sorted(UPLOAD_DIR.glob("*")):
         print(f"  {f.name} ({f.stat().st_size // 1024}KB)")
-    wait_for_sdk(300, "final checkpoint + video + reports")
+    # v21: mirror reports + exported jit/onnx + play log to the OUTSIDE-repo
+    # dir — the only location empirically registered by the SDK (see OUTSIDE_DIR)
+    try:
+        out = OUTSIDE_DIR / "final"
+        out.mkdir(parents=True, exist_ok=True)
+        for f in sorted(UPLOAD_DIR.glob("*")):
+            if f.is_file():
+                shutil.copy2(f, out / f.name)
+        # exported jit/onnx from play_amp (useful for deployment/sim2sim)
+        for exp_dir in (REPO_ROOT / "logs" / "rsl_rl" / "x1_amp").glob("*/exported"):
+            for f in exp_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, out / f"{exp_dir.parent.name}_{f.name}")
+        if PLAY_LOG_FILE.exists():
+            shutil.copy2(PLAY_LOG_FILE, out / "play_stdout.log")
+        if TRAIN_LOG_FILE.exists():
+            shutil.copy2(TRAIN_LOG_FILE, out / "train_stdout.log")
+        print(f"[INFO] Final artifacts mirrored to {out}: "
+              f"{[p.name for p in out.iterdir()]}")
+    except OSError as e:
+        print(f"[WARN] outside mirror of final artifacts failed: {e}")
+    wait_for_sdk(420, "final checkpoint + video + reports")
     print("[INFO] Pipeline done.")
 
 
