@@ -96,6 +96,20 @@
    （磁盘只剩 model_0 + model_3999，配额假设下 final+报告恰好 5 个）
 4. 探针任务 TASK_20260818_075（10 个标记 .pt × 7 位置 × 早晚时间窗）实证注册规则
 
+## SDK 注册根因破解（探针 TASK_20260818_075，2026-08-18 13:45）
+
+- **规则**：SDK 扫描**非递归**——只有平铺在仓库根 `/workspace/isaaclab/X1_29_AMP/*.pt`
+  的文件被上传+注册（探针 loc1/late1 均 "uploaded successfully"，loadRun=X1_29_AMP）。
+  model_upload/、ckpt_reg/、logs/、x1_upload/、/workspace 根的文件仅 "detected
+  globally"，从未上传。时间与大小无关（t+15min 的 1.3KB 晚期文件照常上传）。
+- v16-v21b checkpoint 四连败完全解释：所有镜像布局都在子目录，仓库根从未平铺过任何 .pt。
+- v22 修复：最终 checkpoint + 全部报告 .pt 平铺仓库根（commit d589c86）。
+- 证据：`acceptance/evidence/v22_probe_sdk_rules_log.txt`
+
+## v22（TASK_20260818_124，2026-08-18 14:00 启动）
+
+预期 13/13 + 视频 + sim2sim 指标 + checkpoint/报告平台注册。完成窗口 ~17:30-18:00。
+
 ## 复核命令（下次会话直接执行）
 
 ```bash
