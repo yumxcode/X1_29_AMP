@@ -1,0 +1,94 @@
+{
+ "verdict": "FAIL",
+ "fails": [
+  "P5a_style",
+  "P6_play"
+ ],
+ "results": {
+  "P1_iters": {
+   "pass": true,
+   "detail": "completed 4000/4000 iterations",
+   "value": null
+  },
+  "P2a_ep_len": {
+   "pass": true,
+   "detail": "ep_len 991.4 >= 950",
+   "value": 991.3774712643677
+  },
+  "P2b_timeout": {
+   "pass": true,
+   "detail": "time_out 0.9833 >= 0.95",
+   "value": 0.9833034482758619
+  },
+  "P2c_base_contact": {
+   "pass": true,
+   "detail": "base_contact 0.00000 == 0",
+   "value": 0.0
+  },
+  "P2d_bad_sum": {
+   "pass": true,
+   "detail": "base_height 0.0080 + bad_orient 0.0092 <= 0.03",
+   "value": 0.017220689655172414
+  },
+  "P3a_lin_kernel": {
+   "pass": true,
+   "detail": "lin kernel 0.8423 >= 0.82 (reward 1.053)",
+   "value": 0.842281379310345
+  },
+  "P3b_ang_kernel": {
+   "pass": true,
+   "detail": "ang kernel 0.5544 >= 0.5 (reward 0.693)",
+   "value": 0.554360459770115
+  },
+  "P3c_err_xy": {
+   "pass": true,
+   "detail": "error_vel_xy 0.3973 <= 0.44",
+   "value": 0.3972919540229885
+  },
+  "P3d_err_yaw": {
+   "pass": true,
+   "detail": "error_vel_yaw 0.8399 <= 0.95",
+   "value": 0.8398816091954019
+  },
+  "P4_no_collapse": {
+   "pass": true,
+   "detail": "last100 20.82 >= 90% x best 20.82",
+   "value": 1.0
+  },
+  "P5a_style": {
+   "pass": false,
+   "detail": "style 0.145 >= 0.15",
+   "value": 0.1449425287356322
+  },
+  "P5b_disc": {
+   "pass": true,
+   "detail": "disc_loss 0.00061 <= 0.05",
+   "value": 0.0006080459770114945
+  },
+  "P6_play": {
+   "pass": false,
+   "detail": "no play evidence provided",
+   "value": null
+  }
+ },
+ "targets": {
+  "T1_lin_kernel": {
+   "hit": false,
+   "detail": "0.8423 vs 0.85"
+  },
+  "T2_ang_kernel": {
+   "hit": false,
+   "detail": "0.5544 vs 0.6"
+  },
+  "T3_style": {
+   "hit": false,
+   "detail": "0.145 vs 0.5"
+  }
+ },
+ "window_last": 100,
+ "iters": [
+  3913,
+  3999
+ ],
+ "total_cfg": 4000
+}
