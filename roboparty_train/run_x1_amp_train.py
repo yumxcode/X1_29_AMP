@@ -600,6 +600,18 @@ def main():
     print("X1 AMP Pipeline v18 (acceptance-gated)")
     print("=" * 60)
 
+    # v23 (probe2 TASK_20260818_151): SDK .pt scan window is EARLY-ONLY —
+    # t0 flat probe2_meta.pt uploaded in 7s, while +25min/+130min flat files
+    # (v22) never registered. Anchor the flat-registration chain at t0.
+    try:
+        wrap_json_for_upload("pipeline_meta.pt", {
+            "pipeline": "x1_amp_v23",
+            "started": f"{_dt.now():%Y-%m-%d %H:%M:%S}",
+            "note": "t0 anchor: SDK flat registration window is early-only",
+        })
+    except Exception as e:
+        print(f"[WARN] t0 anchor failed: {e}")
+
     gmr_output, lab_output, venv_dir = phase_retarget()
     phase_retarget_acceptance(venv_dir)
     phase_package_retarget(gmr_output, lab_output)
