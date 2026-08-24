@@ -216,13 +216,25 @@ def all_checkpoints():
 def mirror_checkpoint(ckpt: Path, tag: str):
     """Mirror the final checkpoint to SDK-visible locations.
 
-    v22 probe-verified rule: SDK uploads ONLY .pt files flat in the repo
-    root (non-recursive scan of /workspace/isaaclab/X1_29_AMP). Destinations:
-      0) PRIMARY: REPO_ROOT/ckpt.name  (flat, probe-proven registration)
-      1) exported_data pattern logs/{exp}/exported_data/{run}/ (skill doc)
-      2) outside-repo dir (artifact archive)"""
+    v23 evidence (TASK_20260818_153): model_upload/ is watched CONTINUOUSLY —
+    4/4 files registered from there (t0, +38min, +160min; the +160min
+    model_amp_report.pt was detected in <1s and uploaded in 9s). Repo-root
+    flat is EARLY-window-only (probe2): v23's flat model_3999.pt written at
+    t+160min was never detected while model_upload/ stayed live. So:
+      0) PRIMARY: UPLOAD_DIR/ckpt.name  (model_upload/, always registered)
+      1) repo-root flat (probe-proven, but only inside the early window)
+      2) exported_data pattern logs/{exp}/exported_data/{run}/ (skill doc)
+      3) outside-repo dir (artifact archive)"""
     copied = []
-    # 0) PRIMARY: flat in repo root (probe TASK_20260818_075 verified upload)
+    # 0) PRIMARY (v24): model_upload/ — continuously watched, proven v23
+    try:
+        dst0 = UPLOAD_DIR / ckpt.name
+        if not dst0.exists():
+            shutil.copy2(ckpt, dst0)
+            copied.append(dst0)
+    except OSError as e:
+        print(f"[MONITOR] model_upload mirror failed: {e}")
+    # 1) repo-root flat (early-window registration, belt-and-braces)
     try:
         dst0 = REPO_ROOT / ckpt.name
         if not dst0.exists():
@@ -429,14 +441,22 @@ def phase_play_video(ckpt: Path):
     sim_dir = OUTSIDE_DIR / "sim2sim"
     if sim_dir.exists():
         to_mirror += sorted(sim_dir.glob("x1_sim2sim_*.mp4"))
+        # v24: merge ALL sim2sim metric jsons into ONE .pt — keeps the total
+        # model_upload/ .pt count at 5 (retarget x2, ckpt, sim2sim, amp) in
+        # case the suspected 5-per-task registration quota is real
+        merged = {}
         for js in sorted(sim_dir.glob("x1_sim2sim_*.json")):
             try:
                 import json as _json
-                obj = _json.loads(js.read_text())
-                p = wrap_json_for_upload(f"sim2sim_{js.stem}.pt", obj)
-                print(f"[UPLOAD] {p.name} ({p.stat().st_size // 1024}KB)")
+                merged[js.stem] = _json.loads(js.read_text())
             except Exception as e:
-                print(f"[WARN] wrap {js.name}: {e}")
+                print(f"[WARN] read {js.name}: {e}")
+        if merged:
+            try:
+                p = wrap_json_for_upload("sim2sim_metrics.pt", merged)
+                print(f"[UPLOAD] {p.name} ({len(merged)} rollouts)")
+            except Exception as e:
+                print(f"[WARN] wrap sim2sim_metrics: {e}")
     seen = set()
     for v in to_mirror:
         if v in seen:
@@ -488,8 +508,11 @@ def sim2sim_fallback_video(ckpt: Path):
 
         pylibs = REPO_ROOT / "pylibs"
         pylibs.mkdir(exist_ok=True)
+        # v24: matplotlib added — the soft renderer needs it and the kit
+        # python is not guaranteed to bundle it (pylibs-soft matrix entry
+        # would silently fail without it)
         _sp.run([sys.executable, "-m", "pip", "install", "-q", "--target", str(pylibs),
-                 "mujoco", "imageio", "imageio-ffmpeg"], check=True, timeout=600)
+                 "mujoco", "imageio", "imageio-ffmpeg", "matplotlib"], check=True, timeout=600)
         # v21b root cause fix: strip the broken pip PyOpenGL from pylibs so
         # mujoco's GL bindings resolve to the system OpenGL instead
         for bad in list(pylibs.glob("OpenGL")) + list(pylibs.glob("PyOpenGL*")):
@@ -597,20 +620,15 @@ def phase_amp_acceptance(video: Path | None):
 
 def main():
     print("=" * 60)
-    print("X1 AMP Pipeline v18 (acceptance-gated)")
+    print("X1 AMP Pipeline v24 (delivery-hardened)")
     print("=" * 60)
 
-    # v23 (probe2 TASK_20260818_151): SDK .pt scan window is EARLY-ONLY —
-    # t0 flat probe2_meta.pt uploaded in 7s, while +25min/+130min flat files
-    # (v22) never registered. Anchor the flat-registration chain at t0.
-    try:
-        wrap_json_for_upload("pipeline_meta.pt", {
-            "pipeline": "x1_amp_v23",
-            "started": f"{_dt.now():%Y-%m-%d %H:%M:%S}",
-            "note": "t0 anchor: SDK flat registration window is early-only",
-        })
-    except Exception as e:
-        print(f"[WARN] t0 anchor failed: {e}")
+    # v24: t0 pipeline_meta.pt anchor REMOVED. model_upload/ is watched
+    # continuously (v23: 4/4 registered, latest at t+160min), so an early
+    # anchor is pointless — and it consumed one of the (suspected) 5
+    # registration slots. Registration budget now:
+    #   retarget_report, retarget_data, model_3999, sim2sim_metrics,
+    #   amp_report = 5 files, checkpoint prioritized before reports.
 
     gmr_output, lab_output, venv_dir = phase_retarget()
     phase_retarget_acceptance(venv_dir)
