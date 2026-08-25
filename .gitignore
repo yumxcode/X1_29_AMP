@@ -30,3 +30,4 @@ AMASS_minimal/smplx/*.pkl
 pylibs/
 acceptance/cache/
 whoami.json
+.cache_*
