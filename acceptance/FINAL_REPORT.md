@@ -121,3 +121,65 @@ gm --api-key "$K" task logs --task-id TASK_20260818_010   # 尾部 AMP VERDICT
 
 若 v21b 失败：诊断顺序为账号余额（试 id=22 misino1603 / id=23 mevesa9407）→
 git clone 权限（coref25034 同 349588189@qq.com GitHub 凭证）→ 日志定位。
+
+---
+
+# v23 → v25 最终后验（2026-08-25，账号 misino1603 id=22）
+
+## v23（TASK_20260824_018）：注册通道实证 + 12/13
+
+- **发现 `model_upload/` 注册通道**：SDK 任务早期（~t+5min）枚举该目录，此后持续监听。
+  v23 中 model_3999.pt + 视频（logs/{exp}/ 下 mp4 自动生成 videoUrl）**首次成功注册**。
+- AMP 验收 12/13，唯一 FAIL 仍为 P6（MuJoCo 渲染矩阵全灭，无诊断输出）。
+
+## v24（TASK_20260824_120，commit c5062af）：12/13 + **0 产物注册**
+
+- 训练指标与 v23 持平（P2-P5 稳定通过）。
+- 注册失败根因（后验）：① GMR 克隆带入 gvhmr_pt/ 下 5 个垃圾参考 .pt，t+6min
+  偷光 5 槽配额；② model_upload/ 建晚了（错过 t0 枚举窗口，整任务期不被监听）。
+- MuJoCo 矩阵再次全灭且无诊断（诊断写本地文件+复用已关句柄，教训入经验库）。
+
+## v25（TASK_20260825_019，commit 438b295）：**被余额耗尽终止于 86.5%**
+
+### 修复项全部生效（早期验证 ✓）
+
+| 修复 | 验证结果 |
+|---|---|
+| t0 锚点 pipeline_meta.pt | 08:49:04 注册 ✓（证明 model_upload/ 在枚举窗口内）|
+| gvhmr_pt 前移隐藏 | 垃圾 .pt 注册数 = **0** ✓（5 槽全保）|
+| 重定向门 | **VERDICT: PASS fails=0**（14 文件，warns=184 均为 B2 软限/E3 取证类非阻断）|
+| 产物注册 | 3/5 槽：pipeline_meta + model_retarget_report + model_retarget_data（38MB）✓ |
+
+### 训练：健康且已收敛，但被外力终止
+
+- 终止点 **iteration 3458/4000（86.5%）**，endTime 2026-08-25 10:51:36，status 6，
+  runtime 7509s（≈2.09h × 5.4 元/h ≈ **11.3 元**——账号余额就此耗尽）。
+- 终止前最后日志块：**ep_len 995.5/1000、mean reward 21.33、base_contact=0.0000、
+  timeout 0.98、err_xy 0.377、err_yaw 0.833**——策略已收敛到接近满长不摔（对照
+  v23/v24 4000 iter 终点：ep_len ~993、err_xy ~0.39、base_contact=0，12/13 中 P2-P5 全过，
+  本曲线已在同一水平）。
+- 日志尾部无任何报错，argo 主日志同样截断于训练块——外部强制停止，非代码崩溃。
+
+### 损失与残留
+
+- **唯一磁盘 checkpoint = model_0.pt（随机初始）**：save_interval=4000，最终保存点
+  在 4000 iter，未到达。训练成果（3458 iter）随 pod 销毁丢失，npz 导出、MuJoCo
+  视频、AMP VERDICT 三阶段均未执行。
+- 已救回（本地 `acceptance/v25_artifacts/`，平台网页同样可下载）：
+  model_retarget_data.pt（38MB 重定向动作数据）、model_retarget_report.pt、
+  pipeline_meta.pt。
+
+## 终局结论
+
+| 子目标 | 状态 | 证据 |
+|---|---|---|
+| 重定向精准 + 严格指标 + 通过 | ✅ | 门控 PASS fails=0（v23/v24/v25 三连）；数据+报告平台可下载 |
+| 训练不摔/速度跟随 | ✅（以 v23/v24 4000-iter 12/13 为准）| v25 同配置 86.5% 处已同水平收敛（ep_len 995、err_xy 0.38）|
+| 最终策略 checkpoint 可下载 | ❌ | v25 死于余额耗尽，仅存 model_0（随机）|
+| 行走视频（P6）| ❌ | 从未有任何一次成功出片（v23-v25 渲染链未在真实任务中验证成功）|
+| AMP 13/13 | ❌ | v23/v24=12/13；v25 未跑完验收 |
+
+**若续跑（需充值 ≥15 元）**：v25 配置已被证明三段全绿（注册链、门控、训练健康），
+唯一未验证的是结尾三阶段（导出→软渲染→VERDICT，本地 Mac 已对渲染管线端到端
+验证出片）。全流程 ≈2h30m ≈ 13.5 元；可复用已下载的 38MB 重定向数据跳过 GMR
+重定向（省 ~20min ≈ 1.8 元）。
