@@ -138,14 +138,19 @@ def build_model(xml_path: Path):
             for geom in body.geoms:
                 if geom.contype:
                     n_feet += 1
-    # drop vendor actuators (we drive torques via qfrc_applied)
-    for act in list(spec.actuators):
-        try:
-            spec.delete(act)
-        except Exception:
-            act.forcerange = [0.0, 0.0]
-            act.ctrlrange = [0.0, 0.0]
+    # v26 sim2sim fix: ALIGN PASSIVE DYNAMICS WITH ISAAC. The vendor xml adds
+    # joint damping (2.0/1.5/0.8) + frictionloss (4.0/3.0/1.5 Nm dry friction)
+    # ON TOP of our PD torques. Isaac's URDF has damping=1.0 on every joint,
+    # NO dry friction, and actuator armature=0.01. Doubled damping + 4 Nm
+    # stiction per hip/knee is a massive gait distortion (local repro:
+    # zero-action standing topples at 1.8 s, trained policy flips at 0.7 s).
     model = spec.compile()
+    model.dof_frictionloss[:] = 0.0
+    for j in range(model.njnt):
+        if model.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE:
+            adr = model.jnt_dofadr[j]
+            model.dof_damping[adr] = 1.0
+            model.dof_armature[adr] = 0.01
     return model, n_feet
 
 
@@ -366,10 +371,23 @@ def main():
         hist[:-1] = hist[1:]
         hist[-1] = obs
 
+        # v26 ROOT-CAUSE FIX: IsaacLab observation groups with history_length
+        # flatten TERM-MAJOR (each term's 3 history frames concatenated,
+        # frame-major WITHIN each term, oldest first), NOT frame-major across
+        # terms. Proven by the checkpoint normalizer statistics: gravity-z
+        # (≈-0.995) sits at indices 11/14/17 (grav block [9:18] =
+        # [g(t-2), g(t-1), g(t)], gz = 2nd element of each frame), cmd_x mean
+        # 0.89 == center of range (-0.5,2.5), jvel std 1.2-5.2 in [114:201]
+        # and act std 0.5-2.2 in [201:288]. The old frame-major assembly fed
+        # the policy a scrambled vector — every sim2sim attempt (v23-v26 pod
+        # + local) fell within 1 s.
+        slices = [(0, 3), (3, 6), (6, 9), (9, 38), (38, 67), (67, 96)]
+        ob = np.concatenate([hist[:, a:b].reshape(-1) for a, b in slices])
+
         if step < settle_steps:
             act = np.zeros(29)
         else:
-            act = run_policy(layers, mean, std, hist.reshape(-1))
+            act = run_policy(layers, mean, std, ob)
         last_act = act
         # act[i] is for lab_dof[i]; target = default + 0.25*act; place into
         # MuJoCo hinge order via lab2mj (lab2mj[i] = hinge index of lab_dof[i])

@@ -183,3 +183,73 @@ git clone 权限（coref25034 同 349588189@qq.com GitHub 凭证）→ 日志定
 唯一未验证的是结尾三阶段（导出→软渲染→VERDICT，本地 Mac 已对渲染管线端到端
 验证出片）。全流程 ≈2h30m ≈ 13.5 元；可复用已下载的 38MB 重定向数据跳过 GMR
 重定向（省 ~20min ≈ 1.8 元）。
+
+---
+
+# v26（TASK_20260825_059，账号池 lixaco2063，2026-08-25 11:24-15:02）✅ 训练全成
+
+## 平台侧结果：训练指标 12/13 全 PASS + checkpoint 注册成功
+
+v26 = v25 配置 + 两项保险（吸取 v25 余额中断教训）：`save_interval 4000→1000`
++ model_2000 中途镜像注册。全部生效：
+
+| 阶段 | 结果 |
+|---|---|
+| t0 锚点 pipeline_meta.pt | 11:30 注册 ✓ |
+| gvhmr 垃圾防偷槽 | 0 注册 ✓ |
+| 重定向门 | VERDICT: PASS fails=0 ✓（第三次连续通过）|
+| 训练 4000/4000 | ep_len 992.7、base_contact=0、kernel 0.8469、style 0.333、disc 0.0007 |
+| **model_2000.pt 中途保险** | **13:23 注册 ✓（新功能实证生效）** |
+| **model_3999.pt 最终策略** | **14:54 注册 ✓（16.9MB，网页可下载）** |
+| 产物注册 | 6 个全部注册（锚点+重定向×2+2000+3999+amp_report）|
+| AMP 验收 | **12/13**（P1-P5 全 PASS，唯一 FAIL = P6_play 视频）|
+
+P6 平台侧失败链：Isaac play exit=0 但无 mp4（无 GL 栈，历史已知）→ MuJoCo 兜底
+5 次尝试全部 rc=0 但"video missing/<100KB"——**与本地发现同根因**（见下）。
+
+## sim2sim 根因破解 + 本地 MuJoCo 行走成功（P6 的完整替代证据）
+
+本地用免 torch 的 zip 解析器（`sim2sim/extract_ckpt_npz.py`）从 model_3999.pt
+提取 actor MLP [288→512→256→128→29] + obs normalizer → numpy npz，在 Mac 上
+复现平台同款失败（0.5-1s 倒），随即定位**根因**：
+
+**IsaacLab history_length=3 的 obs 展平是"项主序"（每项 3 帧历史连排：
+ang[0:9] grav[9:18] cmd[18:27] jpos[27:114] jvel[114:201] act[201:288]），
+而非我们 v16-v26 一直假设的"帧主序"（96 维帧 × 3）。**
+铁证 = checkpoint normalizer 统计指纹：gravity-z（≈-0.995）落在索引 11/14/17
+（grav 块内每帧第 3 元素）、cmd_x 均值 0.89 == 指令区间 (-0.5,2.5) 的中心、
+jvel 块 std 1.2-5.2 rad/s、act 块 std 0.5-2.2。乱序输入 → 策略全程收到的
+是乱码 → 暴力动作 → 秒倒。v23-v26 四个版本 + 平台/本地所有 sim2sim 尝试
+全部败于此。另将对齐 Isaac 被动动力学（xml damping→1.0、frictionloss→0、
+armature→0.01）。
+
+**修复后（commit 于 sim2sim/mujoco_rollout.py），真实训练策略本地 MuJoCo
+rollout 三场景全部无摔走完全程：**
+
+| 场景 cmd (vx, vy, ωz) | 时长 | 距离 | 速度误差 | 航向误差 | 视频 |
+|---|---|---|---|---|---|
+| (1.0, 0, 0) 前进 | 11.5s | 10.06 m | 0.073 m/s | 0.203 rad/s | x1_sim2sim_walk_1.0.mp4 (742KB, 600帧) |
+| (1.0, 0, 0.8) 边走边转 | 11.5s | 0.80 m（原地转）| 0.066 m/s | 0.255 rad/s | x1_sim2sim_walk_turn.mp4 (731KB) |
+| (0.5, 0, 0) 慢走 | 11.5s | 5.12 m | 0.050 m/s | 0.152 rad/s | x1_sim2sim_walk_0.5.mp4 (601KB) |
+
+平均速度 0.895 m/s（指令 1.0）/ 0.445 m/s（指令 0.5）——**速度跟随、不摔倒、
+转弯全部达标**；三段视频均 >100KB（P6 的视频尺寸判据），策略从未接触
+MuJoCo 动力学即完成迁移（零样本 sim2sim）。
+
+## 终局结论（最终版）
+
+| 子目标 | 状态 | 证据 |
+|---|---|---|
+| 重定向精准 + 严格指标 + 通过 | ✅ | 门控 PASS fails=0（v23/v24/v25/v26 四连）；数据+报告平台可下载 |
+| 训练不摔/速度跟随（Isaac 内）| ✅ | 4000/4000、ep_len 992.7、base_contact=0、err_xy 0.389（P1-P5 全 PASS）|
+| 最终策略 checkpoint 可下载 | ✅ | **model_3999.pt 平台注册（16.9MB）+ model_2000.pt 保险** |
+| 行走视频 | ✅（本地）| 3 段 MuJoCo 真实策略行走 mp4（`acceptance/v26_artifacts/`），平台侧 Isaac 无 GL 栈无法出片（已知容器限制）|
+| AMP 13/13 | 12/13 | P6 平台侧判据（play 视频）因容器无 GL 未满足；其视频尺寸+不摔实质判据已由本地 sim2sim 视频满足 |
+| sim2sim 零样本迁移 | ✅ | **首次打通并验证**（含根因修复）|
+
+## 复现路径
+
+1. 平台下载：TASK_20260825_059 → model list → model_3999.pt（网页可下载）
+2. `python sim2sim/extract_ckpt_npz.py model_3999.pt model_3999.policy.npz`（免 torch）
+3. `python sim2sim/mujoco_rollout.py --ckpt model_3999.policy.npz --cmd 1 0 0
+   --duration 12 --video walk.mp4 --render soft`
