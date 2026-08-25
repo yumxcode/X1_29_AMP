@@ -107,6 +107,7 @@ def phase_retarget():
     print("\n=== Phase 1-2: GMR Retarget + Isaac Lab dataset_retarget ===\n")
     reassemble_smplx()
     gmr_dir, venv_dir = setup_gmr()
+    hide_gvhmr_pt_early(gmr_dir)
     register_x1_in_gmr(gmr_dir)
 
     print("\n--- Auto-IK Calibration ---")
@@ -377,7 +378,85 @@ def final_checkpoint() -> Path | None:
     return ckpts[best]
 
 
-def phase_play_video(ckpt: Path):
+def hide_gvhmr_pt_early(gmr_dir: Path):
+    """v25: MOVE GMR_X1/gvhmr_pt out of /workspace BEFORE the SDK's early
+    enumeration (~t+5-6min, v24 evidence). In v21b/v22/v24 these 5 junk
+    reference .pt files registered first and ate the whole 5-slot model
+    quota, blocking every real artifact. Our retarget path is pure IK from
+    SMPL-X npz and never reads them (v21b+ purged them post-retarget with
+    retarget unaffected). Moving (not deleting) keeps them recoverable."""
+    import shutil as _sh
+    moved = 0
+    for cand in (gmr_dir / "gvhmr_pt", REPO_ROOT / "GMR" / "gvhmr_pt"):
+        if cand.is_dir():
+            try:
+                dst = Path("/tmp") / f"gvhmr_pt_hidden_{_dt.now():%H%M%S}"
+                _sh.move(str(cand), str(dst))
+                moved += 1
+                print(f"[HIDE] moved {cand} -> {dst} (pre-enumeration)")
+            except OSError as e:
+                print(f"[HIDE] failed {cand}: {e}")
+    if not moved:
+        print("[HIDE] no gvhmr_pt dir found (nothing to hide)")
+
+
+def export_policy_npz(ckpt: Path) -> Path | None:
+    """v25: export actor weights to .npz right after training (kit python has
+    torch + the checkpoint in-hand). The MuJoCo rollout then needs no torch,
+    removing the kit-torch/numpy2.x ABI failure mode of v24's pylibs attempts.
+
+    Robust key discovery: isaaclab MLP state keys may be actor.<i>.weight or
+    actor.layers.<i>.weight depending on version — regex both; print the full
+    actor key list on mismatch for one-run diagnosability."""
+    if ckpt is None:
+        return None
+    out = ckpt.with_suffix(".policy.npz")
+    code = f"""
+import re, sys
+import numpy as np
+import torch
+ck = torch.load(r"{ckpt}", map_location="cpu", weights_only=False)
+sd = ck["model_state_dict"]
+pairs = {{}}
+for k, v in sd.items():
+    m = re.match(r"actor\\.(?:[a-zA-Z_]+\\.)?(\\d+)\\.(weight|bias)$", k)
+    if m:
+        pairs.setdefault(int(m.group(1)), {{}})[m.group(2)] = v.detach().float().numpy()
+idx = sorted(i for i, d in pairs.items() if "weight" in d)
+if len(idx) not in (3, 4, 5):
+    print("[EXPORT] actor keys:", sorted(k for k in sd if k.startswith("actor.")))
+    sys.exit(3)
+out = {{}}
+for n, i in enumerate(idx):
+    out[f"l{{n}}_w"] = pairs[i]["weight"]
+    if "bias" in pairs[i]:
+        out[f"l{{n}}_b"] = pairs[i]["bias"]
+for cand in ("actor_obs_normalizer._mean", "actor_obs_normalizer.mean"):
+    if cand in sd:
+        out["mean"] = sd[cand].detach().float().numpy().reshape(-1)
+        out["std"] = sd[cand.replace("mean", "std" if cand.endswith("mean") else "_std")].detach().float().numpy().reshape(-1)
+        break
+else:
+    print("[EXPORT] no normalizer keys:", [k for k in sd if "normal" in k])
+    sys.exit(4)
+if "mean" not in out:
+    sys.exit(5)
+np.savez(r"{out}", **out)
+print("[EXPORT] layers:", [(w.shape) for w in [out[f'l{{n}}_w'] for n in range(len(idx))]])
+print("[EXPORT] mean/std shapes:", out["mean"].shape, out["std"].shape)
+"""
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    for line in (r.stdout or "").splitlines():
+        print(f"[EXPORT] {line}")
+    if r.returncode != 0 or not out.exists():
+        tail = (r.stderr or "").splitlines()[-6:]
+        print(f"[WARN] npz export failed rc={r.returncode}: {' | '.join(tail)[:600]}")
+        return None
+    print(f"[INFO] policy exported -> {out.name} ({out.stat().st_size // 1024}KB)")
+    return out
+
+
+def phase_play_video(ckpt: Path, policy_npz: Path | None = None):
     """Record a fixed-command walk video with the final policy."""
     print("\n=== Phase 5: Play rollout + video ===\n")
     if ckpt is None:
@@ -429,7 +508,7 @@ def phase_play_video(ckpt: Path):
         video = max(videos, key=lambda v: v.stat().st_mtime)
     else:
         print("[WARN] No mp4 from Isaac play — falling back to MuJoCo sim2sim rollout")
-        video = sim2sim_fallback_video(ckpt)
+        video = sim2sim_fallback_video(policy_npz or ckpt)
 
     if video is None:
         print("[WARN] No video from any source")
@@ -441,22 +520,10 @@ def phase_play_video(ckpt: Path):
     sim_dir = OUTSIDE_DIR / "sim2sim"
     if sim_dir.exists():
         to_mirror += sorted(sim_dir.glob("x1_sim2sim_*.mp4"))
-        # v24: merge ALL sim2sim metric jsons into ONE .pt — keeps the total
-        # model_upload/ .pt count at 5 (retarget x2, ckpt, sim2sim, amp) in
-        # case the suspected 5-per-task registration quota is real
-        merged = {}
-        for js in sorted(sim_dir.glob("x1_sim2sim_*.json")):
-            try:
-                import json as _json
-                merged[js.stem] = _json.loads(js.read_text())
-            except Exception as e:
-                print(f"[WARN] read {js.name}: {e}")
-        if merged:
-            try:
-                p = wrap_json_for_upload("sim2sim_metrics.pt", merged)
-                print(f"[UPLOAD] {p.name} ({len(merged)} rollouts)")
-            except Exception as e:
-                print(f"[WARN] wrap sim2sim_metrics: {e}")
+        # v25: sim2sim metrics are printed to the task log + archived in
+        # x1_upload/sim2sim — NOT registered as a model (5-slot budget:
+        # anchor, retarget x2, model_3999, amp_report)
+        _dump_mujoco_metrics(sim_dir)
     seen = set()
     for v in to_mirror:
         if v in seen:
@@ -475,30 +542,20 @@ def phase_play_video(ckpt: Path):
     return video
 
 
-def _mujoco_env_matrix(sys_ok: bool, pylibs: Path):
-    """(label, env, render_mode) attempts for headless rollout video.
-
-    v22 verdict: the container has NO usable GL stack at all (system
-    PyOpenGL from isaac_sim site-packages, pip PyOpenGL, EGL, OSMesa and
-    apt-installed osmesa all crash in OpenGL/GL/VERSION/GL_1_1.py), so
-    matplotlib 'soft' stick-figure rendering goes FIRST — it needs no GL.
-    GL attempts are kept only as quality upgrades."""
-    attempts = []
-    pp = str(pylibs)
-    attempts += [
-        ("sys-soft", dict(os.environ), "soft"),
-        ("sys-egl-gl", dict(os.environ, MUJOCO_GL="egl"), "gl"),
-        ("pylibs-soft", dict(os.environ, PYTHONPATH=pp), "soft"),
-        ("pylibs-osmesa-gl", dict(os.environ, MUJOCO_GL="osmesa",
-                                  PYOPENGL_PLATFORM="osmesa", PYTHONPATH=pp), "gl"),
-    ]
-    return attempts
-
-
-def sim2sim_fallback_video(ckpt: Path):
+def sim2sim_fallback_video(policy: Path):
     """Render walking videos of the final policy in MuJoCo — 3 rollouts
     (walk 1.0 / walk 1.5 / walk+turn) with metrics JSON. Doubles as the
-    sim2sim deliverable. Returns the first video path, None on failure."""
+    sim2sim deliverable. `policy` is the exported .npz (preferred) or the
+    raw .pt checkpoint. Returns the first video path, None on failure.
+
+    v25 changes after the v24 all-matrix failure:
+    - numpy pinned <2 in pylibs (v24's pylibs numpy 2.x vs kit-torch ABI is
+      the prime suspect for the pylibs-soft failure; npz removes torch need)
+    - every attempt's rc + stderr tail printed to the TASK log (v24 wrote
+      only to mujoco_fallback.log whose tail showed just the last GL crash —
+      we never learned why sys-soft/pylibs-soft failed)
+    - the apt last-resort no longer writes to an already-closed logf
+      (v24: 'I/O operation on closed file' masked its real behavior)"""
     try:
         import subprocess as _sp
 
@@ -508,16 +565,11 @@ def sim2sim_fallback_video(ckpt: Path):
 
         pylibs = REPO_ROOT / "pylibs"
         pylibs.mkdir(exist_ok=True)
-        # v24: matplotlib added — the soft renderer needs it and the kit
-        # python is not guaranteed to bundle it (pylibs-soft matrix entry
-        # would silently fail without it)
         _sp.run([sys.executable, "-m", "pip", "install", "-q", "--target", str(pylibs),
-                 "mujoco", "imageio", "imageio-ffmpeg", "matplotlib"], check=True, timeout=600)
-        # v21b root cause fix: strip the broken pip PyOpenGL from pylibs so
-        # mujoco's GL bindings resolve to the system OpenGL instead
+                 "numpy<2", "mujoco", "imageio", "imageio-ffmpeg", "matplotlib"],
+                check=True, timeout=900)
         for bad in list(pylibs.glob("OpenGL")) + list(pylibs.glob("PyOpenGL*")):
             shutil.rmtree(bad, ignore_errors=True)
-            print(f"[INFO] stripped {bad.name} from pylibs (broken PyOpenGL)")
 
         rollout = REPO_ROOT / "sim2sim" / "mujoco_rollout.py"
         out_dir = OUTSIDE_DIR / "sim2sim"
@@ -527,73 +579,96 @@ def sim2sim_fallback_video(ckpt: Path):
             ("walk_1.5", ["--cmd", "1.5", "0.0", "0.0", "--duration", "8"]),
             ("walk_turn", ["--cmd", "1.0", "0.0", "0.8", "--duration", "8"]),
         ]
-        good_env, videos = None, []
-        logf = open(REPO_ROOT / "mujoco_fallback.log", "wb")
-        try:
-            for label, env, rmode in _mujoco_env_matrix(sys_ok, pylibs):
-                logf.write(f"\n===== {label} render={rmode} =====\n".encode())
-                logf.flush()
+
+        def run_matrix(matrix, tag):
+            good, videos = None, []
+            for label, env in matrix:
                 ok = True
                 for name, extra in rollouts:
                     mp4 = out_dir / f"x1_sim2sim_{name}.mp4"
                     js = out_dir / f"x1_sim2sim_{name}.json"
-                    cmd = [sys.executable, str(rollout), "--ckpt", str(ckpt),
+                    cmd = [sys.executable, str(rollout), "--ckpt", str(policy),
                            "--repo-root", str(REPO_ROOT), "--video", str(mp4),
-                           "--json", str(js), "--render", rmode] + extra
+                           "--json", str(js), "--render", "soft"] + extra
                     try:
-                        rc = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=900,
-                                     stdout=logf, stderr=_sp.STDOUT).returncode
+                        r = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=1200,
+                                    capture_output=True, text=True)
                     except Exception as run_err:
-                        print(f"[WARN] mujoco {label}/{name} run error: {run_err}")
-                        rc = -1
-                    if rc != 0 or not (mp4.exists() and mp4.stat().st_size > 100_000):
+                        print(f"[MUJOCO][{label}/{name}] run error: {run_err}")
+                        ok = False
+                        break
+                    bad_size = not (mp4.exists() and mp4.stat().st_size > 100_000)
+                    if r.returncode != 0 or bad_size:
+                        tail = [l for l in (r.stderr or "").splitlines() if l.strip()][-6:]
+                        print(f"[MUJOCO][{label}/{name}] rc={r.returncode} "
+                              f"{'(video missing/<100KB) ' if bad_size else ''}failed")
+                        print(f"[MUJOCO][{label}/{name}] tail: " +
+                              " | ".join(t.strip()[:150] for t in tail)[:900])
                         ok = False
                         break
                     videos.append(mp4)
+                    for l in (r.stdout or "").splitlines():
+                        if l.startswith(("[INFO]", "[VIDEO]", "[FALL]")):
+                            print(f"[MUJOCO][{label}/{name}] {l}")
                 if ok:
-                    good_env = label
+                    good = label
                     break
                 videos.clear()
-        finally:
-            logf.close()
+            return good, videos
+
+        pp = str(pylibs)
+        matrix = [
+            ("sys-soft", dict(os.environ)),
+            ("pylibs-soft", dict(os.environ, PYTHONPATH=pp)),
+        ]
+        good_env, videos = run_matrix(matrix, "soft")
         if good_env:
-            print(f"[INFO] mujoco rollouts OK via {good_env}: {[v.name for v in videos]}")
+            print(f"[INFO] mujoco soft rollouts OK via {good_env}: "
+                  f"{[v.name for v in videos]}")
+            _dump_mujoco_metrics(out_dir)
             return videos[0]
-        # last resort: install system GL libs and retry osmesa via pylibs
+        # GL quality upgrades (also serve as extra evidence if soft failed)
+        gl_matrix = [
+            ("sys-egl-gl", dict(os.environ, MUJOCO_GL="egl")),
+            ("pylibs-osmesa-gl", dict(os.environ, MUJOCO_GL="osmesa",
+                                      PYOPENGL_PLATFORM="osmesa", PYTHONPATH=pp)),
+        ]
+        good_env, videos = run_matrix(gl_matrix, "gl")
+        if good_env:
+            print(f"[INFO] mujoco GL rollouts OK via {good_env}: "
+                  f"{[v.name for v in videos]}")
+            _dump_mujoco_metrics(out_dir)
+            return videos[0]
+        # last resort: system GL libs, then osmesa via pylibs
         try:
             print("[INFO] last resort: apt-get install libosmesa6 + retry")
-            _sp.run(["apt-get", "install", "-y", "-q", "libosmesa6", "libegl1"],
-                    timeout=300, stdout=logf, stderr=_sp.STDOUT)
-            logf = open(REPO_ROOT / "mujoco_fallback.log", "ab")
+            r = _sp.run(["apt-get", "install", "-y", "-q", "libosmesa6", "libegl1"],
+                        timeout=300, capture_output=True, text=True)
+            print(f"[INFO] apt rc={r.returncode}: {(r.stderr or '')[-200:]}")
             env = dict(os.environ, MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa",
                        PYTHONPATH=str(pylibs))
-            ok = True
-            for name, extra in rollouts:
-                mp4 = out_dir / f"x1_sim2sim_{name}.mp4"
-                js = out_dir / f"x1_sim2sim_{name}.json"
-                cmd = [sys.executable, str(rollout), "--ckpt", str(ckpt),
-                       "--repo-root", str(REPO_ROOT), "--video", str(mp4),
-                       "--json", str(js)] + extra
-                rc = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=900,
-                             stdout=logf, stderr=_sp.STDOUT).returncode
-                if rc != 0 or not (mp4.exists() and mp4.stat().st_size > 100_000):
-                    ok = False
-                    break
-                videos.append(mp4)
-            if ok:
+            good_env, videos = run_matrix([("apt-osmesa-gl", env)], "gl")
+            if good_env:
                 print(f"[INFO] mujoco rollouts OK via apt-osmesa: {[v.name for v in videos]}")
-                logf.close()
+                _dump_mujoco_metrics(out_dir)
                 return videos[0]
-            videos.clear()
-            logf.close()
         except Exception as apt_err:
             print(f"[WARN] apt osmesa retry failed: {apt_err}")
-        log = (REPO_ROOT / "mujoco_fallback.log").read_text(errors="replace")
-        print("[INFO] mujoco tail: " + " | ".join(
-            l.strip()[:120] for l in log.splitlines()[-8:]))
+        print("[WARN] all mujoco render attempts failed")
     except Exception as e:
         print(f"[WARN] mujoco fallback failed: {e}")
     return None
+
+
+def _dump_mujoco_metrics(out_dir: Path):
+    """v25: sim2sim metrics go to the TASK LOG + outside archive only (NOT
+    model_upload — registration budget stays at 5: anchor, retarget x2,
+    model_3999, amp_report)."""
+    try:
+        for js in sorted(out_dir.glob("x1_sim2sim_*.json")):
+            print(f"[SIM2SIM] {js.stem}: {js.read_text()[:400]}")
+    except Exception as e:
+        print(f"[WARN] metrics dump failed: {e}")
 
 
 def phase_amp_acceptance(video: Path | None):
@@ -620,15 +695,24 @@ def phase_amp_acceptance(video: Path | None):
 
 def main():
     print("=" * 60)
-    print("X1 AMP Pipeline v24 (delivery-hardened)")
+    print("X1 AMP Pipeline v25 (registration + video hardened)")
     print("=" * 60)
 
-    # v24: t0 pipeline_meta.pt anchor REMOVED. model_upload/ is watched
-    # continuously (v23: 4/4 registered, latest at t+160min), so an early
-    # anchor is pointless — and it consumed one of the (suspected) 5
-    # registration slots. Registration budget now:
-    #   retarget_report, retarget_data, model_3999, sim2sim_metrics,
-    #   amp_report = 5 files, checkpoint prioritized before reports.
+    # v25 t0 anchor (v23-proven, v24 regression removed): model_upload/ must
+    # EXIST and hold a .pt before the SDK's early enumeration (~t+5min) or the
+    # directory is never watched for the rest of the task. v23 anchored at t0
+    # and registered 4/4 files across the whole run; v24 dropped the anchor,
+    # created model_upload/ at t+50min and registered NOTHING from it.
+    # Same insurance for the video channel dir (logs/x1_amp/).
+    try:
+        (REPO_ROOT / "logs" / "x1_amp").mkdir(parents=True, exist_ok=True)
+        wrap_json_for_upload("pipeline_meta.pt", {
+            "pipeline": "x1_amp_v25",
+            "started": f"{_dt.now():%Y-%m-%d %H:%M:%S}",
+            "note": "t0 anchor: keep model_upload/ on the SDK watch list",
+        })
+    except Exception as e:
+        print(f"[WARN] t0 anchor failed: {e}")
 
     gmr_output, lab_output, venv_dir = phase_retarget()
     phase_retarget_acceptance(venv_dir)
@@ -639,8 +723,9 @@ def main():
         print(f"[ERROR] AMP training exited with code {rc}")
     ckpt = final_checkpoint()
     print(f"[INFO] Final checkpoint: {ckpt}")
+    policy_npz = export_policy_npz(ckpt)
 
-    video = phase_play_video(ckpt)
+    video = phase_play_video(ckpt, policy_npz)
     amp_rc = phase_amp_acceptance(video)
 
     print("\n=== Phase 7: wrap-up ===")
@@ -670,6 +755,11 @@ def main():
         print(f"[WARN] outside mirror of final artifacts failed: {e}")
     wait_for_sdk(420, "final checkpoint + video + reports")
     print("[INFO] Pipeline done.")
+    # v25: task exit code = AMP acceptance verdict (0 PASS / 1 FAIL). v23/v24
+    # exited 0 with FAIL verdicts — the platform's ret:True masked the truth.
+    # Artifacts are already registered by now (420s wait above), and failed
+    # tasks still expose their model lists (v18/v19/v21b/v23 precedent).
+    sys.exit(amp_rc)
 
 
 if __name__ == "__main__":

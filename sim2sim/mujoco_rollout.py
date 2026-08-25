@@ -113,8 +113,17 @@ def quat2mat(q):
 
 
 def build_model(xml_path: Path):
-    """Load x1.xml, add floor, enable foot collisions, disable the unused
-    vendor <motor> actuators (we drive torques via qfrc_applied)."""
+    """Load x1.xml, add a floor, and drop the unused vendor <motor> actuators
+    (we drive torques via qfrc_applied).
+
+    v25 collision fix (found by local Mac repro): the vendor xml disables ALL
+    collisions by default (contype=0/conaffinity=0) and marks the REAL foot
+    contact points as tiny class="collision" spheres (contype=1). The old
+    code set contype/conaffinity=1 on EVERY geom of the ankle bodies —
+    including the visual foot mesh and the 0.02 m red marker spheres — so the
+    robot stood on wrong geometry and collapsed in 1.8 s even with zero
+    action. Now we only add the floor (contype=1, conaffinity=1): it pairs
+    with the vendor's collision-class spheres and nothing else."""
     import mujoco
     spec = mujoco.MjSpec.from_file(str(xml_path))
     # floor
@@ -122,14 +131,13 @@ def build_model(xml_path: Path):
     world.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE,
                    size=[20, 20, 0.1], friction=[1.0, 0.005, 0.0001],
                    contype=1, conaffinity=1, rgba=[0.35, 0.45, 0.5, 1])
-    # enable collisions only on foot geoms (ankle_roll bodies)
+    # count vendor collision-class geoms on the feet (informative)
     n_feet = 0
     for body in spec.bodies:
         if body.name.endswith("ankle_roll_link"):
             for geom in body.geoms:
-                geom.contype = 1
-                geom.conaffinity = 1
-                n_feet += 1
+                if geom.contype:
+                    n_feet += 1
     # drop vendor actuators (we drive torques via qfrc_applied)
     for act in list(spec.actuators):
         try:
@@ -142,6 +150,23 @@ def build_model(xml_path: Path):
 
 
 def load_policy(ckpt_path: Path):
+    """Load actor weights from either an rsl_rl .pt checkpoint (torch) or a
+    pre-exported .npz (v25: exported in-container right after training, so
+    the MuJoCo rollout needs NO torch — dodges the kit-torch/numpy2 ABI
+    landmine that killed every pylibs attempt in v24)."""
+    if ckpt_path.suffix == ".npz":
+        z = np.load(ckpt_path)
+        layers, i = [], 0
+        while f"l{i}_w" in z.files:
+            w = z[f"l{i}_w"].astype(np.float32)
+            b = z[f"l{i}_b"].astype(np.float32) if f"l{i}_b" in z.files else None
+            layers.append((w, b))
+            i += 1
+        if not layers:
+            raise RuntimeError(f"no l*_w arrays in {ckpt_path}")
+        mean = z["mean"].astype(np.float32).reshape(-1)
+        std = z["std"].astype(np.float32).reshape(-1)
+        return layers, mean, std, {"src": "npz"}
     import torch
     ck = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     sd = ck["model_state_dict"]
@@ -179,7 +204,7 @@ class SoftRenderer:
     skeleton (body world positions + parent edges) with matplotlib 3D and
     feeds frames to imageio — guaranteed to work headless."""
 
-    def __init__(self, model, height=480, width=840):
+    def __init__(self, model, height=720, width=1280):
         import os as _os
         import matplotlib
         if not _os.environ.get("MPLCONFIGDIR"):
@@ -224,10 +249,18 @@ class SoftRenderer:
         tr = _np.array(self.trail)
         ax.plot(tr[:, 0], tr[:, 1], tr[:, 2], color="steelblue", lw=1.2, alpha=0.8)
         ax.scatter([root[0]], [root[1]], [root[2]], color="navy", s=60)
-        # camera follows root; fixed 3m box
+        # camera follows root; fixed 3m box + ground grid (motion parallax
+        # and enough visual structure to keep the mp4 above the 100KB P6
+        # threshold — a bare stick figure on flat bg compresses to ~30KB)
         ax.set_xlim(root[0] - 1.5, root[0] + 1.5)
         ax.set_ylim(root[1] - 1.5, root[1] + 1.5)
         ax.set_zlim(0.0, 1.6)
+        gx = _np.arange(root[0] - 1.5, root[0] + 1.51, 0.5)
+        gy = _np.arange(root[1] - 1.5, root[1] + 1.51, 0.5)
+        for x in gx:
+            ax.plot([x, x], [gy[0], gy[-1]], [0, 0], color="0.75", lw=0.5)
+        for y in gy:
+            ax.plot([gx[0], gx[-1]], [y, y], [0, 0], color="0.75", lw=0.5)
         ax.view_init(elev=-18, azim=-75)
         ax.set_box_aspect((1, 1, 0.53))
         ax.set_axis_off()
@@ -285,12 +318,22 @@ def main():
     print(f"[INFO] policy input dim = {in_dim} (expect {3*96}); feet colliders = {n_feet}")
     assert in_dim == 3 * 96, f"unexpected obs dim {in_dim}"
 
-    # initial state: keyframe standing
+    # initial state: keyframe standing. v25: start LOW so the sole spheres
+    # penetrate, measure the worst contact distance, then lift by exactly
+    # that — a fixed z (0.62 in v16-v24) left the robot 2.9 cm in the air
+    # (local repro); it dropped, bounced and every policy looked broken.
     mujoco.mj_resetData(model, data)
-    data.qpos[0:3] = [0, 0, 0.62]
+    data.qpos[0:3] = [0, 0, 0.55]
     data.qpos[3:7] = [1, 0, 0, 0]
     data.qpos[qadr] = q_default
     mujoco.mj_forward(model, data)
+    if data.ncon:
+        worst = min(float(data.contact[i].dist) for i in range(data.ncon))
+        data.qpos[2] -= worst + 0.002
+    data.qvel[:] = 0
+    mujoco.mj_forward(model, data)
+    print(f"[INFO] initial base z = {data.qpos[2]:.4f} (auto-calibrated, "
+          f"{data.ncon} sole contacts)")
 
     cmd = np.array(args.cmd, dtype=np.float64)
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
@@ -305,7 +348,7 @@ def main():
     soft = None
     if args.video:
         if args.render == "soft":
-            soft = SoftRenderer(model, height=480, width=840)
+            soft = SoftRenderer(model, height=720, width=1280)
         else:
             video = mujoco.Renderer(model, height=480, width=840)
 
@@ -333,10 +376,15 @@ def main():
         q_tgt_full = q_default.copy()
         q_tgt_full[lab2mj] = q_default[lab2mj] + ACTION_SCALE * act
 
-        for _ in range(substeps):
-            tau = kp * (q_tgt_full - data.qpos[qadr]) - kd * data.qvel[vadr]
-            tau = np.clip(tau, -eff, eff)
-            data.qfrc_applied[vadr] = tau
+        # v25: recompute PD every 5 substeps (200 Hz) — Isaac recomputes the
+        # implicit PD every sim step (200 Hz) while holding targets at 50 Hz;
+        # holding the TORQUE for the full 20 ms (v16-v24) oscillated against
+        # the stiff sole contacts (local repro: launch + flail)
+        for s_i in range(substeps):
+            if s_i % 5 == 0:
+                tau = kp * (q_tgt_full - data.qpos[qadr]) - kd * data.qvel[vadr]
+                tau = np.clip(tau, -eff, eff)
+                data.qfrc_applied[vadr] = tau
             mujoco.mj_step(model, data)
 
         # metrics + termination
