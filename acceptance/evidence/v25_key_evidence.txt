@@ -1,0 +1,8 @@
+                         Iteration time: 1.77s
+                            Mean reward: 22.15
+                         Iteration time: 1.80s
+                            Mean reward: 21.99
+                         Iteration time: 1.74s
+                          Learning iteration 3458/4000                           
+                            Mean reward: 21.91
+                    Mean episode length: 995.50

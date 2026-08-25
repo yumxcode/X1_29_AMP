@@ -61,9 +61,12 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
     # v18: 3000 -> 4000. v16/v17 curves plateaued (lin kernel 0.835-0.839);
     # extra 1000 iters to close the gap toward the 0.85 TARGET (AMP_ACCEPTANCE.md).
     max_iterations = 4000
-    save_interval = 4000  # v22: only model_0 + final model_3999 land on disk —
-    # keeps the SDK-visible .pt count minimal (v16-v21b evidence suggests a
-    # 5-per-task registration quota; intermediate ckpts only eat slots)
+    # v26: 4000 -> 1000. v25 lesson (exp_mt839s7k): save_interval=4000 stores
+    # ONLY the endpoint, so an external kill at iter 3458 destroyed all
+    # training progress with the pod. Disk ckpts (logs/ tree) never touch the
+    # SDK registration quota — that budget is managed by explicit mirroring
+    # in run_x1_amp_train.py (anchor + retarget x2 + model_2000 + model_3999).
+    save_interval = 1000
     experiment_name = "x1_amp"
     wandb_project = "x1_amp"
     obs_groups = {

@@ -316,10 +316,13 @@ def phase_train() -> int:
     mirrored = set()
 
     def monitor():
-        """Watch training checkpoints (logging only — mirrors happen in the
-        final sweep). v22: during-training mirroring removed; v16-v21b
-        evidence suggests a 5-per-task registration quota, so intermediate
-        checkpoints must NOT be pushed into SDK-visible paths."""
+        """Watch training checkpoints. v26: mirror model_2000 ONCE as
+        mid-flight insurance — v25 was balance-killed at iter 3458 with all
+        progress lost (save_interval=4000 => only model_0 on disk).
+        Registration budget stays at 5: anchor + retarget x2 + model_2000
+        (here) + model_3999 (final sweep); amp_report becomes the 6th file
+        and is the deliberate quota sacrifice. Later ckpts (3000/3999) are
+        NOT mid-mirrored — model_3999 arrives via the final sweep."""
         last = None
         while not stop_monitor.is_set():
             try:
@@ -327,6 +330,12 @@ def phase_train() -> int:
                 if names != last:
                     print(f"[MONITOR] checkpoints on disk: {names}")
                     last = names
+                if "model_2000.pt" in names and "model_2000.pt" not in mirrored:
+                    ck = all_checkpoints().get("model_2000.pt")
+                    if ck is not None and ck.exists():
+                        print("[MONITOR] mid-flight insurance mirror: model_2000.pt")
+                        mirror_checkpoint(ck, tag)
+                        mirrored.add("model_2000.pt")
             except Exception as e:
                 print(f"[MONITOR] error: {e}")
             stop_monitor.wait(60)
@@ -362,7 +371,8 @@ def phase_train() -> int:
     if final is not None:
         mirror_checkpoint(final, tag)
         mirrored.add(final.name)
-    print(f"[INFO] Mirrored final only: {final.name if final else None}. "
+    print(f"[INFO] Mirrored final: {final.name if final else None} "
+          f"(plus mid-flight {sorted(mirrored)}). "
           f"Run dir: {latest_run_dir()}")
     return rc
 
@@ -522,7 +532,7 @@ def phase_play_video(ckpt: Path, policy_npz: Path | None = None):
         to_mirror += sorted(sim_dir.glob("x1_sim2sim_*.mp4"))
         # v25: sim2sim metrics are printed to the task log + archived in
         # x1_upload/sim2sim — NOT registered as a model (5-slot budget:
-        # anchor, retarget x2, model_3999, amp_report)
+        # anchor, retarget x2, model_2000, model_3999)
         _dump_mujoco_metrics(sim_dir)
     seen = set()
     for v in to_mirror:
@@ -662,8 +672,8 @@ def sim2sim_fallback_video(policy: Path):
 
 def _dump_mujoco_metrics(out_dir: Path):
     """v25: sim2sim metrics go to the TASK LOG + outside archive only (NOT
-    model_upload — registration budget stays at 5: anchor, retarget x2,
-    model_3999, amp_report)."""
+    model_upload — v26 budget: anchor, retarget x2, model_2000, model_3999
+    (amp_report sacrificed to the quota after model_2000 took its slot)."""
     try:
         for js in sorted(out_dir.glob("x1_sim2sim_*.json")):
             print(f"[SIM2SIM] {js.stem}: {js.read_text()[:400]}")
@@ -695,7 +705,7 @@ def phase_amp_acceptance(video: Path | None):
 
 def main():
     print("=" * 60)
-    print("X1 AMP Pipeline v25 (registration + video hardened)")
+    print("X1 AMP Pipeline v26 (mid-flight ckpt insurance + v25 fixes)")
     print("=" * 60)
 
     # v25 t0 anchor (v23-proven, v24 regression removed): model_upload/ must
