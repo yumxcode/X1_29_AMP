@@ -202,9 +202,12 @@ def stance_sole_flat_walk(
     num_feet = len(sensor_cfg.body_ids)
 
     feet_quat = asset.data.body_quat_w[:, asset_cfg.body_ids, :]              # (N, M, 4)
-    up_local = torch.tensor([0.0, 1.0, 0.0], device=env.device).expand(num_feet, 3)  # sole normal, foot frame
+    # v27.3c shape fix (task 248 died in learn(): 8192 vs 2 broadcast): the
+    # flat quats are (N*M, 4), so the up vector must be expanded to (N*M, 3)
+    flat_q = feet_quat.reshape(-1, 4)
+    up_row = torch.tensor([0.0, 1.0, 0.0], device=env.device)                 # sole normal, foot frame
     up_world = math_utils.quat_apply(
-        feet_quat.reshape(-1, 4), up_local.reshape(-1, 3)
+        flat_q, up_row.unsqueeze(0).expand(flat_q.shape[0], 3)
     ).reshape(-1, num_feet, 3)
     cos_tilt = torch.clamp(up_world[:, :, 2], -1.0, 1.0)                      # dot with world up
     sin_sq = 1.0 - torch.square(cos_tilt)
