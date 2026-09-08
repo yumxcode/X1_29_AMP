@@ -106,6 +106,20 @@ def wait_for_sdk(seconds: int, why: str):
 def phase_retarget():
     print("\n=== Phase 1-2: GMR Retarget + Isaac Lab dataset_retarget ===\n")
     reassemble_smplx()
+    gmr_output = MOTIONS_DIR / "x1_gmr"
+    lab_output = MOTIONS_DIR / "x1_lab"
+    have_gmr = gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 14
+    have_lab = lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 14
+    if have_gmr and have_lab:
+        # v27 hardening: TASK_20260908_230 died in 6 min because the pod's DNS
+        # could not resolve the internal /pypi mirror during gmr_x1_venv
+        # creation — even though all retarget products ship IN THE REPO.
+        # When both outputs are present, the whole GMR stack (clone, venv,
+        # auto-IK, gvhmr hiding) is dead weight; skip it and let the
+        # acceptance gate fall back to the system python (image ships mujoco).
+        print("[INFO] x1_gmr + x1_lab already in-repo — skipping GMR setup/venv")
+        return gmr_output, lab_output, None
+
     gmr_dir, venv_dir = setup_gmr()
     hide_gvhmr_pt_early(gmr_dir)
     register_x1_in_gmr(gmr_dir)
@@ -113,13 +127,11 @@ def phase_retarget():
     print("\n--- Auto-IK Calibration ---")
     run_auto_ik(gmr_dir, venv_dir)
 
-    gmr_output = MOTIONS_DIR / "x1_gmr"
     if gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 14:
         print(f"[INFO] x1_gmr already has {len(list(gmr_output.glob('*.pkl')))} files, skipping GMR retarget")
     else:
         run_gmr_retarget(gmr_dir, venv_dir)
 
-    lab_output = MOTIONS_DIR / "x1_lab"
     if lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 14:
         print(f"[INFO] x1_lab already has {len(list(lab_output.glob('*.pkl')))} files, skipping dataset_retarget")
     else:
@@ -139,9 +151,9 @@ def phase_retarget_acceptance(venv_dir: Path) -> bool:
     checker = REPO_ROOT / "acceptance" / "check_retarget.py"
     report_json = UPLOAD_DIR / "retarget_acceptance_report.json"
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)  # checker json write needs it
-    venv_python = str(venv_dir / "bin" / "python")
+    venv_python = str(venv_dir / "bin" / "python") if venv_dir else ""
     cmd = [
-        "python" if not Path(venv_python).exists() else venv_python,
+        "python" if not (venv_python and Path(venv_python).exists()) else venv_python,
         str(checker), "--repo-root", str(REPO_ROOT),
         "--json", str(report_json),
     ]
