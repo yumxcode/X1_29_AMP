@@ -312,12 +312,20 @@ def phase_train() -> int:
     robolab_src = REPO_ROOT / "roboparty_train" / "robolab"
     rsl_rl_src = REPO_ROOT / "roboparty_train" / "rsl_rl"
 
-    print("[INFO] Installing robolab/rsl_rl (force rsl_rl to override Isaac Lab v3.1.2)...")
-    subprocess.run([sys.executable, "-m", "pip", "uninstall", "rsl-rl-lib", "-y", "-q"], check=False)
-    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(rsl_rl_src), "-q",
-                    "--force-reinstall", "--no-deps", "--no-build-isolation"], check=True)
-    subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(robolab_src), "-q",
-                    "--no-deps", "--no-build-isolation"], check=True)
+    # v27.3: NO pip at all. This pod's offline pip is broken two ways
+    # (TASK_20260908_230: /pypi mirror unresolvable by DNS; 242:
+    # --no-build-isolation still dies in image-bundled pip on
+    # `packaging.licenses`). PYTHONPATH achieves the same shadowing the
+    # editable installs did: rsl_rl FIRST so it overrides IsaacLab's
+    # site-packages rsl_rl 3.1.2, then robolab. PYTHONPATH precedes
+    # site-packages in sys.path, and it inherits into every subprocess
+    # spawned below (train, play, rollout fallbacks).
+    parts = [str(rsl_rl_src), str(robolab_src)]
+    old = os.environ.get("PYTHONPATH", "")
+    if old:
+        parts.append(old)
+    os.environ["PYTHONPATH"] = ":".join(parts)
+    print(f"[INFO] PYTHONPATH shadowing (no pip): {os.environ['PYTHONPATH']}")
 
     train_script = robolab_src / "scripts" / "rsl_rl" / "train.py"
     cmd = [sys.executable, str(train_script),
