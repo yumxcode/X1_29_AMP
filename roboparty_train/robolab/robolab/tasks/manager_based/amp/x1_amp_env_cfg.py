@@ -51,13 +51,22 @@ class X1AmpRewards():
     joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=0)
     joint_energy = RewTerm(func=mdp.joint_energy, weight=0)
     joint_regularization = RewTerm(func=mdp.joint_deviation_l1, weight=0)
+    # v28b FIX (user-observed defect): frozen anti-symmetric arm pose (L
+    # shoulder +35 deg / R -30 deg joint-space, one arm fwd one back) was
+    # REWARDED by the old mean statistic: X1 shoulder-pitch axes are
+    # ANTI-ALIGNED (L z=-1, R z=+1), so a physically symmetric arm swing is
+    # SAME-SIGN in joint space and the frozen anti pose has mean ~ 0. The
+    # difference statistic is the symmetric one for anti-aligned pairs:
+    # frozen anti pose -> |devL-devR|/... = 0.57 rad penalty; natural
+    # same-sign swing -> ~0.
     arm_pitch_mean_offset = RewTerm(
-        func=mdp.paired_joints_mean_deviation_l1,
+        func=mdp.paired_joints_deviation_difference_l1,
         weight=0,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=[".*_shoulder_pitch_joint"],
+                joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint"],
+                preserve_order=True,
             )
         },
     )
@@ -226,7 +235,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
-        self.rewards.arm_pitch_mean_offset.weight = -0.1
+        # v28b: -0.1 (mean, wrong stat) -> -0.3 (difference, correct stat for
+        # anti-aligned axes): frozen anti pose ~0.57 rad -> -0.17/step pressure
+        self.rewards.arm_pitch_mean_offset.weight = -0.3
 
         # feet
         self.rewards.feet_slide.weight = -0.1
