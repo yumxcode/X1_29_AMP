@@ -150,6 +150,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
             ROBOLAB_ROOT_DIR, "data", "motions", "x1_lab"
         )
         # Motion weights: must explicitly list motion names (empty dict = load nothing)
+        # v28: every clip now has a FK-verified left-right mirrored twin
+        # (roboparty_train/mirror_lab_motions.py, FK mirror error < 0.8 mm on
+        # all 14 clips). The AMASS refs themselves are heavily L/R asymmetric
+        # (hip swing ratio 0.35-0.97) and v27 inherited it (0.5 m/s policy
+        # ratio 0.832 < 0.85). A mirrored-pair dataset makes the AMP style
+        # prior exactly symmetric by construction.
         self.motion_data.motion_dataset.motion_data_weights = {
             "114_08": 1.0,
             "114_09": 1.0,
@@ -168,6 +174,20 @@ class X1AmpEnvCfg(AmpEnvCfg):
             "0008_normal_walk4": 2.0,
             "0009_normal_jog1": 2.0,
             "0026_circle_walk": 2.0,
+            "114_08_mirror": 1.0,
+            "114_09_mirror": 1.0,
+            "127_04_mirror": 1.0,
+            "127_06_mirror": 1.0,
+            "36_01_mirror": 1.0,
+            "36_11_mirror": 1.0,
+            "0000_treadmill_norm_mirror": 2.0,
+            "0002_treadmill_slow_mirror": 2.0,
+            "0003_treadmill_jog_mirror": 2.0,
+            "0005_normal_walk1_mirror": 2.0,
+            "0007_normal_walk3_mirror": 2.0,
+            "0008_normal_walk4_mirror": 2.0,
+            "0009_normal_jog1_mirror": 2.0,
+            "0026_circle_walk_mirror": 2.0,
         }
 
         # ------------------------------------------------------
