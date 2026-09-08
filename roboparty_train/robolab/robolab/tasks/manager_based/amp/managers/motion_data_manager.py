@@ -46,6 +46,19 @@ try:
     import joblib
 except ImportError:
     joblib = None
+
+
+class _NumpyCompatUnpickler(pickle.Unpickler):
+    """v28b: motion pkls may be written under numpy>=2 (arrays pickle as
+    numpy._core.*) while the training image ships numpy<2 (no numpy._core).
+    Remap numpy._core -> numpy.core on load; harmless under numpy 2.x where
+    both module paths exist. (Container error: ModuleNotFoundError numpy._core,
+    TASK_20260908_348.)"""
+
+    def find_class(self, module, name):
+        if module.startswith("numpy._core"):
+            module = module.replace("numpy._core", "numpy.core", 1)
+        return super().find_class(module, name)
 from typing import TYPE_CHECKING
 
 import isaaclab.utils.math as math_utils
@@ -114,7 +127,7 @@ class MotionDataTerm(ManagerTermBase):
             print(f"[Motion Data Manager] Loading motion data from {motion_path}...")
             try:
                 with open(motion_path, "rb") as f:
-                    motion_raw_data = pickle.load(f)
+                    motion_raw_data = _NumpyCompatUnpickler(f).load()
             except (pickle.UnpicklingError, EOFError, AttributeError, ImportError, IndexError):
                 if joblib is None:
                     raise
