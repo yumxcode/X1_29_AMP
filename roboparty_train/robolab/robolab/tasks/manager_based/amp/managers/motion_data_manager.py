@@ -35,9 +35,17 @@ import os
 import numpy as np
 import enum
 import pickle
-import joblib
 import torch
 from prettytable import PrettyTable
+
+# v27.3: joblib is missing from kit site-packages on DNS-less pods (and pip
+# cannot install it there). It is only used as a FALLBACK loader — our
+# shipped x1_gmr/x1_lab pkls are plain pickles (verified locally). Import it
+# lazily/optionally.
+try:
+    import joblib
+except ImportError:
+    joblib = None
 from typing import TYPE_CHECKING
 
 import isaaclab.utils.math as math_utils
@@ -108,6 +116,8 @@ class MotionDataTerm(ManagerTermBase):
                 with open(motion_path, "rb") as f:
                     motion_raw_data = pickle.load(f)
             except (pickle.UnpicklingError, EOFError, AttributeError, ImportError, IndexError):
+                if joblib is None:
+                    raise
                 motion_raw_data = joblib.load(motion_path)
             if not isinstance(motion_raw_data, dict):
                 raise ValueError(f"Motion data file {motion_file} does not contain a valid dictionary.")
