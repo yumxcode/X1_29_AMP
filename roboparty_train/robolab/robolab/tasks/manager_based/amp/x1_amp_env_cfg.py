@@ -66,6 +66,21 @@ class X1AmpRewards():
         weight=0.0,
     )
 
+    # -- v27: strict gait quality (sim2sim criteria) ---------------------
+    # sole must stay flat during stance at walking speeds (no toe-walk /
+    # ball-foot); see stance_sole_flat_walk docstring for the frame trap that
+    # rules out the built-in feet_orientation_l2 on X1.
+    stance_sole_flat = RewTerm(
+        func=mdp.stance_sole_flat_walk,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
+            "command_name": "base_velocity",
+            "max_cmd_speed": 1.5,
+        },
+    )
+
     # -- Feet
     feet_slide = RewTerm(
         func=mdp.feet_slide,
@@ -139,7 +154,10 @@ class X1AmpEnvCfg(AmpEnvCfg):
             "114_08": 1.0,
             "114_09": 1.0,
             "127_04": 1.0,
-            "127_06": 4.0,
+            # v27: 4.0 -> 1.0. 127_06 is a toe-down clip (ref_gait_analysis:
+            # TD pitch -15.5 deg, stance pitch -14.7 deg vs walks +1..+5 deg
+            # flat); at 4x weight it pulled the AMP style toward forefoot.
+            "127_06": 1.0,
             "36_01": 1.0,
             "36_11": 1.0,
             "0000_treadmill_norm": 2.0,
@@ -194,6 +212,25 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.feet_slide.weight = -0.1
         self.rewards.sound_suppression.weight = -5e-5
         self.rewards.feet_distance_y.weight = 0.05
+
+        # v27 gait quality: v26 sim2sim evidence (gait_metrics on model_3999,
+        # acceptance/v27_eval/v26_gait_report.json):
+        #   - 1.0 m/s: heel raised 19% of mid-stance (ball-foot), sole pitch
+        #     to -42 deg in stance -> stance_sole_flat kills it. Reference
+        #     clips keep the sole flat (heelup=0.000), so this is aligned
+        #     with the AMP style, not fighting it.
+        # Magnitude at v26 gait: mean sin^2 tilt = 0.157 (1.0 m/s) -> weight
+        # -1.5 gives ~-0.24/step: ~9% of task reward (2.65/step at perfect
+        # tracking), dominant among always-on penalties but reducible to ~0
+        # by flat soles (reference proves feasible).
+        # NOTE: NO instantaneous hip-pair symmetry term: measured on v26 data,
+        # corr(dev_L,dev_R)=+0.78 — gait mirror symmetry is invariance under
+        # mirror x T/2 shift, so neither |mean| nor |diff| of instantaneous
+        # deviations isolates amplitude asymmetry (both punish normal swing).
+        # If v27 hip amplitude ratio still < 0.85, v28 needs a per-cycle
+        # amplitude-energy term (stateful). 127_06 down-weight may improve it
+        # incidentally (its toe-down style plausibly drove the asymmetry).
+        self.rewards.stance_sole_flat.weight = -1.5
 
         self.rewards.undesired_contacts.weight = -10.0
         self.rewards.undesired_contacts.params["sensor_cfg"] = SceneEntityCfg(

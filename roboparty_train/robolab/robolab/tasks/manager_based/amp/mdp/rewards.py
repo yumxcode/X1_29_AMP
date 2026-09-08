@@ -147,6 +147,73 @@ def paired_joints_mean_deviation_l1(
     return torch.abs(torch.mean(joint_deviation, dim=1))
 
 
+def paired_joints_deviation_difference_l1(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    command_name: str | None = None, max_cmd_yaw: float = 0.5,
+) -> torch.Tensor:
+    """Penalize the DIFFERENCE between paired-joint deviations (|dev_L - dev_R|).
+
+    EXPERIMENTAL / NOT ACTIVE (v27 measured on v26 data: corr(dev_L,dev_R)=+0.78
+    during walking). Gait mirror symmetry is invariance under mirror x T/2
+    shift, so NO instantaneous pair statistic — neither mean nor difference —
+    isolates amplitude asymmetry; both punish normal swing. Kept for a future
+    per-cycle amplitude comparison. Do not enable without re-validating.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    joint_deviation = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    reward = torch.abs(joint_deviation[:, 0] - joint_deviation[:, 1])
+    if command_name is not None:
+        # turning commands legitimately require L/R asymmetry — switch the
+        # term off above a yaw-command threshold
+        cmd = env.command_manager.get_command(command_name)
+        gate = (torch.abs(cmd[:, 2]) < max_cmd_yaw).float()
+        reward = reward * gate
+    return reward
+
+
+def stance_sole_flat_walk(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    command_name: str = "base_velocity",
+    max_cmd_speed: float = 1.5,
+) -> torch.Tensor:
+    """Penalize a non-flat sole while the foot is in contact, at walking speeds.
+
+    v27 strict sim2sim criteria: 落地要平稳顺滑, 不允许翘着脚面行走 (no
+    toe-walking / ball-foot gait). v26 policies at cmd >= 1.0 m/s stood on the
+    forefoot (heel raised 19% of mid-stance; sole pitch dipping to -42 deg),
+    while the retargeted AMASS references keep the sole flat through stance.
+
+    NOTE on frames: the built-in feet_orientation_l2 assumes the sole normal
+    is the body-frame z axis. On X1 the ankle_roll link frame is rotated 90
+    deg about y (vendor URDF rpy=(0, 1.5708, 0), identical in the MJCF): the
+    sole occupies local y < 0, toe = +z_local, so the sole-normal unit vector
+    in the body frame is (0, 1, 0) — using z there would penalize FLAT feet.
+    We rotate the explicit up vector to world and penalize sin^2(tilt).
+
+    Gated to walking speeds: at >= 1.5 m/s (jog references in the AMP dataset)
+    a forefoot stance is natural and must not be punished.
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+    num_feet = len(sensor_cfg.body_ids)
+
+    feet_quat = asset.data.body_quat_w[:, asset_cfg.body_ids, :]              # (N, M, 4)
+    up_local = torch.tensor([0.0, 1.0, 0.0], device=env.device).expand(num_feet, 3)  # sole normal, foot frame
+    up_world = math_utils.quat_apply(
+        feet_quat.reshape(-1, 4), up_local.reshape(-1, 3)
+    ).reshape(-1, num_feet, 3)
+    cos_tilt = torch.clamp(up_world[:, :, 2], -1.0, 1.0)                      # dot with world up
+    sin_sq = 1.0 - torch.square(cos_tilt)
+
+    cmd = env.command_manager.get_command(command_name)
+    gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()
+    return torch.sum(sin_sq * in_contact, dim=-1) * gate
+
+
 def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions if they cross the soft limits.
 

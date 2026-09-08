@@ -206,6 +206,30 @@ def run_policy(layers, mean, std, obs):
     return x @ w.T + (b if b is not None else 0)
 
 
+def find_sole_geoms(model):
+    """Identify, per foot, the 4 vendor collision-class sole spheres
+    (contype=1, r=0.002) on each ankle_roll_link body, ordered
+    [front_l, front_r, back_l, back_r] by local-frame z (+0.07 front,
+    -0.07 heel) then x. Returns {foot_body_name: [4 geom ids]} and the
+    floor geom id. Used by --log for gait-quality analysis."""
+    import mujoco
+    floor = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+    out = {}
+    for b in range(model.nbody):
+        name = model.body(b).name
+        if not name.endswith("ankle_roll_link"):
+            continue
+        g0, gnum = int(model.body_geomadr[b]), int(model.body_geomnum[b])
+        gids = [g for g in range(g0, g0 + gnum)
+                if model.geom_contype[g] and model.geom_type[g] == mujoco.mjtGeom.mjGEOM_SPHERE
+                and model.geom_size[g, 0] < 0.01]
+        if len(gids) != 4:
+            raise RuntimeError(f"{name}: expected 4 sole spheres, got {len(gids)}")
+        gids.sort(key=lambda g: (model.geom_pos[g, 2] < 0, model.geom_pos[g, 0] < 0))
+        out[name] = gids
+    return out, floor
+
+
 class SoftRenderer:
     """Pure-CPU stick-figure renderer (matplotlib Agg, no GL at all).
 
@@ -298,6 +322,8 @@ def main():
     ap.add_argument("--settle", type=float, default=0.5,
                     help="hold default pose before applying command (s)")
     ap.add_argument("--json", default=None)
+    ap.add_argument("--log", default=None,
+                    help="write per-step gait log (npz) for gait_metrics.py")
     ap.add_argument("--render", choices=["gl", "soft"], default="gl",
                     help="soft = matplotlib stick figure (no GL needed)")
     args = ap.parse_args()
@@ -309,6 +335,9 @@ def main():
 
     model, n_feet = build_model(root / "gmr_x1_assets" / "x1.xml")
     data = mujoco.MjData(model)
+    soles, floor_id = find_sole_geoms(model)
+    foot_names = sorted(soles)          # [left_..., right_...]
+    sole_gids = np.array([soles[f] for f in foot_names])  # (2, 4)
 
     # joint indices (MuJoCo) and lab->mj mapping
     mj_names = [model.joint(i).name for i in range(model.njnt)]
@@ -355,6 +384,9 @@ def main():
     last_act = np.zeros(29, dtype=np.float64)
     frames = []
     vxy_err, yaw_err, alive_steps = [], [], 0
+    LOG = args.log is not None
+    L = {k: [] for k in ("t", "q", "dq", "base_pos", "base_quat", "v_b",
+                         "sole_xyz", "contact_dist")}
     video = None
     soft = None
     if args.video:
@@ -424,6 +456,28 @@ def main():
             if base_z < FALL_Z or tilt > FALL_TILT:
                 print(f"[FALL] step {step} t={step*CONTROL_DT:.2f}s base_z={base_z:.3f} tilt={tilt:.1f}")
                 break
+        if LOG:
+            cd = np.zeros((2, 4))
+            for ci in range(data.ncon):
+                c = data.contact[ci]
+                g1, g2 = c.geom1, c.geom2
+                if g1 != floor_id and g2 != floor_id:
+                    continue
+                other = g2 if g1 == floor_id else g1
+                fi, si = np.argwhere(sole_gids == other)[0]
+                if cd[fi, si] == 0.0 or c.dist < cd[fi, si]:
+                    cd[fi, si] = c.dist        # negative = penetration
+            L["t"].append(step * CONTROL_DT)
+            # re-read at END of step (q/dq locals are from step start)
+            L["q"].append(data.qpos[qadr].copy())
+            L["dq"].append(data.qvel[vadr].copy())
+            L["base_pos"].append(data.qpos[0:3].copy())
+            L["base_quat"].append(data.qpos[3:7].copy())
+            L["v_b"].append(v_b.copy())
+            L["sole_xyz"].append(
+                np.array([[data.geom_xpos[g].copy() for g in row]
+                          for row in sole_gids]))
+            L["contact_dist"].append(cd)
         if video or soft:
             if soft is not None:
                 frames.append(soft.capture(data))
@@ -460,6 +514,18 @@ def main():
             "final_base_z": float(data.qpos[2]),
             "fell": bool(alive_steps < n_steps - settle_steps),
         }, indent=1))
+    if LOG:
+        npz = {k: np.asarray(v) for k, v in L.items()}
+        npz["meta"] = json.dumps({
+            "cmd": list(args.cmd), "ckpt": str(args.ckpt),
+            "control_dt": CONTROL_DT, "settle_steps": settle_steps,
+            "fell": bool(alive_steps < n_steps - settle_steps),
+            "hinge_names": hinge, "foot_names": foot_names,
+            "sole_order": "row=foot_names, cols=[front_l, front_r, back_l, back_r]",
+        })
+        np.savez_compressed(args.log, **npz)
+        print(f"[LOG] {args.log} ({Path(args.log).stat().st_size // 1024}KB, "
+              f"{len(L['t'])} steps)")
     if soft:
         soft.close()
     if video:
