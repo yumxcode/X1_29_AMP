@@ -126,6 +126,12 @@ def build_model(xml_path: Path):
     with the vendor's collision-class spheres and nothing else."""
     import mujoco
     spec = mujoco.MjSpec.from_file(str(xml_path))
+    # offscreen framebuffer: vendor xml declares only 640x480, which caps
+    # mujoco.Renderer at that size. Raise to 720p for the GL render path
+    # ("global" is a Python keyword -> getattr; local Mac GL works, the
+    # container-only matplotlib stick-figure remains as --render soft).
+    vis_g = getattr(spec.visual, "global")
+    vis_g.offwidth, vis_g.offheight = 1280, 720
     # floor
     world = spec.worldbody
     world.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE,
@@ -355,7 +361,8 @@ def main():
         if args.render == "soft":
             soft = SoftRenderer(model, height=720, width=1280)
         else:
-            video = mujoco.Renderer(model, height=480, width=840)
+            video = mujoco.Renderer(model, height=720, width=1280)
+            cam = mujoco.MjvCamera()
 
     rng = np.random.default_rng(0)
     for step in range(n_steps):
@@ -421,11 +428,11 @@ def main():
             if soft is not None:
                 frames.append(soft.capture(data))
             else:
-                cam = video.camera
-                lookat = data.qpos[0:3].copy()
-                cam.lookat[:] = lookat + [0, 0, 0.1]
-                cam.distance, cam.azimuth, cam.elevation = 3.2, 90.0, -12.0
-                video.update_scene(data)
+                # mujoco>=3.x: Renderer has no .camera attr — drive an
+                # explicit MjvCamera per frame (follows the base).
+                cam.lookat[:] = data.qpos[0:3].copy() + [0, 0, 0.2]
+                cam.distance, cam.azimuth, cam.elevation = 2.8, 90.0, -12.0
+                video.update_scene(data, camera=cam)
                 frames.append(video.render())
 
     print(f"[INFO] survived {alive_steps} steps = {alive_steps*CONTROL_DT:.2f}s of "

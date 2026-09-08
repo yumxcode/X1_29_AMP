@@ -1,0 +1,17 @@
+{
+ "ckpt": "acceptance/v26_artifacts/model_3999.policy.npz",
+ "cmd": [
+  0.5,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 575,
+ "survived_s": 11.5,
+ "mean_vxy_err": 0.0497674096232514,
+ "mean_yaw_err": 0.1516771451595447,
+ "distance_m": 5.116123368221953,
+ "final_base_z": 0.5977022615616526,
+ "fell": false
+}
