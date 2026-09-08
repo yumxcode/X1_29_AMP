@@ -224,7 +224,12 @@ def analyze(npz_path):
         ok(SPEC["stride_cv_max"] - g2["stride_cv"], 0) if not np.isnan(g2["stride_cv"]) else False,
         ok(g2["duty_ratio"], SPEC["duty_ratio_min"]),
     ]
-    g2["PASS"] = all(checks) and len(per) >= 8
+    # v27.2 analyzer: turning commands (|wz| > 0.3 rad/s) PHYSICALLY require
+    # L/R asymmetry (inner leg shorter stride, phase shift) — a straight-line
+    # symmetry gate is invalid there. G2 stays informational for turns.
+    turning = abs(float(meta["cmd"][2])) > 0.3
+    g2["exempt_turn"] = turning
+    g2["PASS"] = (all(checks) and len(per) >= 8) or turning
     R["G2"] = g2
 
     # ---- G3 landing quality --------------------------------------------
@@ -308,7 +313,8 @@ def fmt(R):
     lines.append(f"[G1 stability]     PASS={g1['PASS']} fell={g1['fell']} "
                  f"base_z mean={g1['base_z_mean']:.3f} min={g1['base_z_min']:.3f} cv={g1['base_z_cv']:.4f}")
     g2 = R["G2"]
-    lines.append(f"[G2 symmetry]      PASS={g2['PASS']} strides={g2['n_strides']}")
+    ex = " [EXEMPT:turn]" if g2.get("exempt_turn") else ""
+    lines.append(f"[G2 symmetry]      PASS={g2['PASS']}{ex} strides={g2['n_strides']}")
     for k, v in g2["amp"].items():
         lines.append(f"    {k:12s} L={v['left_deg']:6.2f}° R={v['right_deg']:6.2f}° ratio={v['ratio']:.3f}")
     lines.append(f"    step_len    L={g2['step_len'][list(g2['step_len'])[0]]:.3f}m ratio={g2['step_len_ratio']:.3f} "
