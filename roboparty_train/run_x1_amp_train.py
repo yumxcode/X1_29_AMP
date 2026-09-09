@@ -336,13 +336,14 @@ def phase_train() -> int:
     mirrored = set()
 
     def monitor():
-        """Watch training checkpoints. v26: mirror model_2000 ONCE as
-        mid-flight insurance — v25 was balance-killed at iter 3458 with all
-        progress lost (save_interval=4000 => only model_0 on disk).
-        Registration budget stays at 5: anchor + retarget x2 + model_2000
-        (here) + model_3999 (final sweep); amp_report becomes the 6th file
-        and is the deliberate quota sacrifice. Later ckpts (3000/3999) are
-        NOT mid-mirrored — model_3999 arrives via the final sweep."""
+        """Watch training checkpoints. v26: mirror model_2000 as mid-flight
+        insurance — v25 was balance-killed at iter 3458 with all progress
+        lost (save_interval=4000 => only model_0 on disk). v28d: ALSO mirror
+        model_3000 — v28c (TASK_20260908_361) was balance-killed at iter
+        3370/4000; everything past 2000 was lost with the pod. Quota note:
+        v27g registered 6 files via model_upload; anchor + retarget x2 +
+        2000 + 3000 + 3999 = 6, amp_report is the deliberate 7th sacrifice
+        (it also lands in the outside-tree final mirror)."""
         last = None
         while not stop_monitor.is_set():
             try:
@@ -356,6 +357,12 @@ def phase_train() -> int:
                         print("[MONITOR] mid-flight insurance mirror: model_2000.pt")
                         mirror_checkpoint(ck, tag)
                         mirrored.add("model_2000.pt")
+                if "model_3000.pt" in names and "model_3000.pt" not in mirrored:
+                    ck = all_checkpoints().get("model_3000.pt")
+                    if ck is not None and ck.exists():
+                        print("[MONITOR] mid-flight insurance mirror: model_3000.pt (v28c lesson)")
+                        mirror_checkpoint(ck, tag)
+                        mirrored.add("model_3000.pt")
             except Exception as e:
                 print(f"[MONITOR] error: {e}")
             stop_monitor.wait(60)
