@@ -371,11 +371,17 @@ def phase_train() -> int:
         resume_run.mkdir(parents=True, exist_ok=True)
         dst = resume_run / src.name
         shutil.copy2(src, dst)
+        # rsl_rl resume semantics (verified twice on TASK_20260909_231 /
+        # TASK_20260910_022): on resume, max_iterations is ADDITIONAL
+        # iterations — the runner trains to loaded_iter + max_iterations.
+        # So pass resume_iters directly (passing base+iters made v29e's
+        # planned +1000 become +10497 -> 19994 total, task stopped).
         cmd += ["--resume", "--load_run", "_resume_src",
                 "--checkpoint", src.name,
-                "--max_iterations", str(base_iter + resume_iters)]
+                "--max_iterations", str(resume_iters)]
         print(f"[RESUME] fine-tune from {src} (base iter {base_iter}) "
-              f"+{resume_iters} iters -> max_iterations={base_iter + resume_iters}")
+              f"+{resume_iters} iters -> max_iterations={resume_iters} "
+              f"(rsl_rl total {base_iter + resume_iters})")
 
 
     tag = _dt.now().strftime("%Y-%m-%d_%H-%M-%S") + "x1_amp"
