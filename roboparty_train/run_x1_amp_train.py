@@ -438,6 +438,15 @@ def phase_train() -> int:
                         print("[MONITOR] fine-tune mid-flight insurance mirror: model_5000.pt")
                         mirror_checkpoint(ck, tag)
                         mirrored.add("model_5000.pt")
+                # v29e4: mirror ANY new model_*.pt as it appears (the named
+                # insurance list above only covers fresh-run milestones;
+                # fine-tune saves land at arbitrary iteration numbers, e.g.
+                # model_10000 on a 9497-resume with save_interval=500)
+                for nm, ck in sorted(all_checkpoints().items()):
+                    if nm.startswith("model_") and nm not in mirrored:
+                        print(f"[MONITOR] new checkpoint mirror: {nm}")
+                        mirror_checkpoint(ck, tag)
+                        mirrored.add(nm)
             except Exception as e:
                 print(f"[MONITOR] error: {e}")
             stop_monitor.wait(60)

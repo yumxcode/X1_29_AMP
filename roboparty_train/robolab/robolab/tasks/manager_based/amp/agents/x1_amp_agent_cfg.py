@@ -66,7 +66,12 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
     # training progress with the pod. Disk ckpts (logs/ tree) never touch the
     # SDK registration quota — that budget is managed by explicit mirroring
     # in run_x1_amp_train.py (anchor + retarget x2 + model_2000 + model_3999).
-    save_interval = 1000
+    # v29e4: 1000 -> 500. Fine-tune runs (+1000 iters) produce their FIRST
+    # (and on 1000, ONLY) save at the very end — v29e3's model_10496 landed
+    # ~7 min before pod death and the SDK scan missed it. 500 gives a
+    # mid-run save (model_10000 on a 9497-resume) that registers with ample
+    # margin, independent of the end-of-task scan window.
+    save_interval = 500
     experiment_name = "x1_amp"
     wandb_project = "x1_amp"
     obs_groups = {
