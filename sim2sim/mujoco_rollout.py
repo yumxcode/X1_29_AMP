@@ -23,6 +23,7 @@ Usage:
 """
 
 import argparse
+import collections
 import functools
 import json
 import re
@@ -324,6 +325,23 @@ def main():
     ap.add_argument("--json", default=None)
     ap.add_argument("--log", default=None,
                     help="write per-step gait log (npz) for gait_metrics.py")
+    # ---- sim2real robustness injection (v29 readiness) -----------------
+    ap.add_argument("--obs-noise", type=float, default=0.0,
+                    help="sensor noise scale (1.0 = realistic: jpos 0.01 rad,"
+ " jvel 0.15 rad/s, ang 0.05 rad/s, grav 0.03)")
+    ap.add_argument("--latency-steps", type=int, default=0,
+                    help="observation pipeline latency in control steps (0-4)")
+    ap.add_argument("--action-lag", type=int, default=0,
+                    help="apply the action from N steps ago (comms/actuator lag)")
+    ap.add_argument("--torso-mass-scale", type=float, default=1.0,
+                    help="scale lumbar_pitch_link mass (payload simulation)")
+    ap.add_argument("--push-mag", type=float, default=0.0,
+                    help="random horizontal push speed (m/s) every --push-every s")
+    ap.add_argument("--push-every", type=float, default=2.0)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--onnx", action="store_true",
+                    help="run the policy through the exported ONNX graph "
+                         "(deployment-artifact-in-the-loop parity check)")
     ap.add_argument("--render", choices=["gl", "soft"], default="gl",
                     help="soft = matplotlib stick figure (no GL needed)")
     args = ap.parse_args()
@@ -353,8 +371,22 @@ def main():
     eff = np.array([PD[n][2] for n in hinge])
     q_default = np.array([DEFAULT_Q[n] for n in hinge])
 
-    layers, mean, std, meta = load_policy(Path(args.ckpt))
-    in_dim = layers[0][0].shape[1]
+    if Path(args.ckpt).suffix == ".onnx":
+        import onnxruntime as _ort
+        _sess = _ort.InferenceSession(str(args.ckpt), providers=["CPUExecutionProvider"])
+        _name = _sess.get_inputs()[0].name
+        in_dim = _sess.get_inputs()[0].shape[-1]
+        layers, mean, std, meta = None, None, None, {"src": "onnx"}
+
+        def _run_policy_onnx(x, y, z, ob):
+            ob2 = np.asarray(ob, dtype=np.float32).reshape(1, -1)
+            return _sess.run(["action"], {_name: ob2})[0].reshape(-1)
+
+        policy_fn = _run_policy_onnx
+    else:
+        layers, mean, std, meta = load_policy(Path(args.ckpt))
+        in_dim = layers[0][0].shape[1]
+        policy_fn = run_policy
     print(f"[INFO] policy input dim = {in_dim} (expect {3*96}); feet colliders = {n_feet}")
     assert in_dim == 3 * 96, f"unexpected obs dim {in_dim}"
 
@@ -397,6 +429,17 @@ def main():
             cam = mujoco.MjvCamera()
 
     rng = np.random.default_rng(0)
+    # robustness setup
+    rng = np.random.default_rng(args.seed)
+    if args.torso_mass_scale != 1.0:
+        bid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "lumbar_pitch_link")
+        model.body_mass[bid] *= args.torso_mass_scale
+        print(f"[ROB] torso mass scaled by {args.torso_mass_scale}")
+    ob_buf = collections.deque(maxlen=max(1, args.latency_steps) + 1)   # obs pipeline delay
+    act_buf = collections.deque(maxlen=max(1, args.action_lag) + 1)     # action comms lag
+    push_every_steps = int(args.push_every / CONTROL_DT)
+    NOISE = dict(jpos=0.01, jvel=0.15, ang=0.05, grav=0.03)  # 1.0x = realistic
+
     for step in range(n_steps):
         q = data.qpos[qadr]
         dq = data.qvel[vadr]
@@ -405,8 +448,16 @@ def main():
         grav_b = R.T @ np.array([0, 0, -1.0])
         v_w = data.qvel[0:3].copy()
         v_b = R.T @ v_w
+        if args.obs_noise > 0:
+            n = args.obs_noise
+            ang_b = ang_b + rng.normal(0, NOISE["ang"] * n, 3)
+            grav_b = grav_b + rng.normal(0, NOISE["grav"] * n, 3)
+            qn = q + rng.normal(0, NOISE["jpos"] * n, len(q))
+            dqn = dq + rng.normal(0, NOISE["jvel"] * n, len(dq))
+        else:
+            qn, dqn = q, dq
         obs = np.concatenate([ang_b, grav_b, cmd,
-                              (q - q_default)[lab2mj], dq[lab2mj], last_act]).astype(np.float32)
+                              (qn - q_default)[lab2mj], dqn[lab2mj], last_act]).astype(np.float32)
         hist[:-1] = hist[1:]
         hist[-1] = obs
 
@@ -422,12 +473,22 @@ def main():
         # + local) fell within 1 s.
         slices = [(0, 3), (3, 6), (6, 9), (9, 38), (38, 67), (67, 96)]
         ob = np.concatenate([hist[:, a:b].reshape(-1) for a, b in slices])
+        ob_buf.appendleft(ob.copy())
+        ob_eff = ob_buf[min(args.latency_steps, len(ob_buf) - 1)]
 
         if step < settle_steps:
             act = np.zeros(29)
         else:
-            act = run_policy(layers, mean, std, ob)
+            act = policy_fn(layers, mean, std, ob_eff)
+        # action comms lag: the NEW action enters the buffer head; what the
+        # robot actually executes is the entry N steps old (lag=0 -> new act)
+        act_buf.appendleft(np.asarray(act, dtype=np.float64).copy())
+        act = act_buf[min(args.action_lag, len(act_buf) - 1)]
         last_act = act
+        if args.push_mag > 0 and step >= settle_steps and step % push_every_steps == 0:
+            theta = rng.uniform(0, 2 * np.pi)
+            data.qvel[0] += args.push_mag * np.cos(theta)
+            data.qvel[1] += args.push_mag * np.sin(theta)
         # act[i] is for lab_dof[i]; target = default + 0.25*act; place into
         # MuJoCo hinge order via lab2mj (lab2mj[i] = hinge index of lab_dof[i])
         q_tgt_full = q_default.copy()
@@ -522,6 +583,11 @@ def main():
             "fell": bool(alive_steps < n_steps - settle_steps),
             "hinge_names": hinge, "foot_names": foot_names,
             "sole_order": "row=foot_names, cols=[front_l, front_r, back_l, back_r]",
+            "robustness": {"obs_noise": args.obs_noise,
+                           "latency_steps": args.latency_steps,
+                           "action_lag": args.action_lag,
+                           "torso_mass_scale": args.torso_mass_scale,
+                           "push_mag": args.push_mag, "seed": args.seed},
         })
         np.savez_compressed(args.log, **npz)
         print(f"[LOG] {args.log} ({Path(args.log).stat().st_size // 1024}KB, "

@@ -31,3 +31,7 @@ pylibs/
 acceptance/cache/
 whoami.json
 .cache_*
+
+# local venvs
+.venv_test/
+.venv39/
