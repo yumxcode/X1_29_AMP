@@ -286,7 +286,10 @@ class X1AmpEnvCfg(AmpEnvCfg):
             self.events.base_external_force_torque.params["asset_cfg"].body_names = ["lumbar_pitch_link"]
 
         # ------------------------------------------------------
-        # v29 sim2real hardening. v29b postmortem (TASK_20260909_165, 5/13):
+        # v29 sim2real hardening (toggle: X1_ROBUST_TRAIN=0 disables — used
+        # by the v29e clean-phase fine-tune to re-converge style/kernels
+        # onto a policy that already internalized recovery).
+        # v29b postmortem (TASK_20260909_165, 5/13):
         # push +-1.2 m/s @2-5s made transient tilts trip the bad_orientation
         # termination constantly -> 94% of episodes ended by orientation
         # before recovery was learnable -> converged to "lean, never fall,
@@ -296,10 +299,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
         #   action delay 0-1 step @ p=[.8,.2] (20 ms jitter; sweep showed
         #   v28d already tolerates 1-step fully, 5/5)
         # ------------------------------------------------------
-        self.events.push_robot.interval_range_s = (4.0, 8.0)
-        self.events.push_robot.params["velocity_range"] = {
-            "x": (-0.8, 0.8), "y": (-0.8, 0.8), "yaw": (-1.0, 1.0)}
-        self.action_delay_steps = 1
+        import os as _os
+        if _os.environ.get("X1_ROBUST_TRAIN", "1") != "0":
+            self.events.push_robot.interval_range_s = (4.0, 8.0)
+            self.events.push_robot.params["velocity_range"] = {
+                "x": (-0.8, 0.8), "y": (-0.8, 0.8), "yaw": (-1.0, 1.0)}
+            self.action_delay_steps = 1
 
         # ------------------------------------------------------
         # Terminations — X1 body names

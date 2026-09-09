@@ -347,25 +347,35 @@ def phase_train() -> int:
     if not resume_ckpt:
         # platform resume tasks mount the .pt at checkPointMountPath
         # (we set "X1_29_AMP/" => file lands at repo root); auto-detect the
-        # v28d model_3999 mount when the env var is absent.
-        cands = sorted(REPO_ROOT.glob("model_3999*.pt"))
+        # mounted model_*.pt when the env var is absent (v29d: model_3999,
+        # v29e: model_9497 — take the highest-numbered mount; nothing else
+        # writes .pt files at repo root).
+        def _num(p):
+            s = p.stem[len("model_"):]
+            return int(s) if s.isdigit() else -1
+        cands = sorted((p for p in REPO_ROOT.glob("model_*.pt") if _num(p) >= 0),
+                       key=_num)
         if cands:
-            resume_ckpt = str(cands[0])
+            resume_ckpt = str(cands[-1])
             print(f"[RESUME] auto-detected mounted checkpoint: {resume_ckpt}")
     resume_iters = int(os.environ.get("X1_FINE_TUNE_ITERS", "1500"))
     if resume_ckpt:
         src = Path(resume_ckpt)
         if not src.is_file():
             raise FileNotFoundError(f"X1_RESUME_CKPT not found: {src}")
+        # base iteration from the checkpoint FILENAME (its content iteration
+        # count is what rsl_rl actually resumes at — keep names consistent).
+        s = src.stem[len("model_"):]
+        base_iter = int(s) if s.isdigit() else 3999
         resume_run = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp" / "_resume_src"
         resume_run.mkdir(parents=True, exist_ok=True)
-        dst = resume_run / "model_3999.pt"
+        dst = resume_run / src.name
         shutil.copy2(src, dst)
         cmd += ["--resume", "--load_run", "_resume_src",
-                "--checkpoint", "model_3999.pt",
-                "--max_iterations", str(3999 + resume_iters)]
-        print(f"[RESUME] fine-tune from {src} (base iter 3999) "
-              f"+{resume_iters} iters -> max_iterations={3999 + resume_iters}")
+                "--checkpoint", src.name,
+                "--max_iterations", str(base_iter + resume_iters)]
+        print(f"[RESUME] fine-tune from {src} (base iter {base_iter}) "
+              f"+{resume_iters} iters -> max_iterations={base_iter + resume_iters}")
 
 
     tag = _dt.now().strftime("%Y-%m-%d_%H-%M-%S") + "x1_amp"
