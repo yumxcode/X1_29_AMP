@@ -73,7 +73,10 @@ class AmpEnv(AnimationEnv):
         if not hasattr(self, "_action_ring"):
             self._action_ring = [action.clone() for _ in range(max_d)]
         # bias toward 0-delay so nominal behavior stays dominant
-        p = torch.tensor([0.6] + [0.4 / max_d] * max_d, device=action.device)
+        # (v29b postmortem: with max_d=2 / p=[.6,.25,.15] + push 1.2 the
+        #  training collapsed to a leaning regime, 94% bad_orientation
+        #  terminations, 5/13 acceptance. v29c: 1 step / p=[.8,.2].)
+        p = torch.tensor([0.8] + [0.2 / max_d] * max_d, device=action.device)
         delays = torch.multinomial(p, action.shape[0], replacement=True)
         out = action.clone()
         for d in range(1, max_d + 1):

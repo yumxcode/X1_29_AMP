@@ -286,16 +286,20 @@ class X1AmpEnvCfg(AmpEnvCfg):
             self.events.base_external_force_torque.params["asset_cfg"].body_names = ["lumbar_pitch_link"]
 
         # ------------------------------------------------------
-        # v29 sim2real hardening (robustness sweep b90bd3c: v28d robust to
-        # noise 1x/2x, mass +-15%, 1-step delay; falls under 2-step (40 ms)
-        # delay and 0.75 m/s pushes; backward -0.5 most fragile):
-        # 1) push_robot: +-1.2 m/s every 2-5 s (was +-0.5 every 5-10 s)
-        # 2) per-env random action delay 0-2 steps (40 ms comms jitter)
+        # v29 sim2real hardening. v29b postmortem (TASK_20260909_165, 5/13):
+        # push +-1.2 m/s @2-5s made transient tilts trip the bad_orientation
+        # termination constantly -> 94% of episodes ended by orientation
+        # before recovery was learnable -> converged to "lean, never fall,
+        # never walk" (ep_len 278 vs v28d 996, mean reward -0.44 vs +22.98).
+        # v29c: moderate step from v28d's proven config:
+        #   push_robot +-0.8 m/s every 4-8 s (was +-0.5 @5-10 s)
+        #   action delay 0-1 step @ p=[.8,.2] (20 ms jitter; sweep showed
+        #   v28d already tolerates 1-step fully, 5/5)
         # ------------------------------------------------------
-        self.events.push_robot.interval_range_s = (2.0, 5.0)
+        self.events.push_robot.interval_range_s = (4.0, 8.0)
         self.events.push_robot.params["velocity_range"] = {
-            "x": (-1.2, 1.2), "y": (-1.2, 1.2), "yaw": (-1.5, 1.5)}
-        self.action_delay_steps = 2
+            "x": (-0.8, 0.8), "y": (-0.8, 0.8), "yaw": (-1.0, 1.0)}
+        self.action_delay_steps = 1
 
         # ------------------------------------------------------
         # Terminations — X1 body names
