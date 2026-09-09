@@ -59,6 +59,32 @@ class AmpEnv(AnimationEnv):
     def __init__(self, cfg: AmpEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg=cfg, render_mode=render_mode, **kwargs)
 
+    def _random_action_delay(self, action: torch.Tensor) -> torch.Tensor:
+        """Per-env stochastic action delay in [0, cfg.action_delay_steps].
+
+        Delayed envs execute an older action from a small ring buffer; the
+        obs "actions" term (via action_manager) then reflects what was
+        actually applied — the same semantics as the sim2sim evaluator
+        (last_act = executed action after --action-lag).
+        """
+        max_d = int(getattr(self.cfg, "action_delay_steps", 0))
+        if max_d <= 0:
+            return action
+        if not hasattr(self, "_action_ring"):
+            self._action_ring = [action.clone() for _ in range(max_d)]
+        # bias toward 0-delay so nominal behavior stays dominant
+        p = torch.tensor([0.6] + [0.4 / max_d] * max_d, device=action.device)
+        delays = torch.multinomial(p, action.shape[0], replacement=True)
+        out = action.clone()
+        for d in range(1, max_d + 1):
+            m = delays == d
+            if m.any():
+                out[m] = self._action_ring[d - 1][m]
+        # update ring AFTER selection: head = most recent past action
+        self._action_ring.insert(0, action.clone())
+        self._action_ring.pop()
+        return out
+
     # def _get_amp_observations(self) -> torch.Tensor:
     #     """Get the AMP observations.
 
@@ -86,8 +112,8 @@ class AmpEnv(AnimationEnv):
             A tuple containing the observations, rewards, resets (terminated and truncated) and extras.
             The AMP observations are included in the observations dictionary under the key "amp".
         """
-        # process actions
-        self.action_manager.process_action(action.to(self.device))
+        # process actions (v29: per-env random comms delay injection)
+        self.action_manager.process_action(self._random_action_delay(action.to(self.device)))
 
         self.recorder_manager.record_pre_step()
 

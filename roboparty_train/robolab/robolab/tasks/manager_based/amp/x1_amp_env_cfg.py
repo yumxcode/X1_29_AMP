@@ -286,6 +286,18 @@ class X1AmpEnvCfg(AmpEnvCfg):
             self.events.base_external_force_torque.params["asset_cfg"].body_names = ["lumbar_pitch_link"]
 
         # ------------------------------------------------------
+        # v29 sim2real hardening (robustness sweep b90bd3c: v28d robust to
+        # noise 1x/2x, mass +-15%, 1-step delay; falls under 2-step (40 ms)
+        # delay and 0.75 m/s pushes; backward -0.5 most fragile):
+        # 1) push_robot: +-1.2 m/s every 2-5 s (was +-0.5 every 5-10 s)
+        # 2) per-env random action delay 0-2 steps (40 ms comms jitter)
+        # ------------------------------------------------------
+        self.events.push_robot.interval_range_s = (2.0, 5.0)
+        self.events.push_robot.params["velocity_range"] = {
+            "x": (-1.2, 1.2), "y": (-1.2, 1.2), "yaw": (-1.5, 1.5)}
+        self.action_delay_steps = 2
+
+        # ------------------------------------------------------
         # Terminations — X1 body names
         # X1 body structure: base_link → lumbar(yaw/roll/pitch) → arms
         #                     base_link → hip(pitch/roll/yaw) → knee → ankle
@@ -316,6 +328,8 @@ class X1AmpEnvCfg_PLAY(X1AmpEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        # eval/play must be clean (no delay injection)
+        self.action_delay_steps = 0
 
         self.observations.policy.enable_corruption = False
         self.events.push_robot = None

@@ -468,6 +468,12 @@ class AmpEnvCfg(AnimationEnvCfg):
 
     # scene
     scene: AmpSceneCfg = AmpSceneCfg(num_envs=8192, env_spacing=2.5)
+    # v29 sim2real: max per-env random action delay in control steps
+    # (1 control step = decimation * sim.dt = 20 ms). 0 = disabled.
+    # Robustness sweep on v28d (b90bd3c): policy survives 1-step (20 ms)
+    # action lag but falls under 2-step (40 ms); randomizing the delay in
+    # training covers the deployment comms jitter range.
+    action_delay_steps: int = 0
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
