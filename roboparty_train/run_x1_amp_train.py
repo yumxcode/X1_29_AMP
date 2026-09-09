@@ -331,6 +331,43 @@ def phase_train() -> int:
     cmd = [sys.executable, str(train_script),
            "--task=X1-AMP", "--headless", "--logger=tensorboard", "--num_envs=4096"]
 
+    # ------------------------------------------------------------------
+    # v29d fine-tune resume: X1_RESUME_CKPT (absolute path to a platform-
+    # mounted .pt) resumes training from a converged policy instead of
+    # scratch. Rationale (v29b/v29c postmortem): training from scratch
+    # under push+delay randomization converges to a perturbation-survival
+    # gait that REGRESSES the strict sim2sim criteria (v29c hip ratio
+    # 0.617 vs v28d 0.884; 0.5 m/s gait degenerated to 1 landing/12 s).
+    # Fine-tuning the 13/13 v28d policy keeps the formed gait while
+    # learning push/latency recovery on top.
+    # rsl_rl resume: current_learning_iteration starts at the loaded
+    # value (3999), so --max_iterations must be base+fine-tune iters.
+    # ------------------------------------------------------------------
+    resume_ckpt = os.environ.get("X1_RESUME_CKPT", "").strip()
+    if not resume_ckpt:
+        # platform resume tasks mount the .pt at checkPointMountPath
+        # (we set "X1_29_AMP/" => file lands at repo root); auto-detect the
+        # v28d model_3999 mount when the env var is absent.
+        cands = sorted(REPO_ROOT.glob("model_3999*.pt"))
+        if cands:
+            resume_ckpt = str(cands[0])
+            print(f"[RESUME] auto-detected mounted checkpoint: {resume_ckpt}")
+    resume_iters = int(os.environ.get("X1_FINE_TUNE_ITERS", "1500"))
+    if resume_ckpt:
+        src = Path(resume_ckpt)
+        if not src.is_file():
+            raise FileNotFoundError(f"X1_RESUME_CKPT not found: {src}")
+        resume_run = REPO_ROOT / "logs" / "rsl_rl" / "x1_amp" / "_resume_src"
+        resume_run.mkdir(parents=True, exist_ok=True)
+        dst = resume_run / "model_3999.pt"
+        shutil.copy2(src, dst)
+        cmd += ["--resume", "--load_run", "_resume_src",
+                "--checkpoint", "model_3999.pt",
+                "--max_iterations", str(3999 + resume_iters)]
+        print(f"[RESUME] fine-tune from {src} (base iter 3999) "
+              f"+{resume_iters} iters -> max_iterations={3999 + resume_iters}")
+
+
     tag = _dt.now().strftime("%Y-%m-%d_%H-%M-%S") + "x1_amp"
     stop_monitor = threading.Event()
     mirrored = set()
@@ -363,6 +400,15 @@ def phase_train() -> int:
                         print("[MONITOR] mid-flight insurance mirror: model_3000.pt (v28c lesson)")
                         mirror_checkpoint(ck, tag)
                         mirrored.add("model_3000.pt")
+                # v29d fine-tune mode: iterations run 4000..5499, so the
+                # 2000/3000 insurance never fires. Mirror model_5000 as the
+                # mid-flight insurance instead (final 5499 is mirrored below).
+                if "model_5000.pt" in names and "model_5000.pt" not in mirrored:
+                    ck = all_checkpoints().get("model_5000.pt")
+                    if ck is not None and ck.exists():
+                        print("[MONITOR] fine-tune mid-flight insurance mirror: model_5000.pt")
+                        mirror_checkpoint(ck, tag)
+                        mirrored.add("model_5000.pt")
             except Exception as e:
                 print(f"[MONITOR] error: {e}")
             stop_monitor.wait(60)
@@ -712,7 +758,16 @@ def phase_amp_acceptance(video: Path | None):
     print("\n=== Phase 6: AMP Training Acceptance ===\n")
     checker = REPO_ROOT / "acceptance" / "check_amp.py"
     report_json = UPLOAD_DIR / "amp_acceptance_report.json"
+    # v29d: parse actual max_iterations from the train log (fine-tune runs
+    # report "iteration X/5499"); fall back to 4000 for fresh runs.
     max_iter = 4000
+    try:
+        _txt = TRAIN_LOG_FILE.read_text(errors="replace")
+        _ms = re.findall(r"iteration \d+/(\d+)", _txt)
+        if _ms:
+            max_iter = int(_ms[-1])
+    except Exception:
+        pass
     cmd = [sys.executable, str(checker), "--log", str(TRAIN_LOG_FILE),
            "--max-iters", str(max_iter), "--json", str(report_json)]
     if video is not None:
