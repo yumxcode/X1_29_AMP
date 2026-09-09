@@ -239,7 +239,20 @@ def mirror_checkpoint(ckpt: Path, tag: str):
       2) exported_data pattern logs/{exp}/exported_data/{run}/ (skill doc)
       3) outside-repo dir (artifact archive)"""
     copied = []
-    # 0) PRIMARY (v24): model_upload/ — continuously watched, proven v23
+    # 0) PRIMARY (v29e4): IN-TREE checkpoints/ dir — the ONLY location that
+    #    actually registered on v29e3 (TASK_20260910_035: repo-tree
+    #    checkpoints/model_9497.pt registered with loadRun="checkpoints"
+    #    while ALL out-of-tree mirrors of model_10496 were "detected
+    #    globally" but never queued; pod then destroyed with the file).
+    #    Probe conclusions drift — trust the most recent real run.
+    try:
+        dst0 = REPO_ROOT / "roboparty_train" / "checkpoints" / ckpt.name
+        if not dst0.exists():
+            shutil.copy2(ckpt, dst0)
+            copied.append(dst0)
+    except OSError as e:
+        print(f"[MONITOR] in-tree checkpoints/ mirror failed: {e}")
+    # 0b) model_upload/ (v23 evidence: continuously watched back then)
     try:
         dst0 = UPLOAD_DIR / ckpt.name
         if not dst0.exists():
