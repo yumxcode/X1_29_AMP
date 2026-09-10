@@ -79,6 +79,14 @@ VAR = (["lumbar_yaw_joint"]
           for j in ("shoulder_pitch_joint", "shoulder_roll_joint",
                     "shoulder_yaw_joint", "elbow_pitch_joint", "elbow_yaw_joint")])
 
+# v31: clips dropped from training (non-walking arm styles, waist swing
+# 86-98 deg incompressible). Excluded so remote rebuilds of x1_lab_v30 stay
+# clean; use --all to process anyway (e.g. diagnostics on old data).
+KEPT = {"0000_treadmill_norm", "0002_treadmill_slow", "0003_treadmill_jog",
+        "0005_normal_walk1", "0007_normal_walk3", "0008_normal_walk4",
+        "0009_normal_jog1", "0026_circle_walk", "36_01", "36_11",
+        "103_07", "138_18"}
+
 _CTX = {}
 
 
@@ -305,11 +313,15 @@ def main():
     ap.add_argument("--src", default=str(ROOT / "robolab/data/motions/x1_lab"))
     ap.add_argument("--dst", default=str(ROOT / "robolab/data/motions/x1_lab_v30"))
     ap.add_argument("-j", "--jobs", type=int, default=min(8, mp.cpu_count()))
+    ap.add_argument("--all", action="store_true",
+                    help="process every clip (bypass the kept-clip whitelist)")
     args = ap.parse_args()
     src, dst = Path(args.src), Path(args.dst)
     dst.mkdir(parents=True, exist_ok=True)
 
-    clips = sorted(p for p in src.glob("*.pkl") if not p.stem.endswith("_mirror"))
+    clips = sorted(p for p in src.glob("*.pkl")
+                   if not p.stem.endswith("_mirror")
+                   and (args.all or p.stem in KEPT))
     print(f"[INFO] {len(clips)} clips {src} -> {dst} (jobs={args.jobs})")
     jobs = [(str(p), str(dst)) for p in clips]
 

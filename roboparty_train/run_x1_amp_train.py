@@ -108,8 +108,9 @@ def phase_retarget():
     reassemble_smplx()
     gmr_output = MOTIONS_DIR / "x1_gmr"
     lab_output = MOTIONS_DIR / "x1_lab"
-    have_gmr = gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 14
-    have_lab = lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 14
+    # v31: 14 -> 12 (dropped 114_08/114_09/127_04/127_06; added 103_07/138_18)
+    have_gmr = gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 12
+    have_lab = lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 12
     if have_gmr and have_lab:
         # v27 hardening: TASK_20260908_230 died in 6 min because the pod's DNS
         # could not resolve the internal /pypi mirror during gmr_x1_venv
@@ -127,20 +128,20 @@ def phase_retarget():
     print("\n--- Auto-IK Calibration ---")
     run_auto_ik(gmr_dir, venv_dir)
 
-    if gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 14:
+    if gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 12:
         print(f"[INFO] x1_gmr already has {len(list(gmr_output.glob('*.pkl')))} files, skipping GMR retarget")
     else:
         run_gmr_retarget(gmr_dir, venv_dir)
 
-    if lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 14:
+    if lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 12:
         print(f"[INFO] x1_lab already has {len(list(lab_output.glob('*.pkl')))} files, skipping dataset_retarget")
     else:
         run_dataset_retarget(gmr_output)
 
     lab_files = list(lab_output.glob("*.pkl"))
     print(f"\n[INFO] x1_lab: {len(lab_files)} files")
-    if len(lab_files) < 14:
-        print("[ERROR] Expected 14 lab files for AMP training!")
+    if len(lab_files) < 12:
+        print("[ERROR] Expected 12 lab files for AMP training!")
         sys.exit(1)
     return gmr_output, lab_output, venv_dir
 
