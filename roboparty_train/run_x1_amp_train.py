@@ -204,11 +204,15 @@ def phase_fix_arm_decomposition(venv_dir: Path | None):
     r = subprocess.run([python, str(gate), "--dir", str(v31_dir),
                         "--repo-root", str(REPO_ROOT), "--json", str(gate_json)],
                        cwd=str(REPO_ROOT))
-    if gate_json.exists():
-        wrap_json_for_upload("model_gait_gate_report.pt",
-                             {"phase": "gait_gate", "passed": r.returncode == 0,
-                              "report": gate_json.read_text()})
+    # v31: upload the report ONLY when the gate FAILS (failure evidence is
+    # worth a registration slot; on PASS the exit code + logs suffice).
+    # 5-slot budget precedent (v26): anchor, retarget x2, model_2000,
+    # model_3999 — do NOT add fail-path wraps that would crowd model_3999.
     if r.returncode != 0:
+        if gate_json.exists():
+            wrap_json_for_upload("model_gait_gate_report.pt",
+                                 {"phase": "gait_gate", "passed": False,
+                                  "report": gate_json.read_text()})
         print("[FATAL] gait-quality gate FAILED — blocking training.")
         wait_for_sdk(180, "upload gate failure report")
         sys.exit(1)
@@ -924,9 +928,13 @@ def phase_policy_gait_gate(ckpt: Path | None, policy_npz: Path | None) -> int:
     cmd = [sys.executable, str(gate), "--log", str(log_npz), "--json", str(gate_json)]
     print(f"[INFO] {' '.join(cmd)}")
     rc = subprocess.run(cmd, cwd=str(REPO_ROOT)).returncode
-    if gate_json.exists():
+    # v31: report upload only on FAILURE (protect the 5-slot registration
+    # budget: anchor, retarget x2, model_2000, model_3999 — see v26 note).
+    # On PASS the exit code + full gate stdout in the task log suffice; both
+    # jsons are mirrored to OUTSIDE_DIR/final at Phase 7 either way.
+    if rc != 0 and gate_json.exists():
         wrap_json_for_upload("model_p7_gait_gate.pt",
-                             {"phase": "policy_gait_gate", "passed": rc == 0,
+                             {"phase": "policy_gait_gate", "passed": False,
                               "report": gate_json.read_text()})
     print(f"[INFO] P7 gait gate {'PASSED' if rc == 0 else 'FAILED'} (rc={rc})")
     return rc
