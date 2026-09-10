@@ -85,13 +85,32 @@ LAB_ROOT = 1e-6             # G2 (root_pos byte-copy; rot compared semantically 
 GMR_FIELDS = ["fps", "root_pos", "root_rot", "dof_names", "dof_pos",
               "body_names", "body_positions"]
 LAB_FIELDS = ["fps", "root_pos", "root_rot", "dof_pos", "loop_mode", "key_body_pos"]
-MOTION_WEIGHTS = {
-    "114_08": 1.0, "114_09": 1.0, "127_04": 1.0, "127_06": 4.0,
-    "36_01": 1.0, "36_11": 1.0,
+# v31: derive the expected motion set from the TRAINING CONFIG itself
+# (x1_amp_env_cfg.py motion_data_weights) so this gate can never drift from
+# the dataset again. Fallback = the shipped v31 weights. History: the v1.2
+# hardcoded dict (with 114_08/114_09/127_04/127_06@4.0) failed TASK_20260910_160
+# at Phase 3 because v31 dropped those clips and added 103_07.
+_FALLBACK_WEIGHTS = {
+    "36_01": 1.0, "36_11": 1.0, "103_07": 1.0,
     "0000_treadmill_norm": 2.0, "0002_treadmill_slow": 2.0, "0003_treadmill_jog": 2.0,
     "0005_normal_walk1": 2.0, "0007_normal_walk3": 2.0, "0008_normal_walk4": 2.0,
     "0009_normal_jog1": 2.0, "0026_circle_walk": 2.0,
 }
+
+
+def _motion_weights(repo_root: Path) -> dict:
+    cfg = repo_root / "roboparty_train" / "robolab" / "robolab" / "tasks" / \
+        "manager_based" / "amp" / "x1_amp_env_cfg.py"
+    try:
+        src = cfg.read_text()
+        m = re.search(r"motion_data_weights\s*=\s*\{(.*?)\}", src, re.S)
+        w = {n: float(v) for n, v in
+             re.findall(r'"([^"]+)":\s*([\d.]+)', m.group(1))}
+        if w:
+            return {n: v for n, v in w.items() if not n.endswith("_mirror")}
+    except Exception:
+        pass
+    return dict(_FALLBACK_WEIGHTS)
 WALK_PAT = re.compile(r"walk|jog|run|treadmill", re.I)
 MOVING_PAT = re.compile(r"walk|jog|run", re.I)
 _MJC_MISSING = False  # set once when mujoco import fails (E0 single notice)
@@ -367,15 +386,16 @@ def main():
     print(f"\n[SET] x1_gmr: {len(gmr_files)} files, x1_lab: {len(lab_files)} files (+mirrors skipped)")
 
     # A3 file set
+    motion_weights = _motion_weights(root)
     have = {p.stem for p in gmr_files}
-    missing = [m for m in MOTION_WEIGHTS if m not in have]
-    extra = sorted(have - set(MOTION_WEIGHTS))
+    missing = [m for m in motion_weights if m not in have]
+    extra = sorted(have - set(motion_weights))
     if missing:
         rep.fail("A3", f"x1_gmr missing motions: {missing}")
     if extra:
         rep.warn("A3", f"x1_gmr extra files (unused by training): {extra}")
     if not missing and not extra:
-        rep.ok("A3", "file set == motion_data_weights (14)")
+        rep.ok("A3", f"file set == motion_data_weights ({len(motion_weights)})")
 
     stats = []
     for p in gmr_files:

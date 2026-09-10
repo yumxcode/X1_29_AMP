@@ -887,22 +887,38 @@ def phase_policy_gait_gate(ckpt: Path | None, policy_npz: Path | None) -> int:
     gate_json = UPLOAD_DIR / "p7_gait_gate.json"
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    def run_rollout() -> int:
+    # v31: mirror sim2sim_fallback_video's robust python matrix — the image's
+    # default python may lack mujoco (check_retarget E0 precedent), while
+    # phase 5's fallback installs numpy<2 + mujoco into REPO_ROOT/pylibs.
+    # Log-only rollout needs just numpy + mujoco (no GL, no imageio).
+    pylibs = REPO_ROOT / "pylibs"
+    if log_npz.exists():
+        log_npz.unlink()  # stale run must not masquerade as success
+
+    def run_rollout(env: dict, label: str) -> int:
         cmd = [sys.executable, str(rollout), "--ckpt", str(policy_npz),
                "--repo-root", str(REPO_ROOT),
                "--cmd", "1.0", "0.0", "0.0", "--duration", "12",
                "--log", str(log_npz), "--json", str(roll_json)]
-        print(f"[INFO] {' '.join(cmd)}")
-        return subprocess.run(cmd, cwd=str(REPO_ROOT)).returncode
+        print(f"[INFO][{label}] {' '.join(cmd)}")
+        return subprocess.run(cmd, cwd=str(REPO_ROOT), env=env).returncode
 
-    rc = run_rollout()
-    if rc != 0:
-        print("[WARN] rollout failed — trying a mujoco install once")
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "mujoco"],
-                       check=False)
-        rc = run_rollout()
+    candidates = [("sys", dict(os.environ))]
+    if pylibs.exists():
+        candidates.append(("pylibs", dict(os.environ, PYTHONPATH=str(pylibs))))
+    rc = 1
+    for label, env in candidates:
+        rc = run_rollout(env, label)
+        if rc == 0 and log_npz.exists():
+            break
     if rc != 0 or not log_npz.exists():
-        print("[FAIL] MuJoCo rollout did not produce a gait log — P7 FAIL")
+        print("[WARN] rollout failed on all candidates — installing mujoco into pylibs")
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q",
+                        "--target", str(pylibs), "numpy<2", "mujoco"], check=False)
+        rc = run_rollout(dict(os.environ, PYTHONPATH=str(pylibs)), "pylibs-installed")
+    if rc != 0 or not log_npz.exists():
+        print("[FAIL] MuJoCo rollout did not produce a gait log — P7 FAIL "
+              "(checkpoint is still usable; P7 can be re-run locally)")
         return 1
 
     cmd = [sys.executable, str(gate), "--log", str(log_npz), "--json", str(gate_json)]
