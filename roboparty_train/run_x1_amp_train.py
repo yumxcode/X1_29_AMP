@@ -108,17 +108,21 @@ def phase_retarget():
     reassemble_smplx()
     gmr_output = MOTIONS_DIR / "x1_gmr"
     lab_output = MOTIONS_DIR / "x1_lab"
-    # v31: 14 -> 12 (dropped 114_08/114_09/127_04/127_06; added 103_07/138_18)
-    have_gmr = gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 12
-    have_lab = lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 12
-    if have_gmr and have_lab:
-        # v27 hardening: TASK_20260908_230 died in 6 min because the pod's DNS
-        # could not resolve the internal /pypi mirror during gmr_x1_venv
-        # creation — even though all retarget products ship IN THE REPO.
-        # When both outputs are present, the whole GMR stack (clone, venv,
-        # auto-IK, gvhmr hiding) is dead weight; skip it and let the
-        # acceptance gate fall back to the system python (image ships mujoco).
-        print("[INFO] x1_gmr + x1_lab already in-repo — skipping GMR setup/venv")
+    v31_dir = MOTIONS_DIR / "x1_lab_v31"
+    # v31b FIX (TASK_20260910_128 postmortem): the skip check demanded >= 12
+    # x1_gmr files but the v31 dataset ships 11 — the pipeline entered the
+    # GMR venv setup, the pod's DNS could not resolve /pypi (v27 lesson,
+    # TASK_20260908_230) and the task died in 5 min. The GMR stack is dead
+    # weight whenever the FINAL products ship in-repo: gate on x1_lab_v31
+    # (11 sources + 11 mirrors) plus the intermediate dirs being non-empty.
+    # NEVER gate the skip on exact intermediate counts — they change with
+    # every dataset revision while the v31 layout is what training reads.
+    n_v31 = len(list(v31_dir.glob("*.pkl"))) if v31_dir.exists() else 0
+    n_gmr = len(list(gmr_output.glob("*.pkl"))) if gmr_output.exists() else 0
+    n_lab = len(list(lab_output.glob("*.pkl"))) if lab_output.exists() else 0
+    if n_v31 >= 22 and n_gmr >= 11 and n_lab >= 22:
+        print(f"[INFO] x1_lab_v31 ({n_v31}) + x1_gmr ({n_gmr}) + x1_lab ({n_lab}) "
+              "already in-repo — skipping GMR setup/venv entirely")
         return gmr_output, lab_output, None
 
     gmr_dir, venv_dir = setup_gmr()
@@ -128,20 +132,20 @@ def phase_retarget():
     print("\n--- Auto-IK Calibration ---")
     run_auto_ik(gmr_dir, venv_dir)
 
-    if gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 12:
+    if gmr_output.exists() and len(list(gmr_output.glob("*.pkl"))) >= 11:
         print(f"[INFO] x1_gmr already has {len(list(gmr_output.glob('*.pkl')))} files, skipping GMR retarget")
     else:
         run_gmr_retarget(gmr_dir, venv_dir)
 
-    if lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 12:
+    if lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 22:
         print(f"[INFO] x1_lab already has {len(list(lab_output.glob('*.pkl')))} files, skipping dataset_retarget")
     else:
         run_dataset_retarget(gmr_output)
 
     lab_files = list(lab_output.glob("*.pkl"))
     print(f"\n[INFO] x1_lab: {len(lab_files)} files")
-    if len(lab_files) < 12:
-        print("[ERROR] Expected 12 lab files for AMP training!")
+    if len(lab_files) < 22:
+        print("[ERROR] Expected 22 lab files (11 sources + 11 mirrors)!")
         sys.exit(1)
     return gmr_output, lab_output, venv_dir
 

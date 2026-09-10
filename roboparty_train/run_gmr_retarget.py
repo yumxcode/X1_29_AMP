@@ -435,7 +435,7 @@ def run_dataset_retarget(gmr_output: Path):
 
     # Check if already done
     existing = list(output_dir.glob("*.pkl"))
-    if len(existing) >= 12:   # v31: 12 sources after dropping 114/127, adding 103_07/138_18
+    if len(existing) >= 11:   # v31: 11 sources (dropped 114/127+138_18, added 103_07)
         print(f"[INFO] x1_lab already has {len(existing)} files, skipping")
         return output_dir
 
