@@ -35,3 +35,4 @@ whoami.json
 # local venvs
 .venv_test/
 .venv39/
+_gmr_local/

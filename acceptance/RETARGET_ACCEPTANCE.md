@@ -117,3 +117,33 @@ v29 复盘发现 GMR IK 在任务空间正确、但关节空间病态：肘 pitc
 0.75 缩放），任何腕匹配都会把解拉回 106° 扭曲。
 诊断工具：`acceptance/diag_arm_swing.py`（关节空间）、`diag_arm_swing_smplx.py`
 （AMASS 源对照）、`probe_arm_joints.py`（X1 关节语义 FK 探针）。
+
+## I 组 — 地面接触与对地约束门（v31 新增，2026-09-10）
+
+v30 复盘（diag_gait_plausibility.py / diag_wholebody.py）：GMR IK 无对地约束——
+脚底穿模 7–10.6% 接触帧（最深 33.6mm），触地脚底 pitch 左右不对称（中位
++13.9° vs +4.6°）；且 BMLrub 全库为跑步机/原地协议（净位移 0.01–0.03m），
+AMASS_minimal 的走路片段实为原地踏步。判别器观测全在 root 系，穿模与原地性
+不影响 v16–v30 训练，但参考携带物理不可能性与错误的步幅-速度耦合。
+
+执行器：`roboparty_train/fix_ground_root.py`（管线 Phase 2.5 第二级，
+v30 → v31；之后 mirror；训练 env 读 x1_lab_v31）。
+
+| # | 检查 | 判据 | 说明 |
+|---|------|------|------|
+| I1 | 穿模清零 | 全帧任意脚最低点 ≥ −3mm | 原 −33.6mm；root_z 支撑锚定（σ=6 帧平滑 + 全局不穿模钳位） |
+| I2 | 踝对称 | 支撑相脚底 pitch 中位 \|L−R\| ≤ 3.5°（jog 放宽 6°） | 相位归一化双侧滚动剖面均值化 ×2 迭代，踝 pitch 单自由度修正（只旋转踝下足部，不影响腿臂） |
+| I3 | 上肢不变 | elbP p95 ≤ 66°（应仍为 20°） | 地面修复不得触碰臂部修复成果 |
+| I4 | 输入 FK | v30 存档 key_body_pos 复刻 p95 ≤ 15mm | 映射正确性自检 |
+
+设计决策记录：
+- **root_xy 不做原地→行进转换**——BMLrub 源是真原地走（支撑脚相对 root 不后
+  移，锚定积分测得 ≈0 m/s），刚体平移只会造成支撑脚前滑。真实行进步态由
+  v31 新增 CMU 片段（103_07 / 138_18，净位移 3.3–4.6m，1.0–1.2 m/s）提供，
+  本地 GMR 链重定向（`setup_gmr_local.py` + `retarget_new_clips_local.py` +
+  `gmr_to_lab_local.py`，复用远程 auto-IK 配置 acceptance/v25_unpacked/
+  smplx_to_x1_auto.json）。
+- 新片段选片门（scan_amass_walking.py + diag_cmu_candidates.py，全库 5044 扫
+  116 过初筛）：源躯干反旋（spine−pelvis yaw 去趋势摆幅）<30°、摆臂对称
+  corr>0.6、肘 −40~0°、步频 60–140、髋摆幅比 0.75–1.3。138_01/03/04 因源
+  躯干反旋 60°+ 撤选。

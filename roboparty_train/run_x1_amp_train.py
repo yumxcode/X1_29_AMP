@@ -146,37 +146,47 @@ def phase_retarget():
 
 
 def phase_fix_arm_decomposition(venv_dir: Path | None):
-    """Phase 2.5 (v30): post-process x1_lab -> x1_lab_v30 with the healthy
-    joint decomposition (see roboparty_train/fix_arm_decomposition.py header
-    for the v29 root-cause analysis). Training reads x1_lab_v30
-    (x1_amp_env_cfg.py motion_data_dir). Gate: fix script exit code.
-    Skips when the 28 fixed+mirrored clips already ship in the repo."""
-    print("\n=== Phase 2.5: Arm Decomposition Fix (x1_lab -> x1_lab_v30) ===\n")
-    v30_dir = MOTIONS_DIR / "x1_lab_v30"
-    if v30_dir.exists() and len(list(v30_dir.glob("*.pkl"))) >= 28:
-        print(f"[INFO] x1_lab_v30 already has {len(list(v30_dir.glob('*.pkl')))} files — skipping")
+    """Phase 2.5 (v31): post-process x1_lab -> x1_lab_v30 (arm decomposition
+    fix, see fix_arm_decomposition.py header) -> x1_lab_v31 (ground contact
+    fix: penetration 0, L/R ankle stance-pitch symmetrization, root_z
+    anchoring; see fix_ground_root.py header) + mirror. Training reads
+    x1_lab_v31 (x1_amp_env_cfg.py motion_data_dir). Gates: script exit codes.
+    Skips when the 24 fixed+mirrored clips already ship in the repo."""
+    print("\n=== Phase 2.5: Arm+Ground Fix (x1_lab -> v30 -> v31 + mirror) ===\n")
+    v31_dir = MOTIONS_DIR / "x1_lab_v31"
+    if v31_dir.exists() and len(list(v31_dir.glob("*.pkl"))) >= 24:
+        print(f"[INFO] x1_lab_v31 already has {len(list(v31_dir.glob('*.pkl')))} files — skipping")
         return
 
     venv_python = str(venv_dir / "bin" / "python") if venv_dir else ""
     python = venv_python if (venv_python and Path(venv_python).exists()) else sys.executable
-    fix_script = REPO_ROOT / "roboparty_train" / "fix_arm_decomposition.py"
+    fix_arm = REPO_ROOT / "roboparty_train" / "fix_arm_decomposition.py"
+    fix_ground = REPO_ROOT / "roboparty_train" / "fix_ground_root.py"
     mirror_script = REPO_ROOT / "roboparty_train" / "mirror_lab_motions.py"
+    v30_dir = MOTIONS_DIR / "x1_lab_v30"
 
-    print(f"[INFO] Running fix: {python} {fix_script}")
-    r = subprocess.run([python, str(fix_script),
+    print(f"[INFO] Running arm fix: {python} {fix_arm}")
+    r = subprocess.run([python, str(fix_arm),
                         "--src", str(MOTIONS_DIR / "x1_lab"),
                         "--dst", str(v30_dir)], cwd=str(REPO_ROOT))
     if r.returncode != 0:
         print("[FATAL] fix_arm_decomposition gate FAILED — blocking training.")
         sys.exit(1)
-    print(f"[INFO] Running mirror: {python} {mirror_script} --src {v30_dir}")
-    r = subprocess.run([python, str(mirror_script), "--src", str(v30_dir)],
+    print(f"[INFO] Running ground fix: {python} {fix_ground}")
+    r = subprocess.run([python, str(fix_ground),
+                        "--src", str(v30_dir), "--dst", str(v31_dir)],
+                       cwd=str(REPO_ROOT))
+    if r.returncode != 0:
+        print("[FATAL] fix_ground_root gate FAILED — blocking training.")
+        sys.exit(1)
+    print(f"[INFO] Running mirror: {python} {mirror_script} --src {v31_dir}")
+    r = subprocess.run([python, str(mirror_script), "--src", str(v31_dir)],
                        cwd=str(REPO_ROOT))
     if r.returncode != 0:
         print("[FATAL] mirror gate FAILED — blocking training.")
         sys.exit(1)
-    n = len(list(v30_dir.glob("*.pkl")))
-    print(f"[INFO] x1_lab_v30: {n} files (14 fixed + 14 mirrored)")
+    n = len(list(v31_dir.glob("*.pkl")))
+    print(f"[INFO] x1_lab_v31: {n} files (12 fixed + 12 mirrored)")
 
 
 def phase_retarget_acceptance(venv_dir: Path) -> bool:
@@ -216,9 +226,9 @@ def phase_package_retarget(gmr_output: Path, lab_output: Path):
     retarget_pkg = {}
     for f in sorted(lab_output.glob("*.pkl")):
         retarget_pkg[f"x1_lab/{f.name}"] = f.read_bytes()
-    v30_dir = MOTIONS_DIR / "x1_lab_v30"
-    for f in sorted(v30_dir.glob("*.pkl")):
-        retarget_pkg[f"x1_lab_v30/{f.name}"] = f.read_bytes()
+    v31_dir = MOTIONS_DIR / "x1_lab_v31"
+    for f in sorted(v31_dir.glob("*.pkl")):
+        retarget_pkg[f"x1_lab_v31/{f.name}"] = f.read_bytes()
     for f in sorted(gmr_output.glob("*.pkl")):
         retarget_pkg[f"x1_gmr/{f.name}"] = f.read_bytes()
     auto_cfg = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
