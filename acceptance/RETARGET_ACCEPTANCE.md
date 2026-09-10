@@ -92,3 +92,28 @@ AMASS_minimal/{CMU,BMLrub_stageii}/*.npz  (14 个, 与 env cfg motion_data_weigh
 - **未通过（FAIL）**: 任一 FAIL，或白名单 WARN 系统性触发。
 - 容器内执行点：GMR retarget + dataset_retarget 完成后、AMP 训练启动前；FAIL 则**阻断训练**并上传报告。
 - 本地复验点：下载 `model_retarget_data.pt`（含 x1_gmr+x1_lab 全部 pkl）后独立重跑本 checker。
+
+## H 组 — 上肢关节分解门（v30 新增，2026-09-10）
+
+v29 复盘发现 GMR IK 在任务空间正确、但关节空间病态：肘 pitch 105–113° 顶满限位
+（114.6°）+ 肩 yaw −32° 内旋拼出"前臂朝下"，腰 yaw 摆幅 46–56°（人类 spine 链
+14–18° 的 3 倍）。AMP 判别器观测 joint_pos，把该失真学成了风格先验 → v29 策略
+"靠腰摆上身、小臂抬起"。B2 软限位 WARN 当年被豁免正是因为缺这组检查。
+
+执行器：`roboparty_train/fix_arm_decomposition.py`（管线 Phase 2.5，产出
+`x1_lab_v30/`，之后 `mirror_lab_motions.py` 生成镜像；训练 env 读 x1_lab_v30）。
+
+| # | 检查 | 判据 | 说明 |
+|---|------|------|------|
+| H1 | 肘铰链轨迹保持 | 解算后 elbow_pitch_link（解剖肘，GMR 对齐 SMPLX elbow）世界轨迹前向分量漂移 p95 ≤ 15 mm | 前向分量=摆臂信号本身；垂直/侧向放松（各向异性权重 250/60/60）以换取腰压缩，属不可见自由度 |
+| H2 | 肘 pitch 健康位 | p95 ≤ 65°（先验目标 20°=人类走路屈曲；源 SMPLX ~20°） | 旧数据 105–113° 顶限位 |
+| H3 | 肩/肘 yaw 补偿清除 | \|shoulder_yaw\| 均值 ≤ 15° | 旧数据 −32° 恒定内旋 |
+| H4 | 腰 yaw 摆幅 | p95−p5 ≤ 32°（目标压缩到原摆幅 35%；t1 达标 19–25°） | 肩 roll 外展限位阻塞时分级回退 t2/t3 并标 PRTL（114/127 四片段因此被移出 v30 训练权重） |
+| H5 | 存档 FK 一致性 | 修复前 MuJoCo FK vs pkl 存档 key_body_pos p95 ≤ 15 mm | 验证脚本 FK 复刻的正确性 |
+
+方法：逐帧阻尼 Gauss-Newton 重解 11 关节（lumY + 双臂 5×2），保持肘铰链轨迹 +
+姿态先验（elbP→20°、shoY/elbY→0、lumY→中位数+35% 原摆幅），回溯线搜索。
+腕位置/前臂方向**故意不跟踪**——GMR 正是靠扭曲解才够到 SMPLX 腕点（X1 臂按
+0.75 缩放），任何腕匹配都会把解拉回 106° 扭曲。
+诊断工具：`acceptance/diag_arm_swing.py`（关节空间）、`diag_arm_swing_smplx.py`
+（AMASS 源对照）、`probe_arm_joints.py`（X1 关节语义 FK 探针）。

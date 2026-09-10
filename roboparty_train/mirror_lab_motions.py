@@ -37,6 +37,7 @@ import numpy as np
 print = functools.partial(print, flush=True)
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT.parent))
 YAML = ROOT / "robolab/scripts/tools/retarget/config/x1.yaml"
 XML = ROOT.parent / "gmr_x1_assets" / "x1.xml"
 

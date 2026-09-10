@@ -145,6 +145,40 @@ def phase_retarget():
     return gmr_output, lab_output, venv_dir
 
 
+def phase_fix_arm_decomposition(venv_dir: Path | None):
+    """Phase 2.5 (v30): post-process x1_lab -> x1_lab_v30 with the healthy
+    joint decomposition (see roboparty_train/fix_arm_decomposition.py header
+    for the v29 root-cause analysis). Training reads x1_lab_v30
+    (x1_amp_env_cfg.py motion_data_dir). Gate: fix script exit code.
+    Skips when the 28 fixed+mirrored clips already ship in the repo."""
+    print("\n=== Phase 2.5: Arm Decomposition Fix (x1_lab -> x1_lab_v30) ===\n")
+    v30_dir = MOTIONS_DIR / "x1_lab_v30"
+    if v30_dir.exists() and len(list(v30_dir.glob("*.pkl"))) >= 28:
+        print(f"[INFO] x1_lab_v30 already has {len(list(v30_dir.glob('*.pkl')))} files — skipping")
+        return
+
+    venv_python = str(venv_dir / "bin" / "python") if venv_dir else ""
+    python = venv_python if (venv_python and Path(venv_python).exists()) else sys.executable
+    fix_script = REPO_ROOT / "roboparty_train" / "fix_arm_decomposition.py"
+    mirror_script = REPO_ROOT / "roboparty_train" / "mirror_lab_motions.py"
+
+    print(f"[INFO] Running fix: {python} {fix_script}")
+    r = subprocess.run([python, str(fix_script),
+                        "--src", str(MOTIONS_DIR / "x1_lab"),
+                        "--dst", str(v30_dir)], cwd=str(REPO_ROOT))
+    if r.returncode != 0:
+        print("[FATAL] fix_arm_decomposition gate FAILED — blocking training.")
+        sys.exit(1)
+    print(f"[INFO] Running mirror: {python} {mirror_script} --src {v30_dir}")
+    r = subprocess.run([python, str(mirror_script), "--src", str(v30_dir)],
+                       cwd=str(REPO_ROOT))
+    if r.returncode != 0:
+        print("[FATAL] mirror gate FAILED — blocking training.")
+        sys.exit(1)
+    n = len(list(v30_dir.glob("*.pkl")))
+    print(f"[INFO] x1_lab_v30: {n} files (14 fixed + 14 mirrored)")
+
+
 def phase_retarget_acceptance(venv_dir: Path) -> bool:
     """Strict gate: acceptance/check_retarget.py. Returns True on PASS."""
     print("\n=== Phase 3: STRICT Retarget Acceptance Gate ===\n")
@@ -182,6 +216,9 @@ def phase_package_retarget(gmr_output: Path, lab_output: Path):
     retarget_pkg = {}
     for f in sorted(lab_output.glob("*.pkl")):
         retarget_pkg[f"x1_lab/{f.name}"] = f.read_bytes()
+    v30_dir = MOTIONS_DIR / "x1_lab_v30"
+    for f in sorted(v30_dir.glob("*.pkl")):
+        retarget_pkg[f"x1_lab_v30/{f.name}"] = f.read_bytes()
     for f in sorted(gmr_output.glob("*.pkl")):
         retarget_pkg[f"x1_gmr/{f.name}"] = f.read_bytes()
     auto_cfg = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
@@ -845,6 +882,7 @@ def main():
         print(f"[WARN] t0 anchor failed: {e}")
 
     gmr_output, lab_output, venv_dir = phase_retarget()
+    phase_fix_arm_decomposition(venv_dir)
     phase_retarget_acceptance(venv_dir)
     phase_package_retarget(gmr_output, lab_output)
 

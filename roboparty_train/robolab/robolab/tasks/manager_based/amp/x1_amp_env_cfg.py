@@ -9,11 +9,15 @@ from robolab.assets.robots.x1 import X1_CFG
 from robolab import ROBOLAB_ROOT_DIR
 
 # NOTE: KEY_BODY_NAMES must match lab_key_body_names in scripts/tools/retarget/config/x1.yaml
+# v30 FIX: order was [ankles, knees] while the yaml/pkl schema is [knees, ankles].
+# The discriminator compared policy key_body_pos_b (env order) against
+# ref_key_body_pos_b (pkl schema order) with columns 0-3 PERMUTED between the
+# two domains since v16 -> ankle channels were matched against reference KNEES.
 KEY_BODY_NAMES = [
-    "left_ankle_roll_link",
-    "right_ankle_roll_link",
     "left_knee_pitch_link",
     "right_knee_pitch_link",
+    "left_ankle_roll_link",
+    "right_ankle_roll_link",
     "left_elbow_yaw_link",
     "right_elbow_yaw_link",
 ]
@@ -155,8 +159,13 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # ------------------------------------------------------
         # motion data
         # ------------------------------------------------------
+        # v30: x1_lab_v30 = fix_arm_decomposition.py output (elbow pitch
+        # 105-113 deg at-limit contortion -> healthy 20 deg, shoulder_yaw
+        # -32 deg internal rotation -> ~0, lumbar yaw swing 56 -> ~20 deg;
+        # elbow-hinge world trajectory preserved. See roboparty_train/
+        # fix_arm_decomposition.py for the full diagnosis and method.
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
-            ROBOLAB_ROOT_DIR, "data", "motions", "x1_lab"
+            ROBOLAB_ROOT_DIR, "data", "motions", "x1_lab_v30"
         )
         # Motion weights: must explicitly list motion names (empty dict = load nothing)
         # v28: every clip now has a FK-verified left-right mirrored twin
@@ -165,14 +174,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # (hip swing ratio 0.35-0.97) and v27 inherited it (0.5 m/s policy
         # ratio 0.832 < 0.85). A mirrored-pair dataset makes the AMP style
         # prior exactly symmetric by construction.
+        # v30: DROP 114_08 / 114_09 / 127_04 / 127_06 (+ mirrors): non-walking
+        # arm styles (raised/folded arms, waist swing 86-98 deg that even the
+        # re-IK fallback tiers cannot compress - shoulder_roll saturates at
+        # its abduction limit on 34-43% of frames). They were the main
+        # asymmetric-forearm-pose style polluters in v29.
         self.motion_data.motion_dataset.motion_data_weights = {
-            "114_08": 1.0,
-            "114_09": 1.0,
-            "127_04": 1.0,
-            # v27: 4.0 -> 1.0. 127_06 is a toe-down clip (ref_gait_analysis:
-            # TD pitch -15.5 deg, stance pitch -14.7 deg vs walks +1..+5 deg
-            # flat); at 4x weight it pulled the AMP style toward forefoot.
-            "127_06": 1.0,
             "36_01": 1.0,
             "36_11": 1.0,
             "0000_treadmill_norm": 2.0,
@@ -183,10 +190,6 @@ class X1AmpEnvCfg(AmpEnvCfg):
             "0008_normal_walk4": 2.0,
             "0009_normal_jog1": 2.0,
             "0026_circle_walk": 2.0,
-            "114_08_mirror": 1.0,
-            "114_09_mirror": 1.0,
-            "127_04_mirror": 1.0,
-            "127_06_mirror": 1.0,
             "36_01_mirror": 1.0,
             "36_11_mirror": 1.0,
             "0000_treadmill_norm_mirror": 2.0,
