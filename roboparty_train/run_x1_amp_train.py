@@ -117,11 +117,14 @@ def phase_retarget():
     # (11 sources + 11 mirrors) plus the intermediate dirs being non-empty.
     # NEVER gate the skip on exact intermediate counts — they change with
     # every dataset revision while the v31 layout is what training reads.
+    # NOTE x1_lab holds 21 files (11 sources + 10 legacy mirrors; 103_07's
+    # mirror lives only in x1_lab_v31) — count SOURCES, not raw files.
     n_v31 = len(list(v31_dir.glob("*.pkl"))) if v31_dir.exists() else 0
     n_gmr = len(list(gmr_output.glob("*.pkl"))) if gmr_output.exists() else 0
-    n_lab = len(list(lab_output.glob("*.pkl"))) if lab_output.exists() else 0
-    if n_v31 >= 22 and n_gmr >= 11 and n_lab >= 22:
-        print(f"[INFO] x1_lab_v31 ({n_v31}) + x1_gmr ({n_gmr}) + x1_lab ({n_lab}) "
+    n_lab_src = len([p for p in lab_output.glob("*.pkl")
+                     if not p.stem.endswith("_mirror")]) if lab_output.exists() else 0
+    if n_v31 >= 22 and n_gmr >= 11 and n_lab_src >= 11:
+        print(f"[INFO] x1_lab_v31 ({n_v31}) + x1_gmr ({n_gmr}) + x1_lab ({n_lab_src} src) "
               "already in-repo — skipping GMR setup/venv entirely")
         return gmr_output, lab_output, None
 
@@ -137,15 +140,16 @@ def phase_retarget():
     else:
         run_gmr_retarget(gmr_dir, venv_dir)
 
-    if lab_output.exists() and len(list(lab_output.glob("*.pkl"))) >= 22:
+    if lab_output.exists() and len([p for p in lab_output.glob("*.pkl")
+                                    if not p.stem.endswith("_mirror")]) >= 11:
         print(f"[INFO] x1_lab already has {len(list(lab_output.glob('*.pkl')))} files, skipping dataset_retarget")
     else:
         run_dataset_retarget(gmr_output)
 
-    lab_files = list(lab_output.glob("*.pkl"))
-    print(f"\n[INFO] x1_lab: {len(lab_files)} files")
-    if len(lab_files) < 22:
-        print("[ERROR] Expected 22 lab files (11 sources + 11 mirrors)!")
+    lab_files = [p for p in lab_output.glob("*.pkl") if not p.stem.endswith("_mirror")]
+    print(f"\n[INFO] x1_lab: {len(lab_files)} source files")
+    if len(lab_files) < 11:
+        print("[ERROR] Expected >= 11 lab source files!")
         sys.exit(1)
     return gmr_output, lab_output, venv_dir
 
