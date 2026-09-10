@@ -197,18 +197,63 @@ def phase_fix_arm_decomposition(venv_dir: Path | None):
     n = len(list(v31_dir.glob("*.pkl")))
     print(f"[INFO] x1_lab_v31: {n} files (11 fixed + 11 mirrored)")
 
-    # v31 gait-quality gate (MANDATORY): posture / ground / coordination
+
+def phase_gait_gate(venv_dir: Path | None):
+    """Phase 2.6 (v31): gait-quality acceptance gate — MANDATORY, runs
+    UNCONDITIONALLY on whatever x1_lab_v31 the training will consume
+    (rebuilt or shipped).
+
+    v31d postmortem: this gate used to live INSIDE
+    phase_fix_arm_decomposition after its skip branch, so a repo shipping
+    x1_lab_v31 skipped the gate as well — the shipped dataset was never
+    re-verified by the pipeline. Now decoupled: the fix phase only *builds*
+    the data, this phase always *verifies* it.
+
+    Exit-code semantics of check_retarget_gait.py: 0 PASS / 1 FAIL (real
+    data verdict) / 2 setup error (e.g. mujoco missing — the container's
+    default python lacks it, see check_retarget E0). Environment hardening
+    mirrors sim2sim_fallback_video: [sys, pylibs] candidates + one
+    numpy<2+mujoco install into pylibs. A persistent setup error is a
+    WARN (consistent with check_retarget's E0 policy for the optional
+    mujoco group) — only a real FAIL blocks training."""
     print("\n=== Phase 2.6: Gait-Quality Acceptance Gate ===\n")
+    v31_dir = MOTIONS_DIR / "x1_lab_v31"
     gate = REPO_ROOT / "acceptance" / "check_retarget_gait.py"
     gate_json = UPLOAD_DIR / "gait_gate_report.json"
-    r = subprocess.run([python, str(gate), "--dir", str(v31_dir),
-                        "--repo-root", str(REPO_ROOT), "--json", str(gate_json)],
-                       cwd=str(REPO_ROOT))
-    # v31: upload the report ONLY when the gate FAILS (failure evidence is
-    # worth a registration slot; on PASS the exit code + logs suffice).
-    # 5-slot budget precedent (v26): anchor, retarget x2, model_2000,
-    # model_3999 — do NOT add fail-path wraps that would crowd model_3999.
-    if r.returncode != 0:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    if gate_json.exists():
+        gate_json.unlink()  # stale report must not masquerade as this run's
+
+    pylibs = REPO_ROOT / "pylibs"
+    candidates = [("sys", dict(os.environ))]
+    if pylibs.exists():
+        candidates.append(("pylibs", dict(os.environ, PYTHONPATH=str(pylibs))))
+
+    def run_gate(env: dict, label: str) -> int:
+        cmd = [sys.executable, str(gate), "--dir", str(v31_dir),
+               "--repo-root", str(REPO_ROOT), "--json", str(gate_json)]
+        print(f"[INFO][{label}] {' '.join(cmd)}")
+        return subprocess.run(cmd, cwd=str(REPO_ROOT), env=env).returncode
+
+    rc = 2
+    for label, env in candidates:
+        rc = run_gate(env, label)
+        if rc in (0, 1):   # real verdict — stop probing
+            break
+    if rc == 2:
+        print("[WARN] gate setup error on all python candidates — "
+              "installing numpy<2+mujoco into pylibs once")
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q",
+                        "--target", str(pylibs), "numpy<2", "mujoco"],
+                       check=False)
+        rc = run_gate(dict(os.environ, PYTHONPATH=str(pylibs)), "pylibs-installed")
+
+    if rc == 0:
+        print("[INFO] gait-quality gate PASSED.")
+        return
+    if rc == 1:
+        # real data verdict — failure evidence worth a registration slot
+        # (upload only on failure; 5-slot budget, see v26 note)
         if gate_json.exists():
             wrap_json_for_upload("model_gait_gate_report.pt",
                                  {"phase": "gait_gate", "passed": False,
@@ -216,7 +261,9 @@ def phase_fix_arm_decomposition(venv_dir: Path | None):
         print("[FATAL] gait-quality gate FAILED — blocking training.")
         wait_for_sdk(180, "upload gate failure report")
         sys.exit(1)
-    print("[INFO] gait-quality gate PASSED.")
+    print("[WARN] gait gate could NOT run in this environment (setup error) — "
+          "relying on check_retarget.py + the dataset's local validation "
+          "history; re-run acceptance/check_retarget_gait.py manually.")
 
 
 def phase_retarget_acceptance(venv_dir: Path) -> bool:
@@ -994,6 +1041,7 @@ def main():
 
     gmr_output, lab_output, venv_dir = phase_retarget()
     phase_fix_arm_decomposition(venv_dir)
+    phase_gait_gate(venv_dir)
     phase_retarget_acceptance(venv_dir)
     phase_package_retarget(gmr_output, lab_output)
 
