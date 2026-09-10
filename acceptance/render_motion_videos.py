@@ -156,7 +156,7 @@ def main():
             T = min(len(qo), len(qv))
             path = out / f"{name}_orig_vs_v30.mp4"
             gen_o = render_clip(model, data, qo, "ORIG x1_lab (v29 refs: elbP~106deg, lumY swing ~55deg)")
-            gen_v = render_clip(model, data, qv, "v30 fixed (elbP 20deg, lumY ~24deg)")
+            gen_v = render_clip(model, data, qv, "v31 fixed (elbP 20deg, sole grounded, L/R symmetric)")
             frames = []
             for t, (fo, fv) in enumerate(zip(gen_o, gen_v)):
                 if t % args.step == 0:
@@ -173,7 +173,7 @@ def main():
             fk_check(cv, qv)
             path = out / f"{name}_v30.mp4"
             frames = [f for t, f in enumerate(render_clip(
-                model, data, qv, f"v30 {name}")) if t % args.step == 0]
+                model, data, qv, f"v31 {name}")) if t % args.step == 0]
             imageio.mimwrite(path, frames, fps=int(fps / args.step), quality=8,
                              macro_block_size=2)
             print(f"[V30 ] {name}: {len(frames)} frames -> {path.name} "
