@@ -857,6 +857,57 @@ def _dump_mujoco_metrics(out_dir: Path):
         print(f"[WARN] metrics dump failed: {e}")
 
 
+def phase_policy_gait_gate(ckpt: Path | None, policy_npz: Path | None) -> int:
+    """Phase 5.5 (v31): POLICY gait-quality gate (P7).
+
+    check_amp.py (P1-P6) verifies process health but nothing measured the
+    arm/torso style — v29 passed 13/13 yet carried the arms same-phase with
+    folded elbows (measured on its rollout: anti +0.91, elbow p95 90 deg,
+    coupling -0.68; acceptance/check_policy_gait.py). This phase rolls the
+    final policy in MuJoCo at 1.0 m/s (log-only, no GL needed), measures the
+    same joint-space quantities the AMP discriminator saw, and FAILS the
+    task on regression. Exit code merges into the task verdict."""
+    print("\n=== Phase 5.5: Policy Gait-Quality Gate (P7) ===\n")
+    if ckpt is None or policy_npz is None or not Path(policy_npz).exists():
+        print("[FAIL] no checkpoint / policy npz — P7 cannot run (counts as FAIL)")
+        return 1
+
+    rollout = REPO_ROOT / "sim2sim" / "mujoco_rollout.py"
+    gate = REPO_ROOT / "acceptance" / "check_policy_gait.py"
+    log_npz = UPLOAD_DIR / "p7_gait_rollout_1.0.npz"
+    roll_json = UPLOAD_DIR / "p7_rollout_1.0.json"
+    gate_json = UPLOAD_DIR / "p7_gait_gate.json"
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    def run_rollout() -> int:
+        cmd = [sys.executable, str(rollout), "--ckpt", str(policy_npz),
+               "--repo-root", str(REPO_ROOT),
+               "--cmd", "1.0", "0.0", "0.0", "--duration", "12",
+               "--log", str(log_npz), "--json", str(roll_json)]
+        print(f"[INFO] {' '.join(cmd)}")
+        return subprocess.run(cmd, cwd=str(REPO_ROOT)).returncode
+
+    rc = run_rollout()
+    if rc != 0:
+        print("[WARN] rollout failed — trying a mujoco install once")
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "mujoco"],
+                       check=False)
+        rc = run_rollout()
+    if rc != 0 or not log_npz.exists():
+        print("[FAIL] MuJoCo rollout did not produce a gait log — P7 FAIL")
+        return 1
+
+    cmd = [sys.executable, str(gate), "--log", str(log_npz), "--json", str(gate_json)]
+    print(f"[INFO] {' '.join(cmd)}")
+    rc = subprocess.run(cmd, cwd=str(REPO_ROOT)).returncode
+    if gate_json.exists():
+        wrap_json_for_upload("model_p7_gait_gate.pt",
+                             {"phase": "policy_gait_gate", "passed": rc == 0,
+                              "report": gate_json.read_text()})
+    print(f"[INFO] P7 gait gate {'PASSED' if rc == 0 else 'FAILED'} (rc={rc})")
+    return rc
+
+
 def phase_amp_acceptance(video: Path | None):
     print("\n=== Phase 6: AMP Training Acceptance ===\n")
     checker = REPO_ROOT / "acceptance" / "check_amp.py"
@@ -922,6 +973,7 @@ def main():
     policy_npz = export_policy_npz(ckpt)
 
     video = phase_play_video(ckpt, policy_npz)
+    p7_rc = phase_policy_gait_gate(ckpt, policy_npz)
     amp_rc = phase_amp_acceptance(video)
 
     print("\n=== Phase 7: wrap-up ===")
@@ -955,7 +1007,9 @@ def main():
     # exited 0 with FAIL verdicts — the platform's ret:True masked the truth.
     # Artifacts are already registered by now (420s wait above), and failed
     # tasks still expose their model lists (v18/v19/v21b/v23 precedent).
-    sys.exit(amp_rc)
+    # v31: exit code = AMP acceptance AND P7 policy gait gate (either FAIL
+    # fails the task; artifacts are uploaded before this point either way)
+    sys.exit(max(amp_rc, p7_rc))
 
 
 if __name__ == "__main__":
