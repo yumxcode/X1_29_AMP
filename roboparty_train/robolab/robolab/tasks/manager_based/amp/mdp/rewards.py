@@ -153,11 +153,18 @@ def paired_joints_deviation_difference_l1(
 ) -> torch.Tensor:
     """Penalize the DIFFERENCE between paired-joint deviations (|dev_L - dev_R|).
 
-    EXPERIMENTAL / NOT ACTIVE (v27 measured on v26 data: corr(dev_L,dev_R)=+0.78
-    during walking). Gait mirror symmetry is invariance under mirror x T/2
-    shift, so NO instantaneous pair statistic — neither mean nor difference —
-    isolates amplitude asymmetry; both punish normal swing. Kept for a future
-    per-cycle amplitude comparison. Do not enable without re-validating.
+    DO NOT USE for anti-aligned shoulder-pitch pairs on natural walking.
+    v32 FK ground truth (acceptance/diag_arm_phase_truth.py, 2026-09-10):
+    natural alternating arm swing measures corr(lsp, rsp) = -0.98 on the
+    x1_lab_v31 references (world-frame antiphase, R lags L by 54% of cycle).
+    This difference statistic is therefore LARGE on the natural pattern
+    (dev_L ~ -dev_R) and penalizes it — enabling it (v28b..v31d, weight -0.3)
+    flipped policies from antiphase (v27: -0.94) to SYNCHRONIZED arms
+    (v28/v29/v31d: +0.96/+0.91/+0.78). The 'natural is same-sign' premise in
+    the v28b note came from pre-fix CONTORTED data (corr(devL,devR)=+0.78 on
+    v26 refs) and is invalid on clean references. Use
+    paired_joints_deviation_sum_l1 instead; kept only for the future
+    per-cycle amplitude comparison.
     """
     asset: Articulation = env.scene[asset_cfg.name]
     joint_deviation = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
@@ -169,6 +176,24 @@ def paired_joints_deviation_difference_l1(
         gate = (torch.abs(cmd[:, 2]) < max_cmd_yaw).float()
         reward = reward * gate
     return reward
+
+
+def paired_joints_deviation_sum_l1(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize the SYNCHRONIZED component of paired-joint deviations, |dev_L + dev_R|.
+
+    v32 (FK-verified convention, see paired_joints_deviation_difference_l1):
+    natural alternating arm swing has dev_L ~ -dev_R (joint-space corr -0.98 on
+    the references), so the SUM is ~zero on natural motion and grows with
+    synchronized same-direction arm motion — the exact defect measured on the
+    v31d policy (joint corr +0.78, world corr +0.84, phase lag 0%). Also
+    catches frozen shared offsets (both arms held in the same direction).
+    Zero-force on the natural pattern; guard rail only, not a swing shaper.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    joint_deviation = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    return torch.abs(torch.sum(joint_deviation, dim=1))
 
 
 def stance_sole_flat_walk(

@@ -733,7 +733,12 @@ def phase_play_video(ckpt: Path, policy_npz: Path | None = None):
     for root in search_roots:
         try:
             if root.exists():
-                videos += [v for v in root.rglob("*.mp4")]
+                # v32: EXCLUDE acceptance/ — committed reference/vs-policy
+                # render videos live there and polluted the search (v31d P6
+                # "passed" citing 0026_circle_walk_orig_vs_v30.mp4, a ref
+                # comparison clip, not a policy play video).
+                videos += [v for v in root.rglob("*.mp4")
+                           if "acceptance" not in v.parts]
         except OSError:
             pass
     print(f"[INFO] mp4 search ({len(videos)} found) under: "
