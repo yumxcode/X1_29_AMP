@@ -155,7 +155,7 @@ def phase_fix_arm_decomposition(venv_dir: Path | None):
     Skips when the 24 fixed+mirrored clips already ship in the repo."""
     print("\n=== Phase 2.5: Arm+Ground Fix (x1_lab -> v30 -> v31 + mirror) ===\n")
     v31_dir = MOTIONS_DIR / "x1_lab_v31"
-    if v31_dir.exists() and len(list(v31_dir.glob("*.pkl"))) >= 24:
+    if v31_dir.exists() and len(list(v31_dir.glob("*.pkl"))) >= 22:
         print(f"[INFO] x1_lab_v31 already has {len(list(v31_dir.glob('*.pkl')))} files — skipping")
         return
 
@@ -187,7 +187,24 @@ def phase_fix_arm_decomposition(venv_dir: Path | None):
         print("[FATAL] mirror gate FAILED — blocking training.")
         sys.exit(1)
     n = len(list(v31_dir.glob("*.pkl")))
-    print(f"[INFO] x1_lab_v31: {n} files (12 fixed + 12 mirrored)")
+    print(f"[INFO] x1_lab_v31: {n} files (11 fixed + 11 mirrored)")
+
+    # v31 gait-quality gate (MANDATORY): posture / ground / coordination
+    print("\n=== Phase 2.6: Gait-Quality Acceptance Gate ===\n")
+    gate = REPO_ROOT / "acceptance" / "check_retarget_gait.py"
+    gate_json = UPLOAD_DIR / "gait_gate_report.json"
+    r = subprocess.run([python, str(gate), "--dir", str(v31_dir),
+                        "--repo-root", str(REPO_ROOT), "--json", str(gate_json)],
+                       cwd=str(REPO_ROOT))
+    if gate_json.exists():
+        wrap_json_for_upload("model_gait_gate_report.pt",
+                             {"phase": "gait_gate", "passed": r.returncode == 0,
+                              "report": gate_json.read_text()})
+    if r.returncode != 0:
+        print("[FATAL] gait-quality gate FAILED — blocking training.")
+        wait_for_sdk(180, "upload gate failure report")
+        sys.exit(1)
+    print("[INFO] gait-quality gate PASSED.")
 
 
 def phase_retarget_acceptance(venv_dir: Path) -> bool:

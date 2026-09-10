@@ -60,7 +60,7 @@ KEPT = {"0000_treadmill_norm", "0002_treadmill_slow", "0003_treadmill_jog",
         "0005_normal_walk1", "0007_normal_walk3", "0008_normal_walk4",
         "0009_normal_jog1", "0026_circle_walk", "36_01", "36_11",
         # v31 additions: CMU real-overground walking (plan A)
-        "103_07", "138_18"}
+        "103_07"}
 
 CONTACT_ON, CONTACT_OFF, MIN_STANCE = 0.03, 0.08, 3
 LIFT_SIGMA = 6.0           # frames

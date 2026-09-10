@@ -162,7 +162,7 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # v31: x1_lab_v31 = fix_arm_decomposition.py (v30 arm fix) +
         # fix_ground_root.py (sole penetration -> 0, L/R ankle stance-pitch
         # symmetrization, root_z ground anchoring) + 2 new CMU overground
-        # walking clips (103_07 / 138_18, retargeted locally with the same
+        # walking clips (103_07, retargeted locally with the same
         # auto-IK config; real stride-speed dynamics the in-place BMLrub
         # demos lack). Dropped: 114_08/114_09/127_04/127_06.
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
@@ -180,9 +180,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # re-IK fallback tiers cannot compress - shoulder_roll saturates at
         # its abduction limit on 34-43% of frames). They were the main
         # asymmetric-forearm-pose style polluters in v29.
-        # v31 additions at weight 1.0: 103_07 (1.2 m/s), 138_18 (1.0 m/s) —
+        # v31 additions at weight 1.0: 103_07 (1.2 m/s) —
         # real overground walking (genuinely counter-rotating torso, GMR
-        # lumY swing 62-68 deg; kept at c=1.0 = exact elbows, subordinate
+        # lumY swing 62 deg; kept at c=1.0 = exact elbows, subordinate
         # weight so the restrained BMLrub style stays dominant).
         self.motion_data.motion_dataset.motion_data_weights = {
             "36_01": 1.0,
@@ -196,7 +196,6 @@ class X1AmpEnvCfg(AmpEnvCfg):
             "0009_normal_jog1": 2.0,
             "0026_circle_walk": 2.0,
             "103_07": 1.0,
-            "138_18": 1.0,
             "36_01_mirror": 1.0,
             "36_11_mirror": 1.0,
             "0000_treadmill_norm_mirror": 2.0,
@@ -208,7 +207,6 @@ class X1AmpEnvCfg(AmpEnvCfg):
             "0009_normal_jog1_mirror": 2.0,
             "0026_circle_walk_mirror": 2.0,
             "103_07_mirror": 1.0,
-            "138_18_mirror": 1.0,
         }
 
         # ------------------------------------------------------

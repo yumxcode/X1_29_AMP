@@ -118,6 +118,24 @@ v29 复盘发现 GMR IK 在任务空间正确、但关节空间病态：肘 pitc
 诊断工具：`acceptance/diag_arm_swing.py`（关节空间）、`diag_arm_swing_smplx.py`
 （AMASS 源对照）、`probe_arm_joints.py`（X1 关节语义 FK 探针）。
 
+## J 组 — 步态质量总门（v31，必过，2026-09-10）
+
+执行器：`acceptance/check_retarget_gait.py`（管线 Phase 2.6，FAIL 阻断训练）。
+整合 H/I 组全部指标为可执行门 + 结构/协调/镜像检查，阈值按 x1_lab_v31 实测校准：
+
+| 组 | 检查 | 判据 |
+|---|------|------|
+| S | 结构 | N 源 + N 镜像成对；pkl schema/四元数范数/有限值；env 权重表↔文件集双向 1:1 |
+| F | FK 保真 | FK(dof,root) vs 存档 key_body_pos p95 ≤ 15mm（列序错位/静默 fancy-index 免疫门） |
+| A | 上肢 | elbP p95≤65°、\|shoY\|≤15°、\|elbY\|≤20°、几何肘弯≤45°、肩反相≤−0.45 |
+| T | 躯干 | lumY 摆幅分级：PRIMARY/CIRCLE≤32°、JOG≤65°、CMU_OLD≤55°、CMU_NEW≤75° |
+| G | 地面 | 穿模≥−3mm 全帧、支撑 pitch \|L−R\|≤3.5/6°、\|pitch\|中位分级≤15/25° |
+| C | 协调 | 髋 L/R corr≥+0.3、臂-对侧腿耦合≥+0.45、髋摆幅比分级（PRIMARY [0.7,1.4]，CIRCLE/CMU 放宽） |
+| M | 镜像 | 每 源有 mirror 且 key_body = y-flip+swap(p95≤20mm) |
+
+分级设计依据：CIRCLE 内外腿天然不对称（0026 实测 1.44）；CMU_OLD 源固有不对称由镜像对补偿（36_01 实测 2.05，WARN-only）。
+**门的战果**：首跑即拒 138_18（GMR 将其源对称摆臂翻转为同相，anti +0.47/耦合 −0.20）——视觉 4s 视频无法察觉、判别器可学的风格缺陷。
+
 ## I 组 — 地面接触与对地约束门（v31 新增，2026-09-10）
 
 v30 复盘（diag_gait_plausibility.py / diag_wholebody.py）：GMR IK 无对地约束——

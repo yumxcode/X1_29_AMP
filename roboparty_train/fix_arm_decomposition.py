@@ -84,8 +84,7 @@ VAR = (["lumbar_yaw_joint"]
 # clean; use --all to process anyway (e.g. diagnostics on old data).
 KEPT = {"0000_treadmill_norm", "0002_treadmill_slow", "0003_treadmill_jog",
         "0005_normal_walk1", "0007_normal_walk3", "0008_normal_walk4",
-        "0009_normal_jog1", "0026_circle_walk", "36_01", "36_11",
-        "103_07", "138_18"}
+        "0009_normal_jog1", "0026_circle_walk", "36_01", "36_11", "103_07"}
 
 _CTX = {}
 
