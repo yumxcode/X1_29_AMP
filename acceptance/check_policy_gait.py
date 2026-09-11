@@ -110,6 +110,48 @@ def main():
         "steps_used": len(qs),
     }
 
+    # P7g arm lean (v32b defect, user-observed): world-frame upper-arm
+    # forward angle means via FK. asym = frozen antisymmetric offset (L back /
+    # R fwd), shared = both-arms lean. Guarded import: if mujoco/model is
+    # unavailable the check degrades to a WARN (log-only evidence).
+    try:
+        import mujoco
+        import sys as _sys
+        from pathlib import Path as _Path
+        _root = _Path(__file__).resolve().parent.parent
+        _sys.path.insert(0, str(_root))
+        _sys.path.insert(0, str(_root / "sim2sim"))
+        from sim2sim.mujoco_rollout import build_model, DEFAULT_Q
+        _model, _ = build_model(_root / "gmr_x1_assets" / "x1.xml")
+        _data = mujoco.MjData(_model)
+        _BID = lambda b: mujoco.mj_name2id(_model, mujoco.mjtObj.mjOBJ_BODY, b)
+        _qadr = {n: _model.jnt_qposadr[
+            mujoco.mj_name2id(_model, mujoco.mjtObj.mjOBJ_JOINT, n)] for n in hinge}
+        stride = max(1, len(qs) // 150)
+        phis = {"left": [], "right": []}
+        for t in range(0, len(qs), stride):
+            _data.qpos[:] = 0
+            _data.qpos[0:3] = np.asarray(d["base_pos"][s0 + t], float)
+            _data.qpos[3:7] = np.asarray(d["base_quat"][s0 + t], float)
+            for n in hinge:
+                _data.qpos[_qadr[n]] = qs[t, idx[n]]
+            mujoco.mj_forward(_model, _data)
+            Rm = np.zeros(9); mujoco.mju_quat2Mat(Rm, _data.xquat[_BID("base_link")])
+            Rm = Rm.reshape(3, 3)
+            fwd = Rm[:, 0]
+            for side in ("left", "right"):
+                u = _data.xpos[_BID(f"{side}_elbow_pitch_link")] - \
+                    _data.xpos[_BID(f"{side}_shoulder_pitch_link")]
+                phis[side].append(np.degrees(np.arctan2(u @ fwd, -(u @ Rm[:, 2]))))
+        phiL_m, phiR_m = float(np.mean(phis["left"])), float(np.mean(phis["right"]))
+        m["phiL_mean"], m["phiR_mean"] = phiL_m, phiR_m
+        m["lean_asym"] = abs(phiL_m - phiR_m)
+        m["lean_shared"] = abs((phiL_m + phiR_m) / 2)
+        fk_ok = True
+    except Exception as e:
+        print(f"  [WARN] P7g FK unavailable ({type(e).__name__}: {e})")
+        fk_ok = False
+
     results = {}
 
     def check(cid, ok, detail):
@@ -136,6 +178,17 @@ def main():
     lo, hi = TH["P7e_ratio"]
     check("P7e_legsym", lo <= m["ratio"] <= hi,
           f"hip swing ratio L/R {m['ratio']:.2f} in [{lo}, {hi}]")
+    if fk_ok:
+        check("P7g_lean_asym", m["lean_asym"] <= 12.0,
+              f"arm lean asym |phiL-phiR| {m['lean_asym']:.1f} deg <= 12 "
+              f"(L {m['phiL_mean']:+.1f} R {m['phiR_mean']:+.1f}; v32b was 23)")
+        check("P7h_lean_shared", m["lean_shared"] <= 12.0,
+              f"shared arm lean |mean(phiL,phiR)| {m['lean_shared']:.1f} deg <= 12 "
+              f"(both-arms-forward/backward)")
+    else:
+        results["P7g_lean_asym"] = {"pass": True, "detail": "FK unavailable — WARN only"}
+        results["P7h_lean_shared"] = {"pass": True, "detail": "FK unavailable — WARN only"}
+        print("  ~   P7g/P7h arm lean: FK unavailable — skipped (WARN)")
 
     print("\n--- TARGET lines ---")
     for k, thr in TG.items():

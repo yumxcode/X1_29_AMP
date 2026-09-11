@@ -75,6 +75,44 @@ class X1AmpRewards():
             )
         },
     )
+    # v33: frozen ANTISYMMETRIC arm offset guard (v32b defect: L shoulder
+    # -9 deg / R +9.8 deg held constantly — blind spot of the sum statistic).
+    # EMA low-pass extracts the DC offset; AC swing filtered out.
+    arm_asym_lean = RewTerm(
+        func=mdp.paired_joints_deviation_difference_ema_l1,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint"],
+                preserve_order=True,
+            )
+        },
+    )
+    # v33: arm/opposite-leg coordination (refs corr +0.8..+0.99; v32b -0.12).
+    arm_leg_coupling = RewTerm(
+        func=mdp.arm_opposite_leg_coupling,
+        weight=0,
+        params={
+            "shoulder_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint"],
+                preserve_order=True,
+            ),
+            "hip_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["right_hip_pitch_joint", "left_hip_pitch_joint"],
+                preserve_order=True,
+            ),
+        },
+    )
+    # v33: chest posture (FK: +lumbar_pitch = chest forward; refs mean
+    # +14.9 deg; v32b sat at -9 deg backward).
+    lumbar_posture = RewTerm(
+        func=mdp.lumbar_pitch_prior,
+        weight=0,
+        params={"target": 0.26},
+    )
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
         weight=0.0,
@@ -251,6 +289,16 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # statistic change. Zero-force on natural antiphase swing; sync at
         # +-0.26 rad (15 deg) -> ~2*0.26 rad sum -> -0.16/step guard pressure.
         self.rewards.arm_pitch_sync.weight = -0.3
+        # v33 (v32b defects, diag_arm_offset.py):
+        # - frozen antisymmetric arm offset: L -9 / R +9.8 deg held -> EMA
+        #   DC guard, 0.33 rad offset -> -0.066/step at weight -0.2
+        self.rewards.arm_asym_lean.weight = -0.2
+        # - arm/opposite-leg coupling: refs +0.8..+0.99 vs policy -0.12;
+        #   capped product reward (|term| <= 0.15 rad^2 -> +-0.045/step)
+        self.rewards.arm_leg_coupling.weight = 0.3
+        # - chest posture: refs mean +14.9 deg forward vs policy -9 deg back;
+        #   0.42 rad error -> -0.17/step at weight -0.4
+        self.rewards.lumbar_posture.weight = -0.4
 
         # feet
         self.rewards.feet_slide.weight = -0.1

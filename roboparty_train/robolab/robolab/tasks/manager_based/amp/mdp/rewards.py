@@ -196,6 +196,85 @@ def paired_joints_deviation_sum_l1(
     return torch.abs(torch.sum(joint_deviation, dim=1))
 
 
+_EMA_STATE: dict = {}
+
+
+def paired_joints_deviation_difference_ema_l1(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    alpha: float = 0.02,
+) -> torch.Tensor:
+    """Penalize the LOW-FREQUENCY (frozen) part of paired-joint asymmetry.
+
+    v32b policy defect (acceptance/diag_arm_offset.py): left shoulder held
+    -9 deg / right +9.8 deg (world: R arm forward 22 deg) — a FROZEN
+    ANTISYMMETRIC offset. The instantaneous sum statistic is blind to it
+    (+9 + -9.8 ~ 0), and the instantaneous difference statistic is forbidden
+    (it penalizes the AC swing on anti-aligned... on same-sign-convention
+    alternating swing, see paired_joints_deviation_difference_l1 history).
+    Solution: EMA low-pass of (dev_L - dev_R) extracts the DC component —
+    the frozen pose — while natural alternating swing (AC, ~1 Hz) is
+    attenuated ~50x at alpha=0.02 (tau = 1 s). Episode-reset aware.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    diff = dev[:, 0] - dev[:, 1]
+    key = id(env)
+    ema = _EMA_STATE.get(key)
+    if ema is None or ema.shape != diff.shape or ema.device != diff.device:
+        ema = diff.detach().clone()
+        _EMA_STATE[key] = ema
+    with torch.no_grad():
+        reset = (env.episode_length_buf == 0)
+        target = torch.where(reset, diff.detach(), (1.0 - alpha) * ema + alpha * diff.detach())
+        ema.copy_(target)
+    return torch.abs(ema)
+
+
+def arm_opposite_leg_coupling(
+    env: ManagerBasedRLEnv,
+    shoulder_cfg: SceneEntityCfg, hip_cfg: SceneEntityCfg,
+    cap: float = 0.15,
+) -> torch.Tensor:
+    """Reward coherent arm-swing / opposite-leg-swing coordination.
+
+    Reference ground truth (x1_lab_v31, all 11 clips): corr(shoP_L, hipP_R) =
+    +0.8..+0.99 — the left arm swings WITH the right leg (and vice versa).
+    v32b policy measures -0.12 (P7d FAIL): arms alternate but decoupled from
+    the legs, with small amplitude (17-22 deg world vs ref 68-98). This term
+    rewards the instantaneous product of the two deviations (positive when
+    coordinated), capped to prevent amplitude farming:
+        0.5 * (clamp(dev_shoL*dev_hipR, -cap, cap) + clamp(dev_shoR*dev_hipL, -cap, cap))
+    Anti-coupled swing yields negative reward (mild penalty); coherent swing
+    up to ~0.4 rad x 0.4 rad saturates. Deviations (vs default pose) are used
+    so the term is mean-shift free.
+    """
+    asset: Articulation = env.scene[shoulder_cfg.name]
+    sho = asset.data.joint_pos[:, shoulder_cfg.joint_ids] - asset.data.default_joint_pos[:, shoulder_cfg.joint_ids]
+    hip = asset.data.joint_pos[:, hip_cfg.joint_ids] - asset.data.default_joint_pos[:, hip_cfg.joint_ids]
+    term = 0.5 * (torch.clamp(sho[:, 0] * hip[:, 0], -cap, cap)
+                  + torch.clamp(sho[:, 1] * hip[:, 1], -cap, cap))
+    return term
+
+
+def lumbar_pitch_prior(
+    env: ManagerBasedRLEnv, target: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize lumbar pitch deviation from the reference posture mean.
+
+    FK probe (acceptance/probe_lumbar_sign.py): POSITIVE lumbar_pitch =
+    chest FORWARD. All 11 v31 references lean forward, mean +12..+20 deg
+    (median +14.9 = 0.26 rad) — natural human walking posture. v32b policy
+    sat at -9.0 deg (chest BACKWARD, user-observed '胸腔后倾'); v31d at
+    +26.2 (over-forward). Policies drift freely without a prior because no
+    term references the torso pitch posture (flat_orientation acts on the
+    BASE only, not the chest).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    lum = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    return torch.abs(lum[:, 0] - target)
+
+
 def stance_sole_flat_walk(
     env: ManagerBasedRLEnv,
     sensor_cfg: SceneEntityCfg,
