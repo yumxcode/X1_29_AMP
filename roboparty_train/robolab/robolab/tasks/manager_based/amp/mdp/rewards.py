@@ -181,15 +181,17 @@ def paired_joints_deviation_difference_l1(
 def paired_joints_deviation_sum_l1(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-    """Penalize the SYNCHRONIZED component of paired-joint deviations, |dev_L + dev_R|.
+    """DEPRECATED (v34) — DO NOT USE. Kept for history only.
 
-    v32 (FK-verified convention, see paired_joints_deviation_difference_l1):
-    natural alternating arm swing has dev_L ~ -dev_R (joint-space corr -0.98 on
-    the references), so the SUM is ~zero on natural motion and grows with
-    synchronized same-direction arm motion — the exact defect measured on the
-    v31d policy (joint corr +0.78, world corr +0.84, phase lag 0%). Also
-    catches frozen shared offsets (both arms held in the same direction).
-    Zero-force on the natural pattern; guard rail only, not a swing shaper.
+    v32's "sum" statistic |dev_L + dev_R| was pitched as "~zero on natural
+    alternation", but direct measurement (composite audit, 2026-09-11) shows
+    the x1_lab_v31 REFERENCES score mean|sum| = 26.2 deg — dominated by a
+    joint-space SHARED DC (both arms average -13 deg in joint space while
+    being world-frame centered; the DC is an artifact of the shoulder
+    yaw/roll chain, NOT a visible defect). At weight -0.3 the term taxed
+    reference-like arms -0.137/step vs ~-0.005 for frozen arms — a net
+    gradient TOWARD swing collapse (v33b arms fell to 4-8 deg amplitude).
+    Superseded by arm_sync_residual (high-passed, DC-free).
     """
     asset: Articulation = env.scene[asset_cfg.name]
     joint_deviation = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
@@ -199,60 +201,106 @@ def paired_joints_deviation_sum_l1(
 _EMA_STATE: dict = {}
 
 
+def _ema(env, key: str, x: torch.Tensor, alpha: float) -> torch.Tensor:
+    """Per-env single-channel CONTINUOUS exponential moving average.
+
+    v34 lesson: do NOT reseed per episode. The first v34 draft reseeded at
+    every episode boundary; in the 20 s training episodes the antiphase
+    swing difference (AC amplitude ~88 deg) then re-injected a fresh
+    initial transient every episode, keeping |EMA| at ~30 deg for the first
+    ~tau seconds of EVERY episode — polluting the frozen-offset guards far
+    more than the offsets they exist to catch. Continuous tracking
+    converges once (~5 tau after training start) and stays converged: a
+    genuinely frozen offset is smoothed in, the swing AC is attenuated by
+    alpha/(2*pi*f*tau). State keyed by (id(env), key); several terms share
+    channels (same high-passed shoulder signal for sync + coupling).
+    """
+    skey = (id(env), key)
+    ema = _EMA_STATE.get(skey)
+    if ema is None or ema.shape != x.shape or ema.device != x.device:
+        ema = x.detach().clone()
+        _EMA_STATE[skey] = ema
+    with torch.no_grad():
+        ema.mul_(1.0 - alpha).add_(x.detach(), alpha=alpha)
+    return ema
+
+
 def paired_joints_deviation_difference_ema_l1(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    alpha: float = 0.02,
+    alpha: float = 0.0025,
 ) -> torch.Tensor:
-    """Penalize the LOW-FREQUENCY (frozen) part of paired-joint asymmetry.
+    """Frozen antisymmetric-offset guard on a SLOW EMA of (dev_L - dev_R).
 
-    v32b policy defect (acceptance/diag_arm_offset.py): left shoulder held
-    -9 deg / right +9.8 deg (world: R arm forward 22 deg) — a FROZEN
-    ANTISYMMETRIC offset. The instantaneous sum statistic is blind to it
-    (+9 + -9.8 ~ 0), and the instantaneous difference statistic is forbidden
-    (it penalizes the AC swing on anti-aligned... on same-sign-convention
-    alternating swing, see paired_joints_deviation_difference_l1 history).
-    Solution: EMA low-pass of (dev_L - dev_R) extracts the DC component —
-    the frozen pose — while natural alternating swing (AC, ~1 Hz) is
-    attenuated ~50x at alpha=0.02 (tau = 1 s). Episode-reset aware.
+    v32b defect (diag_arm_offset.py): L shoulder held -9 deg / R +9.8 deg —
+    a frozen antisymmetric offset. v33 shipped this EMA at alpha=0.02
+    (tau = 1 s); the composite audit found that TOO FAST: for natural
+    antiphase swing the DIFFERENCE carries the full AC with amplitude
+    (A_L + A_R) (~88 deg on refs), and a 1 s EMA only attenuates it ~5x —
+    the reference itself scored |EMA| = 28 deg -> -0.0998/step, i.e. the
+    guard punished antiphase SWING AMPLITUDE, not just frozen offsets.
+    v34: alpha = 0.0025 (tau = 8 s) attenuates the ~1 Hz swing ~50x
+    (leak ~2 deg) while a frozen offset still converges in ~30 s. Measured
+    separation after fix: ref ~5 deg (natural small asym, mild tax),
+    v32b-style frozen offset 18.8 deg (caught).
     """
     asset: Articulation = env.scene[asset_cfg.name]
     dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
-    diff = dev[:, 0] - dev[:, 1]
-    key = id(env)
-    ema = _EMA_STATE.get(key)
-    if ema is None or ema.shape != diff.shape or ema.device != diff.device:
-        ema = diff.detach().clone()
-        _EMA_STATE[key] = ema
-    with torch.no_grad():
-        reset = (env.episode_length_buf == 0)
-        target = torch.where(reset, diff.detach(), (1.0 - alpha) * ema + alpha * diff.detach())
-        ema.copy_(target)
-    return torch.abs(ema)
+    dc = _ema(env, "arm_diff_dc", dev[:, 0] - dev[:, 1], alpha)
+    return torch.abs(dc)
+
+
+def arm_sync_residual(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    alpha: float = 0.02,
+) -> torch.Tensor:
+    """In-phase swing detector on HIGH-PASSED residuals: |hpL + hpR|.
+
+    v34 replacement for the deprecated sum statistic. hp = dev - EMA(dev)
+    removes each arm's slow component (frozen offsets, shared DC), so the
+    residual is the swing itself. For natural antiphase swing hpL ~ -hpR
+    -> |hpL + hpR| ~ 0 at ANY amplitude; for synchronized (in-phase) swing
+    hpL ~ +hpR -> |hpL + hpR| ~ 2A. Measured: ref 0.045 rad (amplitude-
+    mismatch residual only), v31d-style sync would score ~8-10x larger.
+    Unlike the old sum, this term has NO shared-DC sensitivity (ref sum_dc
+    -26 deg no longer taxed) and NO direct amplitude force.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    hp_l = dev[:, 0] - _ema(env, "sho_L", dev[:, 0], alpha)
+    hp_r = dev[:, 1] - _ema(env, "sho_R", dev[:, 1], alpha)
+    return torch.abs(hp_l + hp_r)
 
 
 def arm_opposite_leg_coupling(
     env: ManagerBasedRLEnv,
     shoulder_cfg: SceneEntityCfg, hip_cfg: SceneEntityCfg,
-    cap: float = 0.15,
+    cap: float = 0.15, alpha: float = 0.02,
 ) -> torch.Tensor:
-    """Reward coherent arm-swing / opposite-leg-swing coordination.
+    """Reward coherent arm/opposite-leg swing via HIGH-PASSED product.
 
-    Reference ground truth (x1_lab_v31, all 11 clips): corr(shoP_L, hipP_R) =
-    +0.8..+0.99 — the left arm swings WITH the right leg (and vice versa).
-    v32b policy measures -0.12 (P7d FAIL): arms alternate but decoupled from
-    the legs, with small amplitude (17-22 deg world vs ref 68-98). This term
-    rewards the instantaneous product of the two deviations (positive when
-    coordinated), capped to prevent amplitude farming:
-        0.5 * (clamp(dev_shoL*dev_hipR, -cap, cap) + clamp(dev_shoR*dev_hipL, -cap, cap))
-    Anti-coupled swing yields negative reward (mild penalty); coherent swing
-    up to ~0.4 rad x 0.4 rad saturates. Deviations (vs default pose) are used
-    so the term is mean-shift free.
+    Joint-space sign structure (measured on refs, _tmp_coup_debug):
+      corr(hp_Lsho, hp_Rhip) = +0.98  -> product POSITIVE on natural swing
+      corr(hp_Rsho, hp_Lhip) = -0.98  -> product NEGATIVE on natural swing!
+    The second pair carries the opposite joint-space sign (shoulder pair is
+    same-sign convention; hip pair anti-aligned), so it is NEGATED in the
+    reward. v33 shipped WITHOUT the negation: on the reference the two raw
+    products (+0.105 / -0.105) cancelled to ~zero (composite audit) and the
+    term actively penalized the natural R-arm/L-leg coherence. Fixed here:
+      term = 0.5*(clamp(hp_sl*hp_hr) + clamp(-(hp_sr*hp_hl)))
+    Reference now scores +0.105 per pair (coup +0.031/step at weight 0.3),
+    collapsed-arm policies ~+0.001 -> small anti-collapse gradient toward
+    natural coordinated swing. High-pass hp = x - EMA(x) keeps it mean-shift
+    free; cap 0.15 rad^2 still guards against amplitude farming.
     """
     asset: Articulation = env.scene[shoulder_cfg.name]
     sho = asset.data.joint_pos[:, shoulder_cfg.joint_ids] - asset.data.default_joint_pos[:, shoulder_cfg.joint_ids]
     hip = asset.data.joint_pos[:, hip_cfg.joint_ids] - asset.data.default_joint_pos[:, hip_cfg.joint_ids]
-    term = 0.5 * (torch.clamp(sho[:, 0] * hip[:, 0], -cap, cap)
-                  + torch.clamp(sho[:, 1] * hip[:, 1], -cap, cap))
+    hp_sl = sho[:, 0] - _ema(env, "sho_L", sho[:, 0], alpha)
+    hp_sr = sho[:, 1] - _ema(env, "sho_R", sho[:, 1], alpha)
+    hp_hr = hip[:, 0] - _ema(env, "hip_R", hip[:, 0], alpha)   # col 0 = R hip
+    hp_hl = hip[:, 1] - _ema(env, "hip_L", hip[:, 1], alpha)   # col 1 = L hip
+    term = 0.5 * (torch.clamp(hp_sl * hp_hr, -cap, cap)
+                  + torch.clamp(-(hp_sr * hp_hl), -cap, cap))
     return term
 
 

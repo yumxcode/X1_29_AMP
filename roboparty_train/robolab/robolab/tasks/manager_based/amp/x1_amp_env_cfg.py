@@ -55,17 +55,15 @@ class X1AmpRewards():
     joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=0)
     joint_energy = RewTerm(func=mdp.joint_energy, weight=0)
     joint_regularization = RewTerm(func=mdp.joint_deviation_l1, weight=0)
-    # v32 REPLACEMENT of the v28b difference statistic (see
-    # mdp.paired_joints_deviation_sum_l1 for the full history). FK ground
-    # truth on x1_lab_v31 refs (acceptance/diag_arm_phase_truth.py):
-    # natural alternating arm swing = corr(lsp, rsp) -0.98 in joint space
-    # (world antiphase, R lags L 54% of cycle). The v28b |devL-devR| penalty
-    # was LARGE on exactly that natural pattern -> policies flipped from
-    # antiphase (v27 -0.94, pre-term) to synchronized (v28/v29/v31d
-    # +0.96/+0.91/+0.78). Sum statistic: ~zero on natural (devL ~ -devR),
-    # penalizes synchronized same-direction arms = the measured defect.
+    # v34: in-phase swing detector on HIGH-PASSED residuals (|hpL + hpR|).
+    # History: v28b |devL-devR| penalized natural antiphase (-> sync arms);
+    # v32's |devL+devR| sum turned out to tax the reference's joint-space
+    # shared DC (-26 deg -> -0.137/step on ref vs -0.005 on frozen arms,
+    # composite audit 2026-09-11) and helped collapse v33b arm swing to
+    # 4-8 deg. Residual version: zero on antiphase at any amplitude, large
+    # on in-phase swing, no DC sensitivity (see mdp.arm_sync_residual).
     arm_pitch_sync = RewTerm(
-        func=mdp.paired_joints_deviation_sum_l1,
+        func=mdp.arm_sync_residual,
         weight=0,
         params={
             "asset_cfg": SceneEntityCfg(
@@ -75,13 +73,15 @@ class X1AmpRewards():
             )
         },
     )
-    # v33: frozen ANTISYMMETRIC arm offset guard (v32b defect: L shoulder
-    # -9 deg / R +9.8 deg held constantly — blind spot of the sum statistic).
-    # EMA low-pass extracts the DC offset; AC swing filtered out.
+    # v33/v34: frozen ANTISYMMETRIC arm offset guard (v32b defect: L -9 /
+    # R +9.8 deg held). v34 slows the EMA to alpha=0.0025 (tau 8 s): at
+    # alpha=0.02 the 1 Hz antiphase AC leaked ~28 deg into the EMA and the
+    # guard taxed swing amplitude (ref scored -0.0998/step).
     arm_asym_lean = RewTerm(
         func=mdp.paired_joints_deviation_difference_ema_l1,
         weight=0,
         params={
+            "alpha": 0.0025,
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint"],
@@ -89,7 +89,15 @@ class X1AmpRewards():
             )
         },
     )
-    # v33: arm/opposite-leg coordination (refs corr +0.8..+0.99; v32b -0.12).
+    # v33/v34: arm/opposite-leg coordination (refs corr +0.8..+0.99; v32b
+    # -0.12). v34 fixes: (a) high-passed product — the raw-deviation product
+    # cancelled via DC cross-terms (scored ~0 on ref); (b) the R-shoulder x
+    # L-hip product is NEGATED — that pair carries the opposite joint-space
+    # sign (measured corr -0.98 on refs; shoulder pair same-sign, hip pair
+    # anti-aligned). v33 shipped without the negation so the two products
+    # (+0.105/-0.105 on ref) mutually cancelled. Ref now +0.031/step;
+    # collapsed arms ~+0.001 (small anti-collapse gradient toward natural
+    # coordinated swing).
     arm_leg_coupling = RewTerm(
         func=mdp.arm_opposite_leg_coupling,
         weight=0,
@@ -295,16 +303,18 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
         # v32: difference stat (v28b, wrong premise -> caused sync arms)
-        # replaced by the sum statistic; weight kept at -0.3 to isolate the
-        # statistic change. Zero-force on natural antiphase swing; sync at
-        # +-0.26 rad (15 deg) -> ~2*0.26 rad sum -> -0.16/step guard pressure.
+        # v34: now the high-passed residual statistic. Zero on natural
+        # antiphase at any amplitude AND on the reference's shared DC
+        # (measured ref score ~-0.015/step vs -0.137 for the deprecated
+        # sum); in-phase swing (the v31d defect) still caught.
         self.rewards.arm_pitch_sync.weight = -0.3
-        # v33 (v32b defects, diag_arm_offset.py):
-        # - frozen antisymmetric arm offset: L -9 / R +9.8 deg held -> EMA
-        #   DC guard, 0.33 rad offset -> -0.066/step at weight -0.2
+        # v33/v34 (v32b defects, diag_arm_offset.py):
+        # - frozen antisymmetric arm offset: L -9 / R +9.8 deg held -> slow
+        #   EMA (tau 8 s) DC guard; ref ~5 deg (-0.019) vs frozen 18.8 deg
+        #   (-0.066) -> separates natural small asym from frozen defects
         self.rewards.arm_asym_lean.weight = -0.2
         # - arm/opposite-leg coupling: refs +0.8..+0.99 vs policy -0.12;
-        #   capped product reward (|term| <= 0.15 rad^2 -> +-0.045/step)
+        #   high-passed capped product (positive on ref, mean-shift free)
         self.rewards.arm_leg_coupling.weight = 0.3
         # - chest posture: refs mean +14.9 deg forward vs policy -9 deg back;
         #   0.42 rad error -> -0.17/step at weight -0.4
