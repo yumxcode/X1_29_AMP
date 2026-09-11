@@ -111,7 +111,17 @@ class X1AmpRewards():
     lumbar_posture = RewTerm(
         func=mdp.lumbar_pitch_prior,
         weight=0,
-        params={"target": 0.26},
+        params={
+            "target": 0.26,
+            # v33b BUG FIX: without an explicit asset_cfg the term indexed
+            # joint_ids[0] of ALL 29 joints (a mystery leg joint got pulled
+            # toward 0.26 rad; the v33 run degenerated into side-walking
+            # with the left hip held at +42 deg as compensation — root y
+            # drift 6.27 m at iter 2500, hip ratio 0.27, lumbar_pitch
+            # itself never moved from -10 deg. ALWAYS pin joint_names in
+            # single-joint reward terms.)
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["lumbar_pitch_joint"]),
+        },
     )
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
