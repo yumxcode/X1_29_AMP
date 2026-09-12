@@ -40,3 +40,5 @@ acceptance/v35_eval/model_3999.pt
 acceptance/v35_eval/model_3999.policy.npz
 acceptance/v36_eval/model_*.pt
 acceptance/v36_eval/model_*.policy.npz
+acceptance/v37_eval/model_*.pt
+acceptance/v37_eval/model_*.policy.npz
