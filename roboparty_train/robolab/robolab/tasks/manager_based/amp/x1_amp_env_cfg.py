@@ -407,10 +407,27 @@ class X1AmpEnvCfg(AmpEnvCfg):
         #   v28d already tolerates 1-step fully, 5/5)
         # ------------------------------------------------------
         import os as _os
-        if _os.environ.get("X1_ROBUST_TRAIN", "1") != "0":
-            self.events.push_robot.interval_range_s = (4.0, 8.0)
-            self.events.push_robot.params["velocity_range"] = {
-                "x": (-0.8, 0.8), "y": (-0.8, 0.8), "yaw": (-1.0, 1.0)}
+        _robust = _os.environ.get("X1_ROBUST_TRAIN", "1")
+        if _robust == "0":
+            pass  # clean regime (v29e clean-phase fine-tune)
+        else:
+            # v37 joint-schedule mode (X1_ROBUST_TRAIN=2): the two gate
+            # families are anti-correlated under sequential phases (v35:
+            # form 8/8 + robustness 55/60 but platform P3 kernels capped
+            # at 0.79 under full randomization; v36 clean ft: P3 12/13 but
+            # walk05 knee symmetry eroded 0.935 -> 0.678 and walk10 drift
+            # +0.29 -> +1.83 m within +600 iters). Half-strength
+            # perturbations keep the form/robustness pressure alive while
+            # the kernel gradient can still climb. push +-0.4 @ 6-12 s,
+            # delay 1 step kept (v29c measured v28d tolerates it fully).
+            if _robust == "2":
+                self.events.push_robot.interval_range_s = (6.0, 12.0)
+                self.events.push_robot.params["velocity_range"] = {
+                    "x": (-0.4, 0.4), "y": (-0.4, 0.4), "yaw": (-0.5, 0.5)}
+            else:
+                self.events.push_robot.interval_range_s = (4.0, 8.0)
+                self.events.push_robot.params["velocity_range"] = {
+                    "x": (-0.8, 0.8), "y": (-0.8, 0.8), "yaw": (-1.0, 1.0)}
             self.action_delay_steps = 1
 
         # ------------------------------------------------------
