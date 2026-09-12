@@ -1,0 +1,61 @@
+{
+ "taskId": "TASK_20260912_116",
+ "registered": [
+  {
+   "fileName": "model_4798.pt",
+   "checkpoint": "4798",
+   "createTime": "2026-09-12 15:37:49",
+   "policUrl": "upload/2026/9/12/model_4798_20260912153748A525.pt",
+   "loadRun": "model_upload"
+  },
+  {
+   "fileName": "model_4500.pt",
+   "checkpoint": "4500",
+   "createTime": "2026-09-12 15:28:19",
+   "policUrl": "upload/2026/9/12/model_4500_20260912152818A445.pt",
+   "loadRun": "model_upload"
+  },
+  {
+   "fileName": "model_4000.pt",
+   "checkpoint": "4000",
+   "createTime": "2026-09-12 15:11:20",
+   "policUrl": "upload/2026/9/12/model_4000_20260912151119A709.pt",
+   "loadRun": "model_upload"
+  },
+  {
+   "fileName": "model_3999.pt",
+   "checkpoint": "3999",
+   "createTime": "2026-09-12 15:09:24",
+   "policUrl": "upload/2026/9/12/model_3999_20260912150923A107.pt",
+   "loadRun": "model_upload"
+  },
+  {
+   "fileName": "model_amp_report.pt",
+   "checkpoint": "",
+   "createTime": "2026-09-12 15:38:22",
+   "policUrl": "upload/2026/9/12/model_amp_report_20260912153822A894.pt",
+   "loadRun": "model_upload"
+  },
+  {
+   "fileName": "model_retarget_data.pt",
+   "checkpoint": "",
+   "createTime": "2026-09-12 15:09:30",
+   "policUrl": "upload/2026/9/12/model_retarget_data_20260912150928A092.pt",
+   "loadRun": "model_upload"
+  },
+  {
+   "fileName": "model_retarget_report.pt",
+   "checkpoint": "",
+   "createTime": "2026-09-12 15:09:18",
+   "policUrl": "upload/2026/9/12/model_retarget_report_20260912150918A954.pt",
+   "loadRun": "model_upload"
+  },
+  {
+   "fileName": "pipeline_meta.pt",
+   "checkpoint": "",
+   "createTime": "2026-09-12 15:09:09",
+   "policUrl": "upload/2026/9/12/pipeline_meta_20260912150908A450.pt",
+   "loadRun": "model_upload"
+  }
+ ]
+}
