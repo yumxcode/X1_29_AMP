@@ -323,6 +323,29 @@ def lumbar_pitch_prior(
     return torch.abs(lum[:, 0] - target)
 
 
+def yaw_rate_bias_guard(
+    env: ManagerBasedRLEnv, command_name: str,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    alpha: float = 0.005,
+) -> torch.Tensor:
+    """Penalize a SLOW (DC) mismatch between base yaw rate and the yaw command.
+
+    v34 sim2sim diagnosis (acceptance/diag_drift.py): body-frame tracking is
+    fine (vx 0.89 / vy ~0) but the policy carries a CONSTANT +4.6 deg/s yaw
+    bias on zero-yaw commands -> 55 deg of heading drift and +3.5 m lateral
+    displacement over 12 s. The exp kernel (std 0.5 rad/s) is insensitive to
+    0.08 rad/s (kernel 0.975), so nothing corrects it. An EMA of the
+    ANG-VEL ERROR extracts exactly the DC bias: real turns (commanded AC or
+    matched cmd) average out, a persistent mismatch converges in ~1/alpha
+    steps and is taxed. Reference walks are straight (net heading ~0).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    cmd_z = env.command_manager.get_command(command_name)[:, 2]
+    err = asset.data.root_ang_vel_b[:, 2] - cmd_z
+    dc = _ema(env, "yaw_bias", err, alpha)
+    return torch.abs(dc)
+
+
 def stance_sole_flat_walk(
     env: ManagerBasedRLEnv,
     sensor_cfg: SceneEntityCfg,

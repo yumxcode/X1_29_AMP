@@ -114,13 +114,16 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 hidden_dims=[1024, 512],
                 activation="elu",
                 style_reward_scale=1.5,
-                # v21: 0.75 -> back to 0.6. v20 (lerp 0.75, 4000 iters) empirical:
-                # lin kernel 0.8422 vs v16 (lerp 0.6, 3000 iters) 0.8391 — the
-                # +0.003 gain is noise-level, but style reward halved
-                # 0.335 -> 0.146 (below P5a=0.15 threshold). 0.6 passes BOTH
-                # P3a (0.839 >= 0.82, expected to reach ~0.84 with 4000 iters)
-                # and P5a (0.335 >> 0.15) with large margins.
-                task_style_lerp=0.6
+                # v35: 0.6 -> 0.7. History: v21 tested 0.75 (lin +0.003
+                # noise-level, style halved 0.335->0.146 -> P5a FAIL), settled
+                # on 0.6. Today's regime differs: the v31 dataset rebuild made
+                # style reward 1.14-2.00 (deep saturation, tiny marginal
+                # gradient) while lin kernel dropped to 0.78 (v27/v28: 0.84 on
+                # the old data) — the trade point moved. 0.7 targets P3a
+                # recovery; P5a floor 0.15 retains ~8x margin even if style
+                # halves again. Revert to 0.6 if P5a < 0.3 or arm form (P7)
+                # regresses.
+                task_style_lerp=0.7
             ),
             loss_type="LSGAN"
         ),

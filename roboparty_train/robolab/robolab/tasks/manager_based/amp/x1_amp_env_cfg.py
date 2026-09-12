@@ -186,6 +186,17 @@ class X1AmpRewards():
         },
     )
 
+    # v35: constant-yaw-bias guard. v34 sim2sim: body-frame tracking fine
+    # (vx 0.89/vy ~0) but a persistent +4.6 deg/s yaw bias on straight
+    # commands -> 55 deg heading drift / +3.5 m lateral over 12 s (v32b was
+    # 0.4 deg/s). EMA(alpha 0.005) of (ang_vel_z - cmd_z) isolates the DC;
+    # exp-kernel std 0.5 rad/s is blind at 0.08 rad/s (kernel 0.975).
+    yaw_bias = RewTerm(
+        func=mdp.yaw_rate_bias_guard,
+        weight=0,
+        params={"command_name": "base_velocity"},
+    )
+
     # -- other
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
@@ -344,6 +355,21 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # incidentally (its toe-down style plausibly drove the asymmetry).
         self.rewards.stance_sole_flat.weight = -1.5
 
+        # v35: yaw DC bias guard. Calibrated (offline, alpha 0.005):
+        # v33b/v34 carry a 4.7-5.2 deg/s DC bias on zero-yaw commands
+        # (-> 55 deg heading drift / 3.5 m lateral in 12 s sim2sim), v32b
+        # only 0.4. At weight -0.5: v34-level bias (0.09 rad) -> -0.046/step
+        # (comparable to feet_slide, enough to matter); good tracking (EMA
+        # ~0.05 rad transient) -> -0.003; refs' slow-turn segments (e.g.
+        # 103_07 local 30 deg/s) would score -0.26 — deliberate: turning
+        # belongs to yaw COMMANDS, not to zero-yaw drift.
+        self.rewards.yaw_bias.weight = -0.5
+        # v35 note: task_style_lerp 0.6->0.7 lives in the AGENT cfg
+        # (x1_amp_agent_cfg.py): P3a lin kernel sat at 0.78 since v31d
+        # (v27/v28: 0.84, old dataset); style reward now 1.14-2.00 (deep in
+        # saturation, marginal style gradient small). v21 history: lerp 0.75
+        # halved style 0.335->0.146 (P5a FAIL); 0.7 keeps ~10x P5a margin
+        # while shifting task/style 60/40 -> 70/30.
         self.rewards.undesired_contacts.weight = -10.0
         self.rewards.undesired_contacts.params["sensor_cfg"] = SceneEntityCfg(
             "contact_forces",
