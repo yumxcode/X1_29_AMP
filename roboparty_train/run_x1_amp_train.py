@@ -108,15 +108,16 @@ def phase_retarget():
     reassemble_smplx()
     gmr_output = MOTIONS_DIR / "x1_gmr"
     lab_output = MOTIONS_DIR / "x1_lab"
-    v31_dir = MOTIONS_DIR / "x1_lab_v31"
+    v31_dir = MOTIONS_DIR / "x1_lab_v32"
     # v31b FIX (TASK_20260910_128 postmortem): the skip check demanded >= 12
     # x1_gmr files but the v31 dataset ships 11 — the pipeline entered the
     # GMR venv setup, the pod's DNS could not resolve /pypi (v27 lesson,
     # TASK_20260908_230) and the task died in 5 min. The GMR stack is dead
-    # weight whenever the FINAL products ship in-repo: gate on x1_lab_v31
-    # (11 sources + 11 mirrors) plus the intermediate dirs being non-empty.
-    # NEVER gate the skip on exact intermediate counts — they change with
-    # every dataset revision while the v31 layout is what training reads.
+    # weight whenever the FINAL products ship in-repo: gate on the FINAL
+    # products (v32 since v38: 10-body key_body_pos disc dataset), plus the
+    # intermediate dirs being non-empty. NEVER gate the skip on exact
+    # intermediate counts — they change with every dataset revision while
+    # the final layout is what training reads.
     # NOTE x1_lab holds 21 files (11 sources + 10 legacy mirrors; 103_07's
     # mirror lives only in x1_lab_v31) — count SOURCES, not raw files.
     n_v31 = len(list(v31_dir.glob("*.pkl"))) if v31_dir.exists() else 0
@@ -759,6 +760,41 @@ def phase_play_video(ckpt: Path, policy_npz: Path | None = None):
     else:
         print("[WARN] No mp4 from Isaac play — falling back to MuJoCo sim2sim rollout")
         video = sim2sim_fallback_video(policy_npz or ckpt)
+
+    if video is None:
+        # v38 P6 evidence fix: the container has neither GL (Isaac
+        # RecordVideo writes nothing) nor egress (mujoco pip fails) — every
+        # run since v31 failed P6_play on missing video. Physics-only Isaac
+        # rollout (isaac_play_dump.py, headless-safe) + pure-numpy
+        # stick-figure GIF (skeleton_render.py, matplotlib Agg) need
+        # neither. The GIF also satisfies check_amp's >100KB gate.
+        try:
+            traj = REPO_ROOT / "play_traj.npz"
+            gif = UPLOAD_DIR / "x1_play_skeleton.gif"
+            dump = REPO_ROOT / "roboparty_train" / "isaac_play_dump.py"
+            cmd = [sys.executable, str(dump),
+                   "--task", "X1-AMP-Play", "--checkpoint", str(ckpt),
+                   "--steps", "600", "--cmd", "1.0", "0.0", "0.0",
+                   "--out", str(traj), "--headless"]
+            print(f"[INFO] skeleton fallback: {' '.join(cmd[:6])}...")
+            with open(PLAY_LOG_FILE, "ab") as logf:
+                r = subprocess.run(cmd, cwd=str(REPO_ROOT), timeout=1500,
+                                   stdout=logf, stderr=subprocess.STDOUT)
+            if r.returncode == 0 and traj.exists():
+                render = REPO_ROOT / "roboparty_train" / "skeleton_render.py"
+                env_ = dict(os.environ, MPLCONFIGDIR=str(REPO_ROOT / ".mplcache"))
+                r2 = subprocess.run(
+                    [sys.executable, str(render), "--traj", str(traj),
+                     "--out", str(gif)], cwd=str(REPO_ROOT), env=env_,
+                    timeout=900, capture_output=True, text=True)
+                print(f"[INFO] skeleton render rc={r2.returncode}: "
+                      f"{(r2.stdout or '').strip()[-200:]}")
+                if gif.exists() and gif.stat().st_size > 100_000:
+                    video = gif
+                    print(f"[OK] P6 video evidence (skeleton GIF): {gif.name} "
+                          f"({gif.stat().st_size // 1024}KB)")
+        except Exception as e:
+            print(f"[WARN] skeleton fallback failed: {e}")
 
     if video is None:
         print("[WARN] No video from any source")

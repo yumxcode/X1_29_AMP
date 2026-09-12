@@ -67,9 +67,15 @@ lab_dof_names:
 
 lab_key_body_names:
   # VERIFIED from Isaac Lab body names
+  # v38: +4 arm bodies for the discriminator observation (order must match
+  # KEY_BODY_NAMES in x1_amp_env_cfg.py and the v32 dataset pkl columns)
   - left_knee_pitch_link
   - right_knee_pitch_link
   - left_ankle_roll_link
   - right_ankle_roll_link
   - left_elbow_yaw_link
   - right_elbow_yaw_link
+  - left_shoulder_pitch_link
+  - right_shoulder_pitch_link
+  - left_wrist_pitch_link
+  - right_wrist_pitch_link

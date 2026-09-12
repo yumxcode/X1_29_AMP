@@ -47,13 +47,15 @@ KEY_BODIES = ["left_ankle_roll_link", "right_ankle_roll_link",
 
 
 def lab_dof_names():
-    names = []
-    for line in YAML.read_text().splitlines():
-        m = re.match(r"^\s*-\s*(\S+)\s*$", line)
-        if m:
-            names.append(m.group(1))
-        if len(names) >= 29:
-            break
+    # v32 FIX (2026-09-12): the old naive regex grabbed the FIRST 29
+    # "- item" lines of x1.yaml — which is gmr_dof_names (MuJoCo XML
+    # joint order), NOT lab_dof_names (Isaac Lab dof order). All mirrors
+    # written before v32 have dof_pos columns mapped under the WRONG
+    # order (their key_body_pos is still correct — it is transformed
+    # from the source kb, verified 0.0 mm). Use the proven parser.
+    sys.path.insert(0, str(ROOT.parent))
+    from sim2sim.mujoco_rollout import parse_yaml_list  # noqa: E402
+    names = parse_yaml_list(str(YAML), "lab_dof_names")
     assert len(names) == 29
     return names
 
