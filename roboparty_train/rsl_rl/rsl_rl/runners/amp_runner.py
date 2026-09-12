@@ -153,9 +153,21 @@ class AMPRunner(OnPolicyRunner):
         # Load RND model if used
         if self.alg_cfg["rnd_cfg"]:
             self.alg.rnd.load_state_dict(loaded_dict["rnd_state_dict"])
-        # Load AMP model
-        self.alg.amp_discriminator.load_state_dict(loaded_dict["amp_discriminator_state_dict"])
-        self.alg.amp_discriminator.disc_obs_normalizer.load_state_dict(loaded_dict["amp_discriminator_normalizer_state_dict"])
+        # Load AMP model. v38: when the disc OBSERVATION SHAPE changed between
+        # runs (e.g. v37 -> v38 disc key bodies 6 -> 10: input 237 -> 273),
+        # the saved discriminator cannot load — discard it and re-init. The
+        # actor/critic/normalizers above still resume; the disc relearns from
+        # scratch in a few hundred iters (same transient as any fresh run:
+        # style reward starts near 0 and climbs), which is exactly the
+        # desired behaviour for an observation-space experiment.
+        try:
+            self.alg.amp_discriminator.load_state_dict(loaded_dict["amp_discriminator_state_dict"])
+            self.alg.amp_discriminator.disc_obs_normalizer.load_state_dict(
+                loaded_dict["amp_discriminator_normalizer_state_dict"])
+        except RuntimeError as shape_err:
+            print(f"[AMPRunner] discriminator state NOT restored (obs shape "
+                  f"changed) — re-initializing discriminator: {shape_err}")
+            self._disc_state_dropped = True  # disc optimizer state is stale
         # Load optimizer if used
         if load_optimizer and resumed_training:
             # Algorithm optimizer
@@ -163,8 +175,9 @@ class AMPRunner(OnPolicyRunner):
             # RND optimizer if used
             if self.alg_cfg["rnd_cfg"]:
                 self.alg.rnd_optimizer.load_state_dict(loaded_dict["rnd_optimizer_state_dict"])
-            # AMP discriminator optimizer
-            self.alg.disc_optimizer.load_state_dict(loaded_dict["amp_discriminator_optimizer_state_dict"])
+            # AMP discriminator optimizer (skip if the disc was re-inited)
+            if not getattr(self, "_disc_state_dropped", False):
+                self.alg.disc_optimizer.load_state_dict(loaded_dict["amp_discriminator_optimizer_state_dict"])
         # Load current learning iteration
         if resumed_training:
             self.current_learning_iteration = loaded_dict["iter"]
