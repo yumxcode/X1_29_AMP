@@ -1,0 +1,19 @@
+# TASK_20260912_135 x1-amp-ft-v38-disc-r2 — platform acceptance (extracted 2026-09-12 19:04:20)
+
+  ok   P1_iters: completed 6298/4000 iterations
+  ok   P2a_ep_len: ep_len 995.8 >= 950
+  ok   P2b_timeout: time_out 0.9917 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0000 + bad_orient 0.0083 <= 0.03
+  ok   P3a_lin_kernel: lin kernel 0.8418 >= 0.82 (reward 1.052)
+  ok   P3b_ang_kernel: ang kernel 0.5389 >= 0.5 (reward 0.674)
+  ok   P3c_err_xy: error_vel_xy 0.4053 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.8941 <= 0.95
+  ok   P4_no_collapse: last100 22.38 >= 90% x best 23.45
+  ok   P5a_style: style 0.562 >= 0.15
+  ok   P5b_disc: disc_loss 0.00380 <= 0.05
+  FAIL P6_play: no play evidence provided; play log no base_contact term: True
+  MISS T1_lin_kernel: 0.8418 vs 0.85
+  MISS T2_ang_kernel: 0.5389 vs 0.6
+  HIT  T3_style: 0.562 vs 0.5
+VERDICT: FAIL   (12/13 pass, fails=['P6_play'])

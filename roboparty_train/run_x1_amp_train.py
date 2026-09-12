@@ -594,6 +594,21 @@ def phase_train() -> int:
     stop_monitor.set()
     time.sleep(2)
 
+    # v38 lesson (TASK_20260912_135): the final model_6297.pt was written by
+    # rsl_rl AFTER the monitor's last 60s poll but the old final sweep only
+    # mirrored the file final_checkpoint() returned — a race where a
+    # just-written final ckpt could be missed entirely (6297 never
+    # registered; pod destroyed). Explicitly re-scan now and mirror ANY
+    # checkpoint newer than what the monitor last saw.
+    try:
+        for nm, ck in sorted(all_checkpoints().items()):
+            if nm.startswith("model_") and nm not in mirrored:
+                print(f"[FINAL-SWEEP] late checkpoint mirror: {nm}")
+                mirror_checkpoint(ck, tag)
+                mirrored.add(nm)
+    except Exception as e:
+        print(f"[FINAL-SWEEP] error: {e}")
+
     # v22 final sweep: mirror ONLY the final checkpoint. Reports are written
     # to UPLOAD_DIR by the packaging/acceptance phases. Keeping the total
     # SDK-visible .pt count small protects the final ckpt + reports against
@@ -779,7 +794,13 @@ def phase_play_video(ckpt: Path, policy_npz: Path | None = None):
             print(f"[INFO] skeleton fallback: {' '.join(cmd[:6])}...")
             with open(PLAY_LOG_FILE, "ab") as logf:
                 r = subprocess.run(cmd, cwd=str(REPO_ROOT), timeout=1500,
-                                   stdout=logf, stderr=subprocess.STDOUT)
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                logf.write(r.stdout or b"")
+            if r.returncode != 0:
+                tail = [l for l in (r.stdout or b"").decode(errors="replace").splitlines()
+                        if l.strip()][-8:]
+                print(f"[WARN] isaac_play_dump rc={r.returncode}; tail: " +
+                      " | ".join(t.strip()[:150] for t in tail)[:1200])
             if r.returncode == 0 and traj.exists():
                 render = REPO_ROOT / "roboparty_train" / "skeleton_render.py"
                 env_ = dict(os.environ, MPLCONFIGDIR=str(REPO_ROOT / ".mplcache"))
