@@ -32,7 +32,8 @@ def yaw_of(q):
 
 for label, path in [("v32b", "/tmp/p7_v32b.npz"),
                     ("v33b", "/tmp/p7_v33b3999.npz"),
-                    ("v34", "/tmp/p7_v34.npz")]:
+                    ("v34", "/tmp/p7_v34.npz"),
+                    ("v35", "/tmp/p7_v35.npz")]:
     p = Path(path)
     if not p.exists():
         continue

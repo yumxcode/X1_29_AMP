@@ -36,3 +36,5 @@ whoami.json
 .venv_test/
 .venv39/
 _gmr_local/
+acceptance/v35_eval/model_3999.pt
+acceptance/v35_eval/model_3999.policy.npz
