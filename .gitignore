@@ -46,3 +46,4 @@ acceptance/v38_eval/model_*.pt
 acceptance/v38_eval/model_*.policy.npz
 acceptance/v39_eval/model_*.pt
 acceptance/v40_eval/model_*.pt
+acceptance/attr_probe/model_*.pt
