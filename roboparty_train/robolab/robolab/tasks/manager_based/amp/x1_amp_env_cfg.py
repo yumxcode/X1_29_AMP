@@ -413,7 +413,23 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # landing-quality/safety regularization, not style shaping).
         # ------------------------------------------------------
         import os as _os2
-        if _os2.environ.get("X1_FORM_GUARDS", "1") == "0":
+        _fg = _os2.environ.get("X1_FORM_GUARDS", "1")
+        # ATTRIBUTION RESULT (TASK_20260914_070): with all 5 guards off,
+        # leg symmetry IMPROVED (walk10 hip 0.718->0.941, walk05
+        # 0.698->0.900) and arm phase held (anti -0.96 / coupling +0.50)
+        # — the discriminator (mirrored dataset + 10-body obs) carries
+        # legs + arm PHASE. Only arm DC lean (P7h 14.2>12, walk05 asym
+        # 32.5 deg) and torso pitch (+17.3 vs 14.9) regressed — those are
+        # guard-carried. Mode 2 = minimal-guard disc-led config.
+        if _fg == "2":
+            self.rewards.arm_pitch_sync.weight = 0.0
+            self.rewards.arm_leg_coupling.weight = 0.0
+            self.rewards.leg_amp_asym.weight = 0.0
+            print("[FORM-GUARDS] X1_FORM_GUARDS=2 — minimal guards: "
+                  "arm_asym_lean + lumbar_posture kept (arm DC/torso are "
+                  "still guard-carried); pitch_sync/coupling/leg_amp_asym "
+                  "retired (discriminator-led per attribution probe)")
+        elif _fg == "0":
             self.rewards.arm_pitch_sync.weight = 0.0
             self.rewards.arm_asym_lean.weight = 0.0
             self.rewards.arm_leg_coupling.weight = 0.0
