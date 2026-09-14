@@ -442,6 +442,24 @@ def action_rate_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     return torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
 
 
+def action_rate_l2_joints(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Joint-subset action-rate penalty (v40 legs/arms smoothing split).
+
+    The stock action_rate_l2 has no asset_cfg (pure action space). The env's
+    single JointPositionAction term spans joint_names=[".*"], so action dim
+    i <-> robot joint i in the same order SceneEntityCfg resolves — masking
+    by asset_cfg.joint_ids selects exactly those channels. Used to run the
+    ARM channels (shoulder/elbow/wrist) at half weight while legs+torso
+    keep the original penalty.
+    """
+    ids = asset_cfg.resolve(env.scene).joint_ids
+    a = env.action_manager.action[:, ids]
+    pa = env.action_manager.prev_action[:, ids]
+    return torch.sum(torch.square(a - pa), dim=1)
+
+
 def joint_torques_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint torques applied on the articulation using L2 squared kernel.
 

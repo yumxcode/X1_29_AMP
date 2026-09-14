@@ -75,7 +75,7 @@ class X1AmpRewards():
     # joints) so the arm channels are not double-penalized.
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=0,
                            params={"asset_cfg": _LEGS_TORSO_CFG})
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=0,
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2_joints, weight=0,
                              params={"asset_cfg": _LEGS_TORSO_CFG})
     # v40: arm-channel HALVED smoothing penalties. Arm swing fell across
     # three disc-led runs (29.7 -> 21.7 -> 18.7 deg) even with wrists
@@ -86,7 +86,7 @@ class X1AmpRewards():
         func=mdp.joint_acc_l2, weight=0,
         params={"asset_cfg": _ARMS_CFG})
     action_rate_l2_arms = RewTerm(
-        func=mdp.action_rate_l2, weight=0,
+        func=mdp.action_rate_l2_joints, weight=0,
         params={"asset_cfg": _ARMS_CFG})
     smoothness_1 = RewTerm(func=mdp.smoothness_1, weight=0)
     joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=0)
