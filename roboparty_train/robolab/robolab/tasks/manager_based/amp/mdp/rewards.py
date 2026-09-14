@@ -453,8 +453,14 @@ def action_rate_l2_joints(
     by asset_cfg.joint_ids selects exactly those channels. Used to run the
     ARM channels (shoulder/elbow/wrist) at half weight while legs+torso
     keep the original penalty.
+    Defensive: the RewardManager resolves SceneEntityCfg params ONCE
+    in-place — re-resolving with joint_names AND joint_ids both set
+    raises; use ids when already present.
     """
-    ids = asset_cfg.resolve(env.scene).joint_ids
+    if asset_cfg.joint_ids is not None:
+        ids = asset_cfg.joint_ids
+    else:
+        ids = asset_cfg.resolve(env.scene).joint_ids
     a = env.action_manager.action[:, ids]
     pa = env.action_manager.prev_action[:, ids]
     return torch.sum(torch.square(a - pa), dim=1)

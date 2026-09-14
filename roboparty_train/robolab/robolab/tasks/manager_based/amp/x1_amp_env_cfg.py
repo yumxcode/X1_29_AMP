@@ -40,10 +40,7 @@ AMP_NUM_STEPS = 3
 # class body breaks disable_zero_weight_rewards(), which walks every
 # attribute expecting a RewTerm (.weight) and crashed v40 at startup
 # (TASK_20260914_035: AttributeError 'SceneEntityCfg' has no 'weight').
-_LEGS_TORSO_CFG = SceneEntityCfg(
-    "robot", joint_names=[".*(hip|knee|ankle|lumbar).*_joint"])
-_ARMS_CFG = SceneEntityCfg(
-    "robot", joint_names=[".*_(shoulder|elbow|wrist)_.*joint"])
+
 
 
 @configclass
@@ -74,9 +71,11 @@ class X1AmpRewards():
     # the *_arms terms below). Base terms cover legs+torso ONLY (17
     # joints) so the arm channels are not double-penalized.
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=0,
-                           params={"asset_cfg": _LEGS_TORSO_CFG})
+                           params={"asset_cfg": SceneEntityCfg(
+                               "robot", joint_names=[".*(hip|knee|ankle|lumbar).*_joint"])})
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2_joints, weight=0,
-                             params={"asset_cfg": _LEGS_TORSO_CFG})
+                             params={"asset_cfg": SceneEntityCfg(
+                                 "robot", joint_names=[".*(hip|knee|ankle|lumbar).*_joint"])})
     # v40: arm-channel HALVED smoothing penalties. Arm swing fell across
     # three disc-led runs (29.7 -> 21.7 -> 18.7 deg) even with wrists
     # visible to the disc and style scale 2.5 — the style gradient toward
@@ -84,10 +83,12 @@ class X1AmpRewards():
     # smoothing penalties applied to all 29 joints equally.
     joint_acc_l2_arms = RewTerm(
         func=mdp.joint_acc_l2, weight=0,
-        params={"asset_cfg": _ARMS_CFG})
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", joint_names=[".*_(shoulder|elbow|wrist)_.*joint"])})
     action_rate_l2_arms = RewTerm(
         func=mdp.action_rate_l2_joints, weight=0,
-        params={"asset_cfg": _ARMS_CFG})
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", joint_names=[".*_(shoulder|elbow|wrist)_.*joint"])})
     smoothness_1 = RewTerm(func=mdp.smoothness_1, weight=0)
     joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=0)
     joint_energy = RewTerm(func=mdp.joint_energy, weight=0)
