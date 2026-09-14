@@ -1,0 +1,20 @@
+# TASK_20260914_013 x1-amp-ft-v39-disc2 — platform acceptance (extracted 2026-09-14 12:12:43)
+# VERDICT: PASS 13/13 — first genuine full pass (P6 skeleton GIF evidence chain)
+
+  ok   P1_iters: completed 6298/4000 iterations
+  ok   P2a_ep_len: ep_len 995.1 >= 950
+  ok   P2b_timeout: time_out 0.9911 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0000 + bad_orient 0.0089 <= 0.03
+  ok   P3a_lin_kernel: lin kernel 0.8435 >= 0.82 (reward 1.054)
+  ok   P3b_ang_kernel: ang kernel 0.5425 >= 0.5 (reward 0.678)
+  ok   P3c_err_xy: error_vel_xy 0.4002 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.8848 <= 0.95
+  ok   P4_no_collapse: last100 23.20 >= 90% x best 23.56
+  ok   P5a_style: style 1.065 >= 0.15
+  ok   P5b_disc: disc_loss 0.00427 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (917KB); play log no base_contact term: True
+  MISS T1_lin_kernel: 0.8435 vs 0.85
+  MISS T2_ang_kernel: 0.5425 vs 0.6
+  HIT  T3_style: 1.065 vs 0.5
+VERDICT: PASS   (13/13 pass, fails=[])

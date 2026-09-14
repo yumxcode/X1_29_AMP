@@ -1,0 +1,56 @@
+{
+ "taskId": "TASK_20260914_013",
+ "verdict": "PASS 13/13",
+ "registered": [
+  {
+   "fileName": "x1_play_skeleton_110336.mp4",
+   "createTime": "2026-09-14 11:03:43",
+   "policUrl": ""
+  },
+  {
+   "fileName": "model_6297.pt",
+   "createTime": "2026-09-14 11:02:18",
+   "policUrl": "upload/2026/9/14/model_6297_20260914110217A041.pt"
+  },
+  {
+   "fileName": "model_6000.pt",
+   "createTime": "2026-09-14 10:53:19",
+   "policUrl": "upload/2026/9/14/model_6000_20260914105318A704.pt"
+  },
+  {
+   "fileName": "model_5500.pt",
+   "createTime": "2026-09-14 10:38:19",
+   "policUrl": "upload/2026/9/14/model_5500_20260914103818A338.pt"
+  },
+  {
+   "fileName": "model_5000.pt",
+   "createTime": "2026-09-14 10:22:21",
+   "policUrl": "upload/2026/9/14/model_5000_20260914102219A410.pt"
+  },
+  {
+   "fileName": "model_4798_v37.pt",
+   "createTime": "2026-09-14 10:14:31",
+   "policUrl": "upload/2026/9/14/model_4798_v37_20260914101430A588.pt"
+  },
+  {
+   "fileName": "model_amp_report.pt",
+   "createTime": "2026-09-14 11:03:53",
+   "policUrl": "upload/2026/9/14/model_amp_report_20260914110352A452.pt"
+  },
+  {
+   "fileName": "model_retarget_data.pt",
+   "createTime": "2026-09-14 10:14:25",
+   "policUrl": "upload/2026/9/14/model_retarget_data_20260914101423A800.pt"
+  },
+  {
+   "fileName": "model_retarget_report.pt",
+   "createTime": "2026-09-14 10:14:19",
+   "policUrl": "upload/2026/9/14/model_retarget_report_20260914101418A616.pt"
+  },
+  {
+   "fileName": "pipeline_meta.pt",
+   "createTime": "2026-09-14 10:14:09",
+   "policUrl": "upload/2026/9/14/pipeline_meta_20260914101408A486.pt"
+  }
+ ]
+}
