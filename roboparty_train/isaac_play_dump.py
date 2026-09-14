@@ -63,7 +63,10 @@ import torch  # noqa: E402
 from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper  # noqa: E402
 from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry  # noqa: E402
 
-import robolab  # noqa: F401,E402  (registers the X1 tasks)
+import robolab.tasks  # noqa: F401,E402  (registers the X1 tasks — a bare
+#                     `import robolab` does NOT run robolab/tasks/__init__
+#                     and gym.spec('X1-AMP-Play') then raises NameNotFound;
+#                     exactly what train.py imports)
 from rsl_rl.runners import AMPRunner  # noqa: E402
 
 
