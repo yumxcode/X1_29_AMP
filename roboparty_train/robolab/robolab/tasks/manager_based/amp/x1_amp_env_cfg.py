@@ -389,7 +389,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # - frozen antisymmetric arm offset: L -9 / R +9.8 deg held -> slow
         #   EMA (tau 8 s) DC guard; ref ~5 deg (-0.019) vs frozen 18.8 deg
         #   (-0.066) -> separates natural small asym from frozen defects
-        self.rewards.arm_asym_lean.weight = -0.2
+        # v42: doubled — v40 ran with -0.2 and still grew a 33 deg arm-DC
+        # asymmetry (P7g fail) that coupled into -3.06 m drift
+        self.rewards.arm_asym_lean.weight = -0.4
         # - arm/opposite-leg coupling: refs +0.8..+0.99 vs policy -0.12;
         #   high-passed capped product (positive on ref, mean-shift free)
         self.rewards.arm_leg_coupling.weight = 0.3
@@ -532,6 +534,13 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 self.events.push_robot.interval_range_s = (6.0, 12.0)
                 self.events.push_robot.params["velocity_range"] = {
                     "x": (-0.4, 0.4), "y": (-0.4, 0.4), "yaw": (-0.5, 0.5)}
+            elif _robust == "4":
+                # v42: strong-mid. ROBUST=3 (±0.5 @5-10s) gave push1.0
+                # 0-1/5 across v39-v41; v35 full-strength (±0.8 @4-8s) gave
+                # 3/5. Interpolate both magnitude and frequency.
+                self.events.push_robot.interval_range_s = (4.0, 8.0)
+                self.events.push_robot.params["velocity_range"] = {
+                    "x": (-0.65, 0.65), "y": (-0.65, 0.65), "yaw": (-0.8, 0.8)}
             elif _robust == "3":
                 # v38 intermediate: v37 (0.4) recovered walk05 form but
                 # push1.0 fell to 0/5 (v35 full-strength: 3/5). Interpolate.

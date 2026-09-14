@@ -128,11 +128,12 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 # recovery; P5a floor 0.15 retains ~8x margin even if style
                 # halves again. Revert to 0.6 if P5a < 0.3 or arm form (P7)
                 # regresses.
-                # v39: 0.7 -> 0.65 (35% style). v38 evidence: the enlarged
-                # disc made style informative for arm form; nudge the mix
-                # toward style to give the arm channel gradient room. P3
-                # margin at 0.7 was lin 0.842-0.02 = 0.023; watch P3a >= 0.82.
-                task_style_lerp=0.65
+                # v42: 0.65 -> 0.68 (audit item T1): v38-v41 ran 0.65 and
+                # the lin kernel sat at 0.834-0.844 (T1 target 0.85);
+                # v36's clean-phase peak was 0.864. Nudge the task mix up
+                # while keeping style well above its floor (v39-v41 style
+                # 0.94-1.07 at 0.65 — ample margin above P5a 0.15).
+                task_style_lerp=0.68
             ),
             loss_type="LSGAN"
         ),
