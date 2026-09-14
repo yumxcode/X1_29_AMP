@@ -398,6 +398,29 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # - v39: hip swing-amplitude symmetry (v38 regression 0.694/0.755).
         #   v40: weight set near the joint section (-0.8, doubled; v39's
         #   -0.3 recovered only +0.024 ratio over 1500 iters)
+        # ------------------------------------------------------
+        # ATTRIBUTION ablation (user goal structure: velocity tracking ->
+        # task reward; ALL other gait form -> style discriminator).
+        # X1_FORM_GUARDS=0 zeroes the five hand-engineered form guards
+        # (arm_pitch_sync / arm_asym_lean / arm_leg_coupling /
+        # lumbar_posture / leg_amp_asym), leaving: task velocity rewards +
+        # physics regularization + the AMP style channel. If gait form
+        # (P7/G2/arm swing) HOLDS in a short fine-tune under this config,
+        # the discriminator is the form controller (goal achieved); if it
+        # regresses, the guards are still carrying the form (style not yet
+        # dominant). stance_sole_flat/feet_slide/yaw_bias stay ON (physical
+        # landing-quality/safety regularization, not style shaping).
+        # ------------------------------------------------------
+        import os as _os2
+        if _os2.environ.get("X1_FORM_GUARDS", "1") == "0":
+            self.rewards.arm_pitch_sync.weight = 0.0
+            self.rewards.arm_asym_lean.weight = 0.0
+            self.rewards.arm_leg_coupling.weight = 0.0
+            self.rewards.lumbar_posture.weight = 0.0
+            self.rewards.leg_amp_asym.weight = 0.0
+            print("[FORM-GUARDS] X1_FORM_GUARDS=0 — form attribution ablation: "
+                  "5 hand-engineered guards OFF; form must come from the "
+                  "discriminator or degrade")
 
         # feet
         self.rewards.feet_slide.weight = -0.1
