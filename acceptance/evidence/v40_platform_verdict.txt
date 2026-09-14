@@ -1,0 +1,20 @@
+# TASK_20260914_049 x1-amp-ft-v40-disc3-r4 — platform acceptance (extracted 2026-09-14 16:23:52)
+# VERDICT: PASS 13/13 — second consecutive genuine full pass
+
+  ok   P1_iters: completed 5499/4000 iterations
+  ok   P2a_ep_len: ep_len 991.7 >= 950
+  ok   P2b_timeout: time_out 0.9863 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0000 + bad_orient 0.0137 <= 0.03
+  ok   P3a_lin_kernel: lin kernel 0.8336 >= 0.82 (reward 1.042)
+  ok   P3b_ang_kernel: ang kernel 0.5271 >= 0.5 (reward 0.659)
+  ok   P3c_err_xy: error_vel_xy 0.4128 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.9186 <= 0.95
+  ok   P4_no_collapse: last100 22.02 >= 90% x best 22.42
+  ok   P5a_style: style 0.943 >= 0.15
+  ok   P5b_disc: disc_loss 0.00382 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (1010KB); play log no base_contact term: True
+  MISS T1_lin_kernel: 0.8336 vs 0.85
+  MISS T2_ang_kernel: 0.5271 vs 0.6
+  HIT  T3_style: 0.943 vs 0.5
+VERDICT: PASS   (13/13 pass, fails=[])
