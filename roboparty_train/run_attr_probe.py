@@ -21,7 +21,7 @@ Verdict table (evaluated on the local battery, vs the v40 baseline):
     >= 0.82 in BOTH cases — that channel is never in question.
 
 Checkpoints: v40 final (model_5498, embedded at
-roboparty_train/checkpoints/model_5498_v40.pt after the v40 run — this
+roboparty_train/checkpoints/model_6297_v39.pt after the v40 run — this
 launcher expects it; if absent, mount or OSS per the established chain).
 """
 import os
@@ -34,17 +34,17 @@ os.environ["X1_FORM_GUARDS"] = "0"         # THE ABLATION: form guards OFF
 os.environ["X1_FINE_TUNE_ITERS"] = "300"   # short probe (+300)
 
 _HERE = Path(__file__).resolve().parent
-_EMBEDDED = _HERE / "checkpoints" / "model_5498_v40.pt"
+_EMBEDDED = _HERE / "checkpoints" / "model_6297_v39.pt"
 if _EMBEDDED.is_file():
     os.environ["X1_RESUME_CKPT"] = str(_EMBEDDED)
 else:
-    mounted = sorted(p for p in _HERE.parent.glob("model_5498*.pt"))
+    mounted = sorted(p for p in _HERE.parent.glob("model_6297*.pt"))
     if mounted:
         os.environ["X1_RESUME_CKPT"] = str(mounted[0])
     else:
         raise FileNotFoundError(
             "v40 base checkpoint not found — embed model_5498 at "
-            "roboparty_train/checkpoints/model_5498_v40.pt first (v40 run "
+            "roboparty_train/checkpoints/model_6297_v39.pt first (v40 run "
             "TASK_20260914_037 output)")
 
 sys.argv = [str(_HERE / "run_x1_amp_train.py")] + sys.argv[1:]
