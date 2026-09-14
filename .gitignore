@@ -48,3 +48,4 @@ acceptance/v39_eval/model_*.pt
 acceptance/v40_eval/model_*.pt
 acceptance/attr_probe/model_*.pt
 acceptance/v41_eval/model_*.pt
+acceptance/v42_eval/model_*.pt
