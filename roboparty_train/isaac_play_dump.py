@@ -74,7 +74,10 @@ def main():
     env_cfg = load_cfg_from_registry(args_cli.task, "env_cfg_entry_point")
     env_cfg.scene.num_envs = args_cli.num_envs
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
-    agent_cfg = load_cfg_from_registry(args_cli.task, "agent_cfg_entry_point")
+    # p6v-r3 postmortem: the registry key is rsl_rl_cfg_entry_point (see
+    # the X1-AMP gym.register kwargs) — "agent_cfg_entry_point" is not a
+    # registered key and load_cfg_from_registry raised ValueError.
+    agent_cfg = load_cfg_from_registry(args_cli.task, "rsl_rl_cfg_entry_point")
     agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
 
     print("[DUMP-STAGE] gym.make...", flush=True)
