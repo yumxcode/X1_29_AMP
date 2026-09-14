@@ -51,8 +51,10 @@ if not args_cli.checkpoint:
 
 sys.argv = [sys.argv[0]] + hydra_args
 
+print("[DUMP-STAGE] pre-AppLauncher", flush=True)
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
+print("[DUMP-STAGE] app launched", flush=True)
 
 import copy  # noqa: F401
 import gymnasium as gym  # noqa: E402
@@ -72,11 +74,13 @@ def main():
     agent_cfg = load_cfg_from_registry(args_cli.task, "agent_cfg_entry_point")
     agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
 
+    print("[DUMP-STAGE] gym.make...", flush=True)
     env = gym.make(args_cli.task, cfg=env_cfg)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     log_dir = None
     runner = AMPRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    print("[DUMP-STAGE] runner.load...", flush=True)
     runner.load(args_cli.checkpoint, map_location=agent_cfg.device)
     policy = runner.get_inference_policy(device=env.unwrapped.device)
     policy_nn = runner.alg.policy
@@ -96,6 +100,7 @@ def main():
     qs, bps, bqs = [], [], []
     obs = env.get_observations()
     with torch.inference_mode():
+        print("[DUMP-STAGE] stepping loop...", flush=True)
         for step in range(args_cli.steps):
             actions = policy(obs)
             obs, _, dones, _ = env.step(actions)
@@ -117,6 +122,7 @@ def main():
     import json  # noqa: E402
     meta = {"hinge_names": lab_names, "settle_steps": 0, "fell": False,
             "cmd": list(args_cli.cmd), "src": str(args_cli.checkpoint)}
+    print("[DUMP-STAGE] saving npz...", flush=True)
     np.savez_compressed(args_cli.out, q=q, base_pos=bp, base_quat=bq,
                         meta=np.array(json.dumps(meta)))
     print(f"[DUMP] wrote {args_cli.out} ({len(q)} steps, {q.shape[1]} dof)")

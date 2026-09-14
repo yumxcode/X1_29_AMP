@@ -792,10 +792,23 @@ def phase_play_video(ckpt: Path, policy_npz: Path | None = None):
                    "--steps", "600", "--cmd", "1.0", "0.0", "0.0",
                    "--out", str(traj), "--headless"]
             print(f"[INFO] skeleton fallback: {' '.join(cmd[:6])}...")
+            _t0 = time.time()
             with open(PLAY_LOG_FILE, "ab") as logf:
                 r = subprocess.run(cmd, cwd=str(REPO_ROOT), timeout=1500,
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 logf.write(r.stdout or b"")
+            # p6v postmortem (TASK_20260912_147): the dump returned rc=0 with
+            # NO traj written and BOTH diagnostic branches silent — stdout was
+            # only appended to play_stdout.log (dead-pod-unrecoverable). Now
+            # UNCONDITIONALLY report rc/duration/traj state + stdout tail to
+            # the TASK log.
+            _tail = [l for l in (r.stdout or b"").decode(errors="replace").splitlines()
+                     if l.strip()][-12:]
+            print(f"[P6DBG] isaac_play_dump rc={r.returncode} dur={time.time()-_t0:.0f}s "
+                  f"traj_exists={traj.exists()} "
+                  f"size={traj.stat().st_size if traj.exists() else 0}")
+            print(f"[P6DBG] dump stdout tail: " +
+                  " | ".join(t.strip()[:150] for t in _tail)[:1600])
             if r.returncode != 0:
                 tail = [l for l in (r.stdout or b"").decode(errors="replace").splitlines()
                         if l.strip()][-8:]
