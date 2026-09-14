@@ -1,0 +1,18 @@
+# TASK_20260914_081 x1-amp-ft-v41-min-guard — platform acceptance
+# VERDICT: FAIL 12/13 (P4 tail droop — form-freedom drift after guard retirement)
+
+[FAIL] MuJoCo rollout did not produce a gait log — P7 FAIL (checkpoint is still usable; P7 can be re-run locally)
+  ok   P1_iters: completed 7297/4000 iterations
+  ok   P2a_ep_len: ep_len 995.2 >= 950
+  ok   P2b_timeout: time_out 0.9882 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0000 + bad_orient 0.0118 <= 0.03
+  ok   P3a_lin_kernel: lin kernel 0.8400 >= 0.82 (reward 1.050)
+  ok   P3b_ang_kernel: ang kernel 0.5405 >= 0.5 (reward 0.676)
+  ok   P3c_err_xy: error_vel_xy 0.4065 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.8899 <= 0.95
+  FAIL P4_no_collapse: last100 23.64 >= 90% x best 26.95
+  ok   P5a_style: style 0.941 >= 0.15
+  ok   P5b_disc: disc_loss 0.00368 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (930KB); play log no base_contact term: True
+VERDICT: FAIL   (12/13 pass, fails=['P4_no_collapse'])
