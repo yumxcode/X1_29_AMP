@@ -60,8 +60,28 @@ class X1AmpRewards():
 
     # -- Joint
     joint_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=0)
-    joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=0)
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=0)
+    # v40: acc/rate smoothing split legs-vs-arms (halved on arms — see
+    # the *_arms terms below). Base terms cover legs+torso ONLY (17
+    # joints) so the arm channels are not double-penalized.
+    _LEGS_TORSO = SceneEntityCfg("robot",
+        joint_names=[".*(hip|knee|ankle|lumbar).*_joint"])
+    joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=0,
+                           params={"asset_cfg": _LEGS_TORSO})
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=0,
+                             params={"asset_cfg": _LEGS_TORSO})
+    # v40: arm-channel HALVED smoothing penalties. Arm swing fell across
+    # three disc-led runs (29.7 -> 21.7 -> 18.7 deg) even with wrists
+    # visible to the disc and style scale 2.5 — the style gradient toward
+    # reference-like arm swing (92/83 deg) is outweighed by the flat
+    # smoothing penalties applied to all 29 joints equally.
+    joint_acc_l2_arms = RewTerm(
+        func=mdp.joint_acc_l2, weight=0,
+        params={"asset_cfg": SceneEntityCfg("robot",
+                joint_names=[".*_(shoulder|elbow|wrist)_.*joint"])})
+    action_rate_l2_arms = RewTerm(
+        func=mdp.action_rate_l2, weight=0,
+        params={"asset_cfg": SceneEntityCfg("robot",
+                joint_names=[".*_(shoulder|elbow|wrist)_.*joint"])})
     smoothness_1 = RewTerm(func=mdp.smoothness_1, weight=0)
     joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=0)
     joint_energy = RewTerm(func=mdp.joint_energy, weight=0)
@@ -342,6 +362,13 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.joint_vel_l2.weight = -2e-4
         self.rewards.joint_acc_l2.weight = -2.5e-7
         self.rewards.action_rate_l2.weight = -0.01
+        # v40 arm-channel halves (see X1AmpRewards): legs/torso keep the
+        # original weights via the base terms above.
+        self.rewards.joint_acc_l2_arms.weight = -1.25e-7
+        self.rewards.action_rate_l2_arms.weight = -0.005
+        # v40: hip swing-amplitude guard doubled (v39 -0.3 recovered only
+        # +0.024 ratio over 1500 iters; base is v35 whose ratio was 0.874)
+        self.rewards.leg_amp_asym.weight = -0.8
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
@@ -362,9 +389,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # - chest posture: refs mean +14.9 deg forward vs policy -9 deg back;
         #   0.42 rad error -> -0.17/step at weight -0.4
         self.rewards.lumbar_posture.weight = -0.4
-        # - v39: hip swing-amplitude symmetry (v38 regression 0.694/0.755;
-        #   weight -0.3 calibrated to the v34 arm guards' scale)
-        self.rewards.leg_amp_asym.weight = -0.3
+        # - v39: hip swing-amplitude symmetry (v38 regression 0.694/0.755).
+        #   v40: weight set near the joint section (-0.8, doubled; v39's
+        #   -0.3 recovered only +0.024 ratio over 1500 iters)
 
         # feet
         self.rewards.feet_slide.weight = -0.1
