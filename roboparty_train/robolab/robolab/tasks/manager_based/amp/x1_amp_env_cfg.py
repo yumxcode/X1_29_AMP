@@ -142,6 +142,21 @@ class X1AmpRewards():
             "asset_cfg": SceneEntityCfg("robot", joint_names=["lumbar_pitch_joint"]),
         },
     )
+    # v39: hip swing-AMPLITUDE symmetry guard — v38 (disc obs 10 bodies)
+    # regressed walk10 hip ratio 0.823 -> 0.694 and walk05 0.755; the
+    # mirrored dataset gives a symmetric prior but nothing penalized
+    # asymmetric amplitudes under the new style gradient. Slow EMA (tau 8s)
+    # of |dev| envelopes; ref penalty ~0 at any phase structure.
+    leg_amp_asym = RewTerm(
+        func=mdp.leg_amp_asym,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=["left_hip_pitch_joint", "right_hip_pitch_joint"],
+                preserve_order=True),
+            "alpha": 0.0025,
+        },
+    )
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
         weight=0.0,
@@ -347,6 +362,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # - chest posture: refs mean +14.9 deg forward vs policy -9 deg back;
         #   0.42 rad error -> -0.17/step at weight -0.4
         self.rewards.lumbar_posture.weight = -0.4
+        # - v39: hip swing-amplitude symmetry (v38 regression 0.694/0.755;
+        #   weight -0.3 calibrated to the v34 arm guards' scale)
+        self.rewards.leg_amp_asym.weight = -0.3
 
         # feet
         self.rewards.feet_slide.weight = -0.1

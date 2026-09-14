@@ -113,7 +113,12 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
             amp_discriminator=RslRlAmpCfg.AMPDiscriminatorCfg(
                 hidden_dims=[1024, 512],
                 activation="elu",
-                style_reward_scale=1.5,
+                # v39: 1.5 -> 2.5. With wrists/shoulders IN the disc
+                # observation (v38), style score now CORRELATES with arm
+                # form (v33b 2.00/collapsed was the blind-disc regime;
+                # v38 0.562 with better scoring). Amplify the now-informative
+                # channel. Revert to 1.5 if P3a < 0.80 or P7 fails.
+                style_reward_scale=2.5,
                 # v35: 0.6 -> 0.7. History: v21 tested 0.75 (lin +0.003
                 # noise-level, style halved 0.335->0.146 -> P5a FAIL), settled
                 # on 0.6. Today's regime differs: the v31 dataset rebuild made
@@ -123,7 +128,11 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 # recovery; P5a floor 0.15 retains ~8x margin even if style
                 # halves again. Revert to 0.6 if P5a < 0.3 or arm form (P7)
                 # regresses.
-                task_style_lerp=0.7
+                # v39: 0.7 -> 0.65 (35% style). v38 evidence: the enlarged
+                # disc made style informative for arm form; nudge the mix
+                # toward style to give the arm channel gradient room. P3
+                # margin at 0.7 was lin 0.842-0.02 = 0.023; watch P3a >= 0.82.
+                task_style_lerp=0.65
             ),
             loss_type="LSGAN"
         ),

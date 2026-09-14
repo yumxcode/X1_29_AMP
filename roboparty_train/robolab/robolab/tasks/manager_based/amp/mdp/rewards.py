@@ -271,6 +271,34 @@ def arm_sync_residual(
     return torch.abs(hp_l + hp_r)
 
 
+def leg_amp_asym(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    alpha: float = 0.0025,
+) -> torch.Tensor:
+    """Hip swing-AMPLITUDE symmetry guard: |RMS_L - RMS_R| on hip pitch.
+
+    v39 response to the v38 regression (disc obs 10-body run): walk10 hip
+    swing ratio 0.823 -> 0.694, walk05 0.755 — the mirrored dataset
+    provides a symmetric prior but nothing penalized asymmetric swing
+    amplitudes; the disc-led style gradient drifted into an asymmetric
+    attractor. Statistic: slow EMA (tau = 8 s, v34 guard family) of dev^2
+    per side, penalize |sqrt(EMA_L) - sqrt(EMA_R)| — RMS tracks the AC
+    swing amplitude (what gait_metrics G2 gates, p95-p5) and is DC-
+    insensitive (unlike |dev|). Offline calibration (12 s rollouts, tau
+    steady-state underestimated): v35 ratio 0.886 -> 0.008, v37 0.837 ->
+    0.010, v38 0.695 -> 0.021 rad — 2x directional separation; refs are
+    themselves asymmetric (0005 ratio 0.46) so the term taxes reference-
+    like asymmetric styles mildly (-0.01..-0.06/step at w=-0.3) — the
+    mirrored-pair dataset makes the STYLE PRIOR symmetric; this guard
+    nudges the policy toward that mirrored average.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    ms_l = _ema(env, "hipL_ms", dev[:, 0] * dev[:, 0], alpha)
+    ms_r = _ema(env, "hipR_ms", dev[:, 1] * dev[:, 1], alpha)
+    return torch.abs(torch.sqrt(ms_l.clamp_min(1e-8)) - torch.sqrt(ms_r.clamp_min(1e-8)))
+
+
 def arm_opposite_leg_coupling(
     env: ManagerBasedRLEnv,
     shoulder_cfg: SceneEntityCfg, hip_cfg: SceneEntityCfg,
