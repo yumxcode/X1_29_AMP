@@ -356,6 +356,21 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 preserve_order=True,
             )
         }
+        # v49b: the same key bodies' VELOCITY feeds the disc (amplitude
+        # channel). Toggle via X1_DISC_VEL=0 to disable (defaults ON in v49b+
+        # envs; the obs-dim mismatch on resume is handled by the amp_runner
+        # disc re-init path).
+        import os as _os3
+        if _os3.environ.get("X1_DISC_VEL", "1") == "0":
+            self.observations.disc.key_body_vel_b = None
+        else:
+            self.observations.disc.key_body_vel_b.params = {
+                "asset_cfg": SceneEntityCfg(
+                    name="robot",
+                    body_names=KEY_BODY_NAMES,
+                    preserve_order=True,
+                )
+            }
         self.observations.disc.history_length = AMP_NUM_STEPS
 
         # ------------------------------------------------------

@@ -193,6 +193,12 @@ class ObservationsCfg():
             func=mdp.key_body_pos_b,
             params=MISSING,
         )
+        # v49b: key-body VELOCITY — the discriminator's direct amplitude
+        # channel (wrist speed; ref wrists swing ~2x faster than policies).
+        key_body_vel_b = ObsTerm(
+            func=mdp.key_body_vel_b,
+            params=MISSING,
+        )
         
         def __post_init__(self):
             self.enable_corruption = False
@@ -449,6 +455,7 @@ class AnimationCfg:
             "dof_pos",
             "dof_vel",
             "key_body_pos_b",
+            "key_body_vel_b",  # v49b: ref-side amplitude channel (diff of key_body_pos)
         ], 
         num_steps_to_use=10, 
         random_initialize=True,

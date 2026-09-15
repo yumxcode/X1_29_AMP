@@ -78,6 +78,9 @@ class AnimationTerm(ManagerTermBase):
             elif component == "key_body_pos_b":
                 num_key_bodies = self.motion_data_term.num_key_bodies
                 buffer_shape += (num_key_bodies, 3)
+            elif component == "key_body_vel_b":  # v49b
+                num_key_bodies = self.motion_data_term.num_key_bodies
+                buffer_shape += (num_key_bodies, 3)
             else:
                 raise ValueError(f"Unknown motion data component: {component}")
             setattr(self, f"{component}_buffer", torch.zeros(buffer_shape, device=env.device, dtype=torch.float32))

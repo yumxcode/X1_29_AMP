@@ -114,6 +114,7 @@ class MotionDataTerm(ManagerTermBase):
         self.dof_pos = []
         self.dof_vel = []
         self.key_body_pos_w = []
+        self.key_body_vel_w = []  # v49b
 
         # only load the motion data files that are in the motion weights dict
         for motion_name, motion_weight in self.motion_weights_dict.items():
@@ -180,6 +181,14 @@ class MotionDataTerm(ManagerTermBase):
             key_body_pos_w = torch.from_numpy(motion_raw_data["key_body_pos"]).to(self.device).float()
             key_body_pos_w.requires_grad_(False)
             
+            # v49b: key body VELOCITY in world frame (finite difference,
+            # same operator as root_vel_w). The discriminator gets wrist
+            # SPEED as a direct amplitude channel — the v38-v41 attribution
+            # showed position-only wrist obs leave the disc insensitive to
+            # swing amplitude (arms fell to 11-23 deg vs ref 92/83).
+            key_body_vel_w = vel_forward_diff(key_body_pos_w, dt)
+            key_body_vel_w.requires_grad_(False)
+            
             self.root_pos_w.append(root_pos_w)
             self.root_quat.append(root_quat)
             self.root_vel_w.append(root_vel_w)
@@ -187,6 +196,7 @@ class MotionDataTerm(ManagerTermBase):
             self.dof_pos.append(dof_pos)
             self.dof_vel.append(dof_vel)
             self.key_body_pos_w.append(key_body_pos_w)
+            self.key_body_vel_w.append(key_body_vel_w)
         
         self.motion_fps = torch.tensor(self.motion_fps, dtype=torch.float32, device=self.device)
         self.motion_dt = torch.tensor(self.motion_dt, dtype=torch.float32, device=self.device)
@@ -209,6 +219,7 @@ class MotionDataTerm(ManagerTermBase):
         self.dof_pos = torch.cat(self.dof_pos, dim=0)
         self.dof_vel = torch.cat(self.dof_vel, dim=0)
         self.key_body_pos_w = torch.cat(self.key_body_pos_w, dim=0)
+        self.key_body_vel_w = torch.cat(self.key_body_vel_w, dim=0)
         
         num_motions = self.get_num_motions()
         self.motion_ids = torch.arange(num_motions, dtype=torch.long, device=self.device)
@@ -368,6 +379,8 @@ class MotionDataTerm(ManagerTermBase):
         dof_vel_1 = self.dof_vel[frame_idx1]
         key_body_pos_w_0 = self.key_body_pos_w[frame_idx0]
         key_body_pos_w_1 = self.key_body_pos_w[frame_idx1]
+        key_body_vel_w_0 = self.key_body_vel_w[frame_idx0]  # v49b
+        key_body_vel_w_1 = self.key_body_vel_w[frame_idx1]
         
         # interpolate the values
 
@@ -386,6 +399,13 @@ class MotionDataTerm(ManagerTermBase):
             root_quat.unsqueeze(1).expand(-1, self.num_key_bodies, -1),
             key_body_pos_w - root_pos_w.unsqueeze(1)
         )
+        # v49b: key body velocity in the root body frame — the amplitude
+        # channel for the discriminator (wrist speed).
+        key_body_vel_w = torch.lerp(key_body_vel_w_0, key_body_vel_w_1, blend.unsqueeze(1))
+        key_body_vel_b = math_utils.quat_apply_inverse(
+            root_quat.unsqueeze(1).expand(-1, self.num_key_bodies, -1),
+            key_body_vel_w
+        )
 
         return {
             "root_pos_w": root_pos_w,
@@ -397,6 +417,7 @@ class MotionDataTerm(ManagerTermBase):
             "dof_pos": dof_pos,
             "dof_vel": dof_vel,
             "key_body_pos_b": key_body_pos_b,
+            "key_body_vel_b": key_body_vel_b,
         }
         
         
