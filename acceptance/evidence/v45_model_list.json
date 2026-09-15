@@ -1,0 +1,41 @@
+{
+ "taskId": "TASK_20260915_012",
+ "verdict": "PASS 13/13",
+ "registered": [
+  {
+   "fileName": "x1_play_skeleton_100242.mp4",
+   "createTime": "2026-09-15 10:02:49",
+   "policUrl": ""
+  },
+  {
+   "fileName": "model_7395.pt",
+   "createTime": "2026-09-15 10:01:44",
+   "policUrl": "upload/2026/9/15/model_7395_20260915100143A586.pt"
+  },
+  {
+   "fileName": "model_7097_v44.pt",
+   "createTime": "2026-09-15 09:51:24",
+   "policUrl": "upload/2026/9/15/model_7097_v44_20260915095123A698.pt"
+  },
+  {
+   "fileName": "model_amp_report.pt",
+   "createTime": "2026-09-15 10:02:58",
+   "policUrl": "upload/2026/9/15/model_amp_report_20260915100258A695.pt"
+  },
+  {
+   "fileName": "model_retarget_data.pt",
+   "createTime": "2026-09-15 09:51:30",
+   "policUrl": "upload/2026/9/15/model_retarget_data_20260915095129A683.pt"
+  },
+  {
+   "fileName": "model_retarget_report.pt",
+   "createTime": "2026-09-15 09:51:19",
+   "policUrl": "upload/2026/9/15/model_retarget_report_20260915095118A304.pt"
+  },
+  {
+   "fileName": "pipeline_meta.pt",
+   "createTime": "2026-09-15 09:51:09",
+   "policUrl": "upload/2026/9/15/pipeline_meta_20260915095108A237.pt"
+  }
+ ]
+}

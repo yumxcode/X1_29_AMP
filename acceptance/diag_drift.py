@@ -42,7 +42,8 @@ for label, path in [("v32b", "/tmp/p7_v32b.npz"),
                     ("v41", "/tmp/p7_v41.npz"),
                     ("v42", "/tmp/p7_v42.npz"),
                     ("v43", "/tmp/p7_v43.npz"),
-                    ("v44", "/tmp/p7_v44.npz")]:
+                    ("v44", "/tmp/p7_v44.npz"),
+                    ("v45", "/tmp/p7_v45.npz")]:
     p = Path(path)
     if not p.exists():
         continue
