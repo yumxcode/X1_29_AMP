@@ -168,6 +168,12 @@ class AMPRunner(OnPolicyRunner):
             print(f"[AMPRunner] discriminator state NOT restored (obs shape "
                   f"changed) — re-initializing discriminator: {shape_err}")
             self._disc_state_dropped = True  # disc optimizer state is stale
+        except KeyError as missing:
+            # v46s soup checkpoints strip the disc states on purpose (a
+            # merged disc of two parents is meaningless); treat as re-init.
+            print(f"[AMPRunner] discriminator state absent ({missing}) — "
+                  "fresh discriminator (soup/merged checkpoint)")
+            self._disc_state_dropped = True
         # Load optimizer if used
         if load_optimizer and resumed_training:
             # Algorithm optimizer
