@@ -174,8 +174,10 @@ class AMPRunner(OnPolicyRunner):
             print(f"[AMPRunner] discriminator state absent ({missing}) — "
                   "fresh discriminator (soup/merged checkpoint)")
             self._disc_state_dropped = True
-        # Load optimizer if used
-        if load_optimizer and resumed_training:
+        # Load optimizer if used. Soup/merged checkpoints may carry no
+        # optimizer states at all — the fresh-Adam transient is acceptable
+        # for short verification runs (state moments rebuild in ~10 iters).
+        if load_optimizer and resumed_training and "optimizer_state_dict" in loaded_dict:
             # Algorithm optimizer
             self.alg.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
             # RND optimizer if used
@@ -184,6 +186,9 @@ class AMPRunner(OnPolicyRunner):
             # AMP discriminator optimizer (skip if the disc was re-inited)
             if not getattr(self, "_disc_state_dropped", False):
                 self.alg.disc_optimizer.load_state_dict(loaded_dict["amp_discriminator_optimizer_state_dict"])
+        elif load_optimizer and resumed_training:
+            print("[AMPRunner] optimizer state absent (soup/merged "
+                  "checkpoint) — fresh optimizers")
         # Load current learning iteration
         if resumed_training:
             self.current_learning_iteration = loaded_dict["iter"]
