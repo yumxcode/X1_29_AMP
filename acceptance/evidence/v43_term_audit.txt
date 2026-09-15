@@ -1,0 +1,5 @@
+=== current-term scores (v34 statistics formula) ===
+  v43_walk10               amps(joint) L  19.7 R  22.0 | corr -0.99 | lumP +14.6 | terms: s-0.005 a-0.019 c+0.008 l-0.007 => -0.023
+                           world phi L -12.6 R -10.9 | shared 11.7 asym  1.7 | amp wL 15.5 wR 23.8 | y drift +0.32m
+  v43_walk05               amps(joint) L  18.1 R  20.2 | corr -1.00 | lumP +14.8 | terms: s-0.004 a-0.030 c+0.005 l-0.009 => -0.038
+                           world phi L  -9.9 R -15.5 | shared 12.7 asym  5.6 | amp wL 14.5 wR 19.7 | y drift +0.83m
