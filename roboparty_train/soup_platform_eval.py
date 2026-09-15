@@ -48,12 +48,17 @@ parser = argparse.ArgumentParser(description="Direct (no-train) platform eval.")
 parser.add_argument("--episodes", type=int, default=8)
 parser.add_argument("--num_envs", type=int, default=8)
 parser.add_argument("--task", type=str, default="X1-AMP-Play")
-parser.add_argument("--checkpoint", type=str, required=True)
+# NOTE: --checkpoint would collide with AppLauncher's own --checkpoint arg
+# (TASK_20260915_148: argparse.ArgumentError conflicting option string).
+# cli_args.add_rsl_rl_args ALSO defines --checkpoint — use ours only via
+# that group and require it after parsing.
 parser.add_argument("--out", default="platform_eval_report.txt")
 cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
 args_cli.headless = True
+if not args_cli.checkpoint:
+    parser.error("--checkpoint is required (from the rsl_rl arg group)")
 sys.argv = [sys.argv[0]] + hydra_args
 
 app_launcher = AppLauncher(args_cli)
