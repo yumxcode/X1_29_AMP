@@ -34,6 +34,12 @@ from pathlib import Path
 
 print = functools.partial(print, flush=True)
 
+# cli_args.py lives next to play_amp.py (roboparty_train/robolab/scripts/rsl_rl)
+# — the same path injection isaac_play_dump.py needs (TASK_20260915_146
+# postmortem: bare import -> ModuleNotFoundError when run via gm-run).
+sys.path.insert(0, str(Path(__file__).resolve().parent /
+                        "robolab" / "scripts" / "rsl_rl"))
+
 from isaaclab.app import AppLauncher
 
 import cli_args  # isort: skip
