@@ -317,26 +317,26 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # lumY swing 62 deg; kept at c=1.0 = exact elbows, subordinate
         # weight so the restrained BMLrub style stays dominant).
         self.motion_data.motion_dataset.motion_data_weights = {
-            "36_01": 1.0,
+            "36_01": 3.0,  # v51: 197/165mm
             "36_11": 1.0,
             "0000_treadmill_norm": 2.0,
             "0002_treadmill_slow": 2.0,
-            "0003_treadmill_jog": 2.0,
+            "0003_treadmill_jog": 5.0,  # v51: highest wrist swing 198/244mm
             "0005_normal_walk1": 2.0,
             "0007_normal_walk3": 2.0,
             "0008_normal_walk4": 2.0,
-            "0009_normal_jog1": 2.0,
+            "0009_normal_jog1": 5.0,  # v51: 121/168mm
             "0026_circle_walk": 2.0,
             "103_07": 1.0,
-            "36_01_mirror": 1.0,
+            "36_01_mirror": 3.0,
             "36_11_mirror": 1.0,
             "0000_treadmill_norm_mirror": 2.0,
             "0002_treadmill_slow_mirror": 2.0,
-            "0003_treadmill_jog_mirror": 2.0,
+            "0003_treadmill_jog_mirror": 5.0,
             "0005_normal_walk1_mirror": 2.0,
             "0007_normal_walk3_mirror": 2.0,
             "0008_normal_walk4_mirror": 2.0,
-            "0009_normal_jog1_mirror": 2.0,
+            "0009_normal_jog1_mirror": 5.0,
             "0026_circle_walk_mirror": 2.0,
             "103_07_mirror": 1.0,
         }
@@ -397,8 +397,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # lever history: halving +36%). v50: EIGHTHED, paired with the disc
         # velocity channel (X1_DISC_VEL=1) for the audit's >=35 deg target.
         # Revert to quarters if arm jitter/degradation appears in P7.
-        self.rewards.joint_acc_l2_arms.weight = -3.125e-8
-        self.rewards.action_rate_l2_arms.weight = -0.00125
+        self.rewards.joint_acc_l2_arms.weight = -6.25e-8   # v51: back to quarters (1/2 peak, 1/8 regressed)
+        self.rewards.action_rate_l2_arms.weight = -0.0025
         # v40: hip swing-amplitude guard doubled (v39 -0.3 recovered only
         # +0.024 ratio over 1500 iters; base is v35 whose ratio was 0.874)
         # v44 @ -0.8: walk05 knee 0.838 (1.4% short), walk10 hip 0.955.
