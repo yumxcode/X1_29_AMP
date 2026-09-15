@@ -251,6 +251,13 @@ class AnimationTerm(ManagerTermBase):
             return self.key_body_pos_b_buffer
         return self.key_body_pos_b_buffer[env_ids, :, :]
     
+    def get_key_body_vel_b(self, env_ids: Sequence[int] = None) -> torch.Tensor:
+        if not hasattr(self, "key_body_vel_b_buffer"):
+            raise AttributeError("key_body_vel_b_buffer not found in AnimationTerm.")
+        if env_ids is None:
+            return self.key_body_vel_b_buffer
+        return self.key_body_vel_b_buffer[env_ids, :, :]
+    
     def get_root_vel_w(self, env_ids: Sequence[int] = None) -> torch.Tensor:
         if not hasattr(self, "root_vel_w_buffer"):
             raise AttributeError("root_vel_w_buffer not found in AnimationTerm.")

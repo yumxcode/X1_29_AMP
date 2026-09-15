@@ -349,3 +349,22 @@ def ref_key_body_pos_b(
         num_steps = ref_key_body_pos_b.shape[1]
         return ref_key_body_pos_b.reshape(num_envs, num_steps, -1)
 
+
+def ref_key_body_vel_b(
+    env: AnimationEnv, 
+    animation: str, 
+    flatten_steps_dim: bool = True,
+) -> torch.Tensor:
+    """v49b: reference key-body VELOCITY in the root body frame — the demo
+    side of the discriminator's amplitude channel (finite-difference
+    derived in the motion_data_term; pairs with obs key_body_vel_b)."""
+    animation_term: AnimationTerm = env.animation_manager.get_term(animation)
+    ref_key_body_vel_b = animation_term.get_key_body_vel_b()  # (num_envs, num_steps, num_key_bodies, 3)
+    
+    if flatten_steps_dim:
+        return ref_key_body_vel_b.reshape(env.num_envs, -1)
+    else:
+        num_envs = ref_key_body_vel_b.shape[0]
+        num_steps = ref_key_body_vel_b.shape[1]
+        return ref_key_body_vel_b.reshape(num_envs, num_steps, -1)
+

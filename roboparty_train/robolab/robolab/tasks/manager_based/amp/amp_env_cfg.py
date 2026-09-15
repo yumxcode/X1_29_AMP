@@ -253,6 +253,13 @@ class ObservationsCfg():
                 "flatten_steps_dim": False,
             }
         )
+        ref_key_body_vel_b = ObsTerm(  # v49b: demo side of the amplitude channel
+            func=mdp.ref_key_body_vel_b,
+            params={
+                "animation": ANIMATION_TERM_NAME,
+                "flatten_steps_dim": False,
+            }
+        )
         
         def __post_init__(self):
             self.enable_corruption = False
