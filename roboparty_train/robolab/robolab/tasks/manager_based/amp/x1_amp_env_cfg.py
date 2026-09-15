@@ -485,7 +485,10 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # ~0.05 rad transient) -> -0.003; refs' slow-turn segments (e.g.
         # 103_07 local 30 deg/s) would score -0.26 — deliberate: turning
         # belongs to yaw COMMANDS, not to zero-yaw drift.
-        self.rewards.yaw_bias.weight = -0.5
+        # v35 set -0.5 (fixed the v34 +4.7 deg/s bias); v47's clean phase
+        # regrew +1.81/+2.32 m drift (audit item 1) — double the pressure
+        # for regime-recovering fine-tunes.
+        self.rewards.yaw_bias.weight = -1.0
         # v35 note: task_style_lerp 0.6->0.7 lives in the AGENT cfg
         # (x1_amp_agent_cfg.py): P3a lin kernel sat at 0.78 since v31d
         # (v27/v28: 0.84, old dataset); style reward now 1.14-2.00 (deep in
@@ -546,6 +549,16 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 self.events.push_robot.interval_range_s = (6.0, 12.0)
                 self.events.push_robot.params["velocity_range"] = {
                     "x": (-0.4, 0.4), "y": (-0.4, 0.4), "yaw": (-0.5, 0.5)}
+            elif _robust == "48":
+                # v48 joint convergence regime: soup-era steady state + a
+                # dedicated push1.0 exposure block. push1.0 fell to 0-1/5 in
+                # EVERY regime since v38 (v42's +-0.65 recovered 2/5 at a
+                # -0.026 kernel cost); the audit demands a real push phase.
+                # Frequency kept high (2-6 s) so 1.0-magnitude pushes are
+                # actually SEEN within short episodes.
+                self.events.push_robot.interval_range_s = (2.0, 6.0)
+                self.events.push_robot.params["velocity_range"] = {
+                    "x": (-0.65, 0.65), "y": (-0.65, 0.65), "yaw": (-0.8, 0.8)}
             elif _robust == "4":
                 # v42: strong-mid. ROBUST=3 (±0.5 @5-10s) gave push1.0
                 # 0-1/5 across v39-v41; v35 full-strength (±0.8 @4-8s) gave

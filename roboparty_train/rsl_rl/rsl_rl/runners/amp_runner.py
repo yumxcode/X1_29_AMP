@@ -183,8 +183,12 @@ class AMPRunner(OnPolicyRunner):
             # RND optimizer if used
             if self.alg_cfg["rnd_cfg"]:
                 self.alg.rnd_optimizer.load_state_dict(loaded_dict["rnd_optimizer_state_dict"])
-            # AMP discriminator optimizer (skip if the disc was re-inited)
-            if not getattr(self, "_disc_state_dropped", False):
+            # AMP discriminator optimizer — ONLY when the disc itself loaded
+            # (v48 fix: r3's elif bug skipped the disc optimizer whenever the
+            # MAIN optimizer was absent, silently discarding the trained
+            # discriminator state on stripped/soup checkpoints too)
+            if (not getattr(self, "_disc_state_dropped", False)
+                    and "amp_discriminator_optimizer_state_dict" in loaded_dict):
                 self.alg.disc_optimizer.load_state_dict(loaded_dict["amp_discriminator_optimizer_state_dict"])
         elif load_optimizer and resumed_training:
             print("[AMPRunner] optimizer state absent (soup/merged "
