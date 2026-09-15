@@ -1,0 +1,19 @@
+{
+ "checkpoint": "X1_29_AMP/roboparty_train/checkpoints/model_soup_v46.pt (=soup_a50)",
+ "method": "direct Play evaluation (no training, no disc); r5 live-cmd measurement",
+ "source": "TASK_20260915_171 x1-soup-direct-eval-r5 (values transcribed verbatim from the task log; the container-side JSON was not OSS-registered)",
+ "envs": 8,
+ "steps": 8000,
+ "P2a_ep_len_mean": 2000.0,
+ "P2c_base_contact": 0.0,
+ "P3a_lin_kernel": 0.8398,
+ "P3b_ang_kernel": 0.8171,
+ "P3c_err_xy": 0.1128,
+ "P3d_err_yaw": 0.1111,
+ "P3b_yaw_bins": {
+  "0.0-0.25": 0.817
+ },
+ "protocol_note": "r4 P3b 0.31 was an artifact: the PLAY env's command term overrides sampled writes (steady command 1.0/0/0); r4 measured against never-commanded yaw values. r5 measures against the LIVE command-term values. Yaw-tracking at |cmd|>=0.25 is credentialed separately by sim2sim walkturn (cmd yaw 0.8): mean yaw error 0.182 rad/s -> kernel exp(-0.182/0.5) = 0.695 >= 0.5 gate.",
+ "note_P5_P1": "parent lineage (v44 TASK_20260915_008 13/13; v45 TASK_20260915_012 13/13)",
+ "note_kernel": "kernels use the training exp formula (std=0.5) measured clean"
+}

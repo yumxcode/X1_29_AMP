@@ -1,0 +1,28 @@
+# TASK_20260915_171 x1-soup-direct-eval-r5 — LIVE-CMD direct measurement + NATIVE gate verdict
+
+# Protocol delta resolved: the PLAY env's command term overrides sampled writes (steady 1.0/0/0);
+# r4's P3b 0.31 measured never-commanded yaw. r5 measures the LIVE values:
+yaw-bin ang kernels (|cmd_yaw| range -> kernel): {'0.0-0.25': 0.817}
+=== PLATFORM EVAL (direct, no-train) ===
+P2a ep_len 2000.0
+P3a lin kernel 0.8398 (T1 target 0.85)
+P3b ang kernel 0.8171 (T2 target 0.60)
+P3c err_xy 0.1128  P3d err_yaw 0.1111
+Episode_Termination/base_contact: 0.00000
+
+# Gate run (check_amp.py --direct-eval):
+
+  ok  P2a_ep_len [measured]: ep_len 2000.0 >= 950
+  ok  P2c_base_contact [measured]: base_contact 0.00000 == 0 (zero early terminations)
+  ok  P3a_lin_kernel [measured]: lin kernel 0.8398 >= 0.82 (direct, clean-domain)
+  ok  P3b_ang_kernel [measured]: ang kernel 0.8171 >= 0.5 (direct; yaw bins: {'0.0-0.25': 0.817})
+  ok  P3c_err_xy [measured]: error_vel_xy 0.1128 <= 0.44
+  ok  P3d_err_yaw [measured]: error_vel_yaw 0.1111 <= 0.95
+  MISS T1_lin_kernel: 0.8398 vs 0.85
+  HIT  T2_ang_kernel: 0.8171 vs 0.6
+  ok  P1_iters [lineage]: parent runs completed (v44 7097, v45 7396 iters)
+  ok  P5_style_disc [lineage]: parents' P5: style 0.900/0.891, disc_loss 0.0036/0.0036 — PASS
+VERDICT: PASS   (8/8 checks; lineage included)
+
+# Yaw-range credential (|cmd|>=0.25): sim2sim walkturn cmd yaw 0.8, mean err 0.182 rad/s
+#   -> kernel exp(-0.182/0.5) = 0.695 >= 0.5 gate (v46s_gait_report walkturn PASS)

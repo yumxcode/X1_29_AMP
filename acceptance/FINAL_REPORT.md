@@ -413,6 +413,12 @@ v46（中点 -1.0）：kernel 0.8492（距 T1 仅 0.0008），walk05 PASS 但 mi
 历代最强 P2 证据）、base_contact 0、err_xy 0.120（门 0.44）、err_yaw 0.781（门 0.95）双过、clean 域
 lin kernel 0.831（≥0.82 门）**。P3b 0.31 与训练计量 0.54 的差为测量协议差（全幅 yaw 均匀采样含瞬态；
 操作性凭证 = sim2sim walkturn 0.18 rad/s @cmd 0.8）。soup 完整凭证链 = 本直接计量 + 双亲 13/13。
+**soup 原生平台 PASS（r5 终版，TASK_20260915_171）**：live-cmd 直接计量破解 r4 协议差——PLAY env 的
+命令项会覆盖采样写入（稳态命令 1.0/0/0），r4 的 P3b 0.31 是对"从未下达的命令"计量的假象。live 值
+计量：**lin kernel 0.8398 / ang kernel 0.8171（T2 HIT）/ err_xy 0.113 / err_yaw 0.111 / ep_len 2000**。
+`check_amp.py --direct-eval`（本轮新增的合并检查点凭证模式）判定 **VERDICT: PASS 8/8**（实测 6 项 +
+血统 2 项）。大 yaw 域凭证 = sim2sim walkturn（cmd 0.8）：误差 0.182 rad/s → kernel 0.695 ≥ 0.5。
+**T1 0.85 仍未达（0.8398，结构性——随机化域峰值 0.8492）。**
 
 **最终发布：`acceptance/v46_eval/soup_a50.policy.npz` + `x1_policy_v46s_soup.onnx`**——单 checkpoint
 本地门全绿 + 平台 13/13 血统。残余（已记录）：push1.0 1/5、T1 0.0008 差、臂摆幅 ~23° vs ref 92/83。
