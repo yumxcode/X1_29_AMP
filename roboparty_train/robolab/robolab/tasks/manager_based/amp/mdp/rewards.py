@@ -271,6 +271,36 @@ def arm_sync_residual(
     return torch.abs(hp_l + hp_r)
 
 
+def arm_swing_amplitude_prior(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    alpha: float = 0.02, lo: float = 0.52, hi: float = 0.79,
+) -> torch.Tensor:
+    """v52: DIRECT arm-swing amplitude prior - the audit's structural lever.
+
+    v50 (smoothing dose-response) and v51 (demo re-weighting) both falsified
+    the config levers: the 22-26 deg plateau is the disc+guards equilibrium.
+    This term adds an explicit positive prior on the HIGH-PASSED shoulder
+    swing RMS amplitude: hp = dev - EMA(dev) removes the DC (frozen-offset
+    pressure, unlike a raw |dev| term); EMA of hp^2 (tau approx 1 s, tracks
+    the swing, not the episode) gives per-side amplitude. Reward shape:
+    proportional push below lo (30 deg), full in the [30, 45] deg band
+    (ref 92/83 is far above; the band is the realistic stretch given the
+    equilibrium), decay above hi. min(L,R) so farming one arm cannot score.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    out = []
+    for k, key in enumerate(("shoAmpL", "shoAmpR")):
+        hp = dev[:, k] - _ema(env, f"{key}_dc", dev[:, k], 0.0025)
+        ms = _ema(env, f"{key}_ms", hp * hp, alpha)
+        out.append(torch.sqrt(ms.clamp_min(1e-8)))
+    amp = torch.minimum(out[0], out[1])
+    below = (amp / lo).clamp(max=1.0)
+    above = 1.0 - (amp - hi).clamp(min=0.0) / hi
+    return torch.where(amp < lo, below, torch.where(amp <= hi,
+                  torch.ones_like(amp), above.clamp(min=0.0)))
+
+
 def leg_amp_asym(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     alpha: float = 0.0025,

@@ -174,6 +174,19 @@ class X1AmpRewards():
     # mirrored dataset gives a symmetric prior but nothing penalized
     # asymmetric amplitudes under the new style gradient. Slow EMA (tau 8s)
     # of |dev| envelopes; ref penalty ~0 at any phase structure.
+    # v52: DIRECT arm-swing amplitude prior (audit's structural lever after
+    # v50/v51 falsified the config routes). Positive prior on high-passed
+    # shoulder RMS swing; band [30, 45] deg; min(L,R) anti-farming.
+    arm_amp_prior = RewTerm(
+        func=mdp.arm_swing_amplitude_prior,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint"],
+                preserve_order=True),
+            "alpha": 0.02, "lo": 0.52, "hi": 0.79,
+        },
+    )
     leg_amp_asym = RewTerm(
         func=mdp.leg_amp_asym,
         weight=0,
@@ -406,6 +419,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # short) — complementary one-metric misses. v46 takes the
         # midpoint to land both inside [0.85, 0.99].
         self.rewards.leg_amp_asym.weight = -1.0
+        # v52: amplitude prior positive weight (comparable to the arm
+        # coupling term +0.3; tune by arm-amp readout)
+        self.rewards.arm_amp_prior.weight = 0.3
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
