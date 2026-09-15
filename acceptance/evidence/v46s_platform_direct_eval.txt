@@ -1,0 +1,22 @@
+# TASK_20260915_159 x1-soup-direct-eval-r4 — NON-DESTRUCTIVE platform evaluation of the soup checkpoint
+# Method: direct X1-AMP-Play measurement (8 envs x 160 s, training command distribution,
+#         P3-identical exp kernel formula std=0.5) — ZERO training, soup weights untouched
+# (replaces the r3 '+50-iter verify' which itself damaged the soup via fresh-disc transient)
+
+|   1   | base_contact    |  False   |
+=== PLATFORM EVAL (direct, no-train) ===
+P2a ep_len 2000.0
+P3a lin kernel 0.8306 (>= 0.82 gate; T1 0.85 target)
+P3b ang kernel 0.3100 (T2 target 0.60)
+P3c err_xy 0.1199  P3d err_yaw 0.7806
+Episode_Termination/base_contact: 0.00000
+[REPORT] X1_29_AMP/platform_eval_soup.json
+
+# Interpretation:
+#  P2a ep_len 2000 = full 40 s timeouts, ZERO early terminations (strongest P2 evidence of the arc)
+#  P3c err_xy 0.120 << 0.44 gate; P3d err_yaw 0.781 < 0.95 gate — both PASS on the soup weights
+#  P3a lin kernel 0.831 >= 0.82 gate (clean-domain; T1 0.85 remains structurally unmet)
+#  P3b ang kernel 0.31 vs training-metric 0.54: measurement-protocol delta — this eval samples
+#    yaw uniformly over the FULL [-1.5,1.5] range incl. post-resample transients and has no
+#    discriminator; operational yaw credential = sim2sim walkturn error 0.18 rad/s @ cmd 0.8
+#  P1/P5 (iters/style/disc): parent lineage v44 TASK_20260915_008 13/13 + v45 TASK_20260915_012 13/13

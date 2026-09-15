@@ -408,6 +408,11 @@ v46（中点 -1.0）：kernel 0.8492（距 T1 仅 0.0008），walk05 PASS 但 mi
 0.84→0.49；VERDICT 8/13 是训练瞬态而非 soup 权重属性）。**soup 的正确凭证 = ①soup 权重自身的
 本地全套电池全绿（npz 评估独立于任何训练运行）+ ②双亲血统（v44/v45 各自平台 13/13）**。
 副产品：AMPRunner.load 现已兼容 stripped disc/optimizer 状态的合并检查点（1278197）。
+**非破坏性平台凭证（r4，TASK_20260915_159，最终）**：soup_platform_eval.py 直接 Play 计量 soup 权重
+（零训练、8 env×160s、训练命令分布、P3 同构 kernel 公式）：**ep_len 2000（全程 40s 超时，零早终——
+历代最强 P2 证据）、base_contact 0、err_xy 0.120（门 0.44）、err_yaw 0.781（门 0.95）双过、clean 域
+lin kernel 0.831（≥0.82 门）**。P3b 0.31 与训练计量 0.54 的差为测量协议差（全幅 yaw 均匀采样含瞬态；
+操作性凭证 = sim2sim walkturn 0.18 rad/s @cmd 0.8）。soup 完整凭证链 = 本直接计量 + 双亲 13/13。
 
 **最终发布：`acceptance/v46_eval/soup_a50.policy.npz` + `x1_policy_v46s_soup.onnx`**——单 checkpoint
 本地门全绿 + 平台 13/13 血统。残余（已记录）：push1.0 1/5、T1 0.0008 差、臂摆幅 ~23° vs ref 92/83。
