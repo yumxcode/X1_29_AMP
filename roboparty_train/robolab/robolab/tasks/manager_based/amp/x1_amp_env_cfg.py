@@ -391,11 +391,14 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.action_rate_l2.weight = -0.01
         # v40 arm-channel halves (see X1AmpRewards): legs/torso keep the
         # original weights via the base terms above.
-        # v47: quartered (v40 halving lifted arms 18.7->25.5 deg; the audit
-        # target is ref 92/83 — push further; revert to halves if P7 arms
-        # degrade or jitter appears)
-        self.rewards.joint_acc_l2_arms.weight = -6.25e-8
-        self.rewards.action_rate_l2_arms.weight = -0.0025
+        # v47: quartered (v40 halving lifted arms 18.7->25.5 deg)
+        # v49b measured the 22-25 deg plateau WITH the velocity disc channel
+        # live — the smoothing penalty is the remaining suppressor (v40/v47
+        # lever history: halving +36%). v50: EIGHTHED, paired with the disc
+        # velocity channel (X1_DISC_VEL=1) for the audit's >=35 deg target.
+        # Revert to quarters if arm jitter/degradation appears in P7.
+        self.rewards.joint_acc_l2_arms.weight = -3.125e-8
+        self.rewards.action_rate_l2_arms.weight = -0.00125
         # v40: hip swing-amplitude guard doubled (v39 -0.3 recovered only
         # +0.024 ratio over 1500 iters; base is v35 whose ratio was 0.874)
         # v44 @ -0.8: walk05 knee 0.838 (1.4% short), walk10 hip 0.955.
