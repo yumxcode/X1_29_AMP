@@ -56,3 +56,5 @@ acceptance/v46_eval/model_*.pt
 .gmhome/
 acceptance/v47_eval/model_*.pt
 acceptance/v48_eval/model_*.pt
+acceptance/v49b_eval/model_*.pt
+acceptance/v49a_eval/model_*.pt
