@@ -1,0 +1,21 @@
+# TASK_20260915_183 x1-amp-ft-v48-joint — platform acceptance
+# VERDICT: FAIL 8/13 (kernels under the dense-push regime — the known measurement trade)
+# LOCAL: drift/back05 SOLVED (audit items 1-2), robustness 52/60 record
+
+  ok   P1_iters: completed 8195/4000 iterations
+  ok   P2a_ep_len: ep_len 995.1 >= 950
+  ok   P2b_timeout: time_out 0.9913 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0000 + bad_orient 0.0087 <= 0.03
+  FAIL P3a_lin_kernel: lin kernel 0.7988 >= 0.82 (reward 0.998)
+  FAIL P3b_ang_kernel: ang kernel 0.4918 >= 0.5 (reward 0.615)
+  FAIL P3c_err_xy: error_vel_xy 0.4681 <= 0.44
+  FAIL P3d_err_yaw: error_vel_yaw 1.0135 <= 0.95
+  FAIL P4_no_collapse: last100 18.28 >= 90% x best 23.07
+  ok   P5a_style: style 0.822 >= 0.15
+  ok   P5b_disc: disc_loss 0.00322 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (989KB); play log no base_contact term: True
+  MISS T1_lin_kernel: 0.7988 vs 0.85
+  MISS T2_ang_kernel: 0.4918 vs 0.6
+  HIT  T3_style: 0.822 vs 0.5
+VERDICT: FAIL   (8/13 pass, fails=['P3a_lin_kernel', 'P3b_ang_kernel', 'P3c_err_xy', 'P3d_err_yaw', 'P4_no_collapse'])
