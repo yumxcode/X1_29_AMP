@@ -1,0 +1,20 @@
+# TASK_20260915_175 x1-amp-ft-v47-clean-t1 — platform acceptance
+# VERDICT: PASS 13/13 — T1 lin 0.8682 HIT + T2 ang 0.6231 HIT (only dual-TARGET-hit run of the arc)
+
+  ok   P1_iters: completed 7795/4000 iterations
+  ok   P2a_ep_len: ep_len 996.8 >= 950
+  ok   P2b_timeout: time_out 0.9940 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0002 + bad_orient 0.0057 <= 0.03
+  ok   P3a_lin_kernel: lin kernel 0.8682 >= 0.82 (reward 1.085)
+  ok   P3b_ang_kernel: ang kernel 0.6231 >= 0.5 (reward 0.779)
+  ok   P3c_err_xy: error_vel_xy 0.3615 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.7089 <= 0.95
+  ok   P4_no_collapse: last100 27.40 >= 90% x best 28.71
+  ok   P5a_style: style 0.891 >= 0.15
+  ok   P5b_disc: disc_loss 0.00349 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (1010KB); play log no base_contact term: True
+  HIT  T1_lin_kernel: 0.8682 vs 0.85
+  HIT  T2_ang_kernel: 0.6231 vs 0.6
+  HIT  T3_style: 0.891 vs 0.5
+VERDICT: PASS   (13/13 pass, fails=[])
