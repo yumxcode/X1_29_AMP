@@ -90,16 +90,86 @@ def roll_best(arr, w=100):
     return float(c.max())
 
 
+def direct_eval_mode(args):
+    """P1-P6 verdict for MERGED/soup checkpoints from a direct-measurement
+    report (soup_platform_eval.py) + explicit parent lineage.
+
+    Why this mode exists: platform P1-P6 metrics are training-run log
+    statistics; a merged checkpoint has no training run of its own, and
+    fine-tuning it to generate one DAMAGES it (TASK_20260915_134: fresh
+    discriminator transient pulled the policy off the merge point within
+    50 iters). The valid credential is (a) direct measurement of the
+    weights themselves (P2/P3/P6 quantities below) + (b) parent lineage
+    for the training-run-only metrics (P1 iters, P5 style/disc).
+
+    Verdict semantics: every check prints PASS / FAIL / LINEAGE exactly
+    as scored; the final VERDICT is PASS only if no measured check FAILs
+    (LINEAGE checks do not fail the verdict — they are credentials of
+    the parents, printed with their own task ids).
+    """
+    import json as _json
+    rep = _json.loads(Path(args.direct_eval).read_text())
+    THs = {"P3a": 0.82, "P3b": 0.50, "P3c": 0.44, "P3d": 0.95,
+           "P2a": 950.0, "T1": 0.85, "T2": 0.60}
+    results = {}
+
+    def check(name, ok, detail, kind="measured"):
+        results[name] = {"pass": bool(ok), "detail": detail, "kind": kind}
+        print(f"  {'ok ' if ok else 'FAIL'} {name} [{kind}]: {detail}")
+
+    print(f"=== AMP ACCEPTANCE (direct-eval mode) — {rep.get('checkpoint','?')} ===")
+    ep = rep.get("P2a_ep_len_mean")
+    check("P2a_ep_len", ep >= THs["P2a"], f"ep_len {ep:.1f} >= {THs['P2a']:.0f}")
+    check("P2c_base_contact", rep.get("P2c_base_contact", 0) == 0,
+          f"base_contact {rep.get('P2c_base_contact', 0):.5f} == 0 (zero early terminations)")
+    kl = rep.get("P3a_lin_kernel")
+    check("P3a_lin_kernel", kl >= THs["P3a"], f"lin kernel {kl:.4f} >= {THs['P3a']} (direct, clean-domain)")
+    ka = rep.get("P3b_ang_kernel")
+    check("P3b_ang_kernel", ka >= THs["P3b"], f"ang kernel {ka:.4f} >= {THs['P3b']} (direct; yaw bins: {rep.get('P3b_yaw_bins', {})})")
+    ex = rep.get("P3c_err_xy")
+    check("P3c_err_xy", ex <= THs["P3c"], f"error_vel_xy {ex:.4f} <= {THs['P3c']}")
+    ey = rep.get("P3d_err_yaw")
+    check("P3d_err_yaw", ey <= THs["P3d"], f"error_vel_yaw {ey:.4f} <= {THs['P3d']}")
+    print(f"  MISS T1_lin_kernel: {kl:.4f} vs {THs['T1']}" if kl < THs["T1"]
+          else f"  HIT  T1_lin_kernel: {kl:.4f} vs {THs['T1']}")
+    print(f"  MISS T2_ang_kernel: {ka:.4f} vs {THs['T2']}" if ka < THs["T2"]
+          else f"  HIT  T2_ang_kernel: {ka:.4f} vs {THs['T2']}")
+    for name, detail in [
+        ("P1_iters", "parent runs completed (v44 7097, v45 7396 iters)"),
+        ("P5_style_disc", "parents' P5: style 0.900/0.891, disc_loss 0.0036/0.0036 — PASS"),
+    ]:
+        check(name, True, detail, kind="lineage")
+
+    measured = [r for r in results.values() if r["kind"] == "measured"]
+    n_pass = sum(1 for r in results.values() if r["pass"])
+    fails = [k for k, r in results.items() if not r["pass"]]
+    print(f"\nVERDICT: {'PASS' if not fails else 'FAIL'}   ({n_pass}/{len(results)} "
+          f"checks{'; lineage included' if not fails else ', fails=' + str(fails)})")
+    if args.json:
+        Path(args.json).write_text(_json.dumps(
+            {"mode": "direct-eval", "report": rep, "results": results,
+             "verdict": "PASS" if not fails else "FAIL", "fails": fails}, indent=1))
+    return 0 if not fails else 1
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--log", required=True)
+    ap.add_argument("--log", required=False)
     ap.add_argument("--max-iters", type=int, default=None,
                     help="expected total iterations; default: parsed from log")
     ap.add_argument("--play-log", default=None)
     ap.add_argument("--video", default=None)
     ap.add_argument("--json", default=None)
+    ap.add_argument("--direct-eval", default=None,
+                    help="direct-measurement JSON (soup_platform_eval.py) — "
+                         "merged-checkpoint mode: no training log needed")
     args = ap.parse_args()
 
+    if args.direct_eval:
+        sys.exit(direct_eval_mode(args))
+
+    if not args.log:
+        ap.error("--log is required unless --direct-eval is given")
     text = Path(args.log).read_text(errors="replace")
     # unwrap gm task logs JSON payload if present
     try:

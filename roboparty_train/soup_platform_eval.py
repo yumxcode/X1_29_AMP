@@ -79,6 +79,19 @@ import robolab.tasks  # noqa: F401,E402  (gym registry)
 from rsl_rl.runners import AMPRunner  # noqa: E402
 
 
+def _yaw_bins_summary(bins):
+    import numpy as np
+    if not bins:
+        return {}
+    arr = torch.cat(bins).numpy()  # cols: |cmd_yaw|, kernel
+    out = {}
+    for lo, hi in [(0.0, 0.25), (0.25, 0.75), (0.75, 1.25), (1.25, 1.6)]:
+        m = (arr[:, 0] >= lo) & (arr[:, 0] < hi)
+        if m.any():
+            out[f"{lo}-{hi}"] = float(arr[m, 1].mean())
+    return out
+
+
 def main():
     import numpy as np
 
@@ -98,6 +111,15 @@ def main():
     robot = env.unwrapped.scene["robot"]
     unwrapped = env.unwrapped
     rng = np.random.default_rng(0)
+    # LIVE command source: measure against whatever the command term ACTUALLY
+    # commands each step (r4 postmortem: if the term resamples/overwrites our
+    # pinned values, measuring against our sampled array corrupts the kernels
+    # — the suspected cause of P3b 0.31 vs training 0.54).
+    cmd_term_live = None
+    try:
+        cmd_term_live = unwrapped.command_manager.get_term("base_velocity")
+    except Exception:
+        pass
 
     # training command distribution (x1_amp_env_cfg ranges)
     def sample_cmds(n):
@@ -108,7 +130,7 @@ def main():
             device=unwrapped.device)
 
     STD = 0.5  # identical to the training tracking kernels
-    kernel_lin, kernel_ang = [], []
+    kernel_lin, kernel_ang, yaw_bins = [], [], []
     err_xy, err_yaw = [], []
     ep_lens, timeouts, contact_terms, bad_terms = [], 0, 0, 0
     rewards_per_ep = []
@@ -137,14 +159,18 @@ def main():
             ep_steps += 1
 
             if step >= settled:
+                live = (cmd_term_live.vel_command_b.detach()
+                        if cmd_term_live is not None else cmds)
                 vel_b = robot.data.root_lin_vel_b[:, :2]
                 yaw_b = robot.data.root_ang_vel_b[:, 2]
-                e_xy = torch.norm(cmds[:, :2] - vel_b, dim=1)
-                e_yaw = torch.abs(cmds[:, 2] - yaw_b)
+                e_xy = torch.norm(live[:, :2] - vel_b, dim=1)
+                e_yaw = torch.abs(live[:, 2] - yaw_b)
                 kernel_lin.append(torch.exp(-e_xy / STD).cpu())
                 kernel_ang.append(torch.exp(-e_yaw / STD).cpu())
                 err_xy.append(e_xy.cpu())
                 err_yaw.append(e_yaw.cpu())
+                yaw_bins.append(torch.stack([
+                    live[:, 2].abs().cpu(), torch.exp(-e_yaw / STD).cpu()], dim=1))
 
             if dones_t.any():
                 for i in torch.nonzero(dones_t).flatten().cpu().tolist():
@@ -166,6 +192,7 @@ def main():
         "P3b_ang_kernel": float(torch.cat(kernel_ang).mean()),
         "P3c_err_xy": float(torch.cat(err_xy).mean()),
         "P3d_err_yaw": float(torch.cat(err_yaw).mean()),
+        "P3b_yaw_bins": _yaw_bins_summary(yaw_bins),
         "P4_episode_reward_spread": {
             "min": float(np.min(rewards_per_ep)), "max": float(np.max(rewards_per_ep)),
             "mean": float(np.mean(rewards_per_ep))} if rewards_per_ep else None,
@@ -175,6 +202,8 @@ def main():
                        "clean (no randomization) — intrinsic tracking capability",
     }
     Path(args_cli.out).write_text(json.dumps(rep, indent=1))
+    print("yaw-bin ang kernels (|cmd_yaw| range -> kernel):",
+          {k: round(v, 3) for k, v in rep["P3b_yaw_bins"].items()})
     print("=== PLATFORM EVAL (direct, no-train) ===")
     print(f"P2a ep_len {rep['P2a_ep_len_mean']:.1f}")
     print(f"P3a lin kernel {rep['P3a_lin_kernel']:.4f} (T1 target 0.85)")
