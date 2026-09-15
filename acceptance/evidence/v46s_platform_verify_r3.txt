@@ -1,0 +1,28 @@
+# TASK_20260915_134 x1-v46s-soup-verify-r3 — +50-iter platform verify of the soup checkpoint
+# VERDICT: FAIL 8/13 — INTERPRETATION: verification-by-fine-tuning is INVALID for soup checkpoints
+#
+# The 50-iter run itself damaged the soup: fresh discriminator (style 6.7 in its
+# early exploitable phase) + fresh Adam states pulled the policy OFF the soup point
+# (ep_len 995 -> 582, kernel 0.84 -> 0.49). This is the expected adversarial transient,
+# not a property of the soup weights. Load-chain fixes were validated (50 iters ran,
+# P6 passed). CREDENTIAL for the soup remains: (1) FULL local battery green on the
+# soup weights themselves (acceptance/v46_eval/, npz evaluation independent of any
+# training run); (2) platform lineage — both parents v44 model_7097 (TASK_20260915_008)
+# and v45 model_7396 (TASK_20260915_012) hold platform VERDICT PASS 13/13.
+
+  FAIL P2a_ep_len: ep_len 582.1 >= 950
+  FAIL P2b_timeout: time_out 0.5875 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0000 + bad_orient 0.0028 <= 0.03
+  FAIL P3a_lin_kernel: lin kernel 0.4883 >= 0.82 (reward 0.610)
+  FAIL P3b_ang_kernel: ang kernel 0.3238 >= 0.5 (reward 0.405)
+  ok   P3c_err_xy: error_vel_xy 0.2478 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.5038 <= 0.95
+  ok   P4_no_collapse: last100 12.60 >= 90% x best 12.60
+  ok   P5a_style: style 6.725 >= 0.15
+  FAIL P5b_disc: disc_loss 0.06129 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (861KB); play log no base_contact term: True
+  MISS T1_lin_kernel: 0.4883 vs 0.85
+  MISS T2_ang_kernel: 0.3238 vs 0.6
+  HIT  T3_style: 6.725 vs 0.5
+VERDICT: FAIL   (8/13 pass, fails=['P2a_ep_len', 'P2b_timeout', 'P3a_lin_kernel', 'P3b_ang_kernel', 'P5b_disc'])

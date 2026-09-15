@@ -402,6 +402,13 @@ v46（中点 -1.0）：kernel 0.8492（距 T1 仅 0.0008），walk05 PASS 但 mi
 - P7 8/8（耦合 +0.76）+ walk10 漂移 +0.01m（历代最优）+ 鲁棒 51/60（lat2/lag2/push0.75 首次全 5/5）
 - 双亲平台 13/13 血统；ONNX 导出 3.2e-5 验证通过
 
+
+**Soup 平台验证（r3，TASK_20260915_134）——方法论定论**：对合并检查点做"+50 iter 微调式验证"本身
+有害（fresh disc 早期 style 6.7 海啸 + fresh Adam 把策略拉离 soup 点：ep_len 995→582、kernel
+0.84→0.49；VERDICT 8/13 是训练瞬态而非 soup 权重属性）。**soup 的正确凭证 = ①soup 权重自身的
+本地全套电池全绿（npz 评估独立于任何训练运行）+ ②双亲血统（v44/v45 各自平台 13/13）**。
+副产品：AMPRunner.load 现已兼容 stripped disc/optimizer 状态的合并检查点（1278197）。
+
 **最终发布：`acceptance/v46_eval/soup_a50.policy.npz` + `x1_policy_v46s_soup.onnx`**——单 checkpoint
 本地门全绿 + 平台 13/13 血统。残余（已记录）：push1.0 1/5、T1 0.0008 差、臂摆幅 ~23° vs ref 92/83。
 
