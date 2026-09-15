@@ -380,7 +380,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.action_rate_l2_arms.weight = -0.005
         # v40: hip swing-amplitude guard doubled (v39 -0.3 recovered only
         # +0.024 ratio over 1500 iters; base is v35 whose ratio was 0.874)
-        self.rewards.leg_amp_asym.weight = -0.8
+        # v44 took walk05 knee 0.745 -> 0.838 (+0.093) at -0.8; the last
+        # gap to 0.85 is 0.012 — v45 raises one notch for the final close.
+        self.rewards.leg_amp_asym.weight = -1.2
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
