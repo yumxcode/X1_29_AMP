@@ -275,13 +275,18 @@ def leg_amp_asym(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     alpha: float = 0.0025,
 ) -> torch.Tensor:
-    """Hip swing-AMPLITUDE symmetry guard: |RMS_L - RMS_R| on hip pitch.
+    """Joint-pair swing-AMPLITUDE symmetry guard: mean |RMS_L - RMS_R| over
+    consecutive joint pairs (v43: hip pitch + knee pitch).
 
     v39 response to the v38 regression (disc obs 10-body run): walk10 hip
     swing ratio 0.823 -> 0.694, walk05 0.755 — the mirrored dataset
     provides a symmetric prior but nothing penalized asymmetric swing
     amplitudes; the disc-led style gradient drifted into an asymmetric
-    attractor. Statistic: slow EMA (tau = 8 s, v34 guard family) of dev^2
+    attractor. v43 (audit): walk05 KNEE 0.745 and back05 hip 0.697 miss
+    the 0.85 gate under the kernel regime — the same defect family on
+    the knee pair, so the guard generalizes to every consecutive L/R
+    pair in asset_cfg (env passes [hipL, hipR, kneeL, kneeR]).
+    Statistic per pair: slow EMA (tau = 8 s, v34 guard family) of dev^2
     per side, penalize |sqrt(EMA_L) - sqrt(EMA_R)| — RMS tracks the AC
     swing amplitude (what gait_metrics G2 gates, p95-p5) and is DC-
     insensitive (unlike |dev|). Offline calibration (12 s rollouts, tau
@@ -294,9 +299,13 @@ def leg_amp_asym(
     """
     asset: Articulation = env.scene[asset_cfg.name]
     dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
-    ms_l = _ema(env, "hipL_ms", dev[:, 0] * dev[:, 0], alpha)
-    ms_r = _ema(env, "hipR_ms", dev[:, 1] * dev[:, 1], alpha)
-    return torch.abs(torch.sqrt(ms_l.clamp_min(1e-8)) - torch.sqrt(ms_r.clamp_min(1e-8)))
+    n_pairs = dev.shape[1] // 2
+    total = 0.0
+    for k in range(n_pairs):
+        ms_l = _ema(env, f"pair{k}L_ms", dev[:, 2 * k] * dev[:, 2 * k], alpha)
+        ms_r = _ema(env, f"pair{k}R_ms", dev[:, 2 * k + 1] * dev[:, 2 * k + 1], alpha)
+        total = total + torch.abs(torch.sqrt(ms_l.clamp_min(1e-8)) - torch.sqrt(ms_r.clamp_min(1e-8)))
+    return total / max(1, n_pairs)
 
 
 def arm_opposite_leg_coupling(

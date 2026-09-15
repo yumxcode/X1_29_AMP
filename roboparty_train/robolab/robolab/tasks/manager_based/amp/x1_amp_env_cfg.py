@@ -177,9 +177,14 @@ class X1AmpRewards():
     leg_amp_asym = RewTerm(
         func=mdp.leg_amp_asym,
         weight=0,
+        # v43->v44: extended hip pair -> hip+knee pairs (walk05 knee 0.745
+        # and back05 hip 0.697 missed the 0.85 gate under the kernel
+        # regime — same defect family, consecutive L/R pairs)
         params={
             "asset_cfg": SceneEntityCfg(
-                "robot", joint_names=["left_hip_pitch_joint", "right_hip_pitch_joint"],
+                "robot",
+                joint_names=["left_hip_pitch_joint", "right_hip_pitch_joint",
+                             "left_knee_pitch_joint", "right_knee_pitch_joint"],
                 preserve_order=True),
             "alpha": 0.0025,
         },
