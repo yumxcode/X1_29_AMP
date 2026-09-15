@@ -1,0 +1,67 @@
+{
+ "verdict": "FAIL",
+ "fails": [
+  "P7h_lean_shared"
+ ],
+ "metrics": {
+  "anti": -0.9977052841364114,
+  "elb_p95": 30.398560187056468,
+  "elb_mean": 24.91279880287,
+  "lumsw": 8.979161985498784,
+  "coupling": 0.7768611821049735,
+  "ratio": 0.8252309220399145,
+  "survived_s": 11.5,
+  "fell": false,
+  "steps_used": 550,
+  "phiL_mean": -9.745929951877335,
+  "phiR_mean": -15.035070827616265,
+  "lean_asym": 5.28914087573893,
+  "lean_shared": 12.3905003897468
+ },
+ "results": {
+  "P7f_valid": {
+   "pass": true,
+   "detail": "fell=False, survived 11.5s >= 8.0s"
+  },
+  "P7a_anti": {
+   "pass": true,
+   "detail": "arm antiphase -1.00 <= -0.5 (refs -0.92..-0.99)"
+  },
+  "P7b_elbow": {
+   "pass": true,
+   "detail": "elbow p95 30.4 in [8, 70] deg (mean 24.9; v29 carriage was ~106 at limit)"
+  },
+  "P7c_waist": {
+   "pass": true,
+   "detail": "lumY swing 9.0 <= 40.0 deg (PRIMARY refs <= 32)"
+  },
+  "P7d_coupling": {
+   "pass": true,
+   "detail": "arm-vs-opposite-leg +0.78 >= +0.2 (refs +0.8..+0.99)"
+  },
+  "P7e_legsym": {
+   "pass": true,
+   "detail": "hip swing ratio L/R 0.83 in [0.7, 1.4]"
+  },
+  "P7g_lean_asym": {
+   "pass": true,
+   "detail": "arm lean asym |phiL-phiR| 5.3 deg <= 12 (L -9.7 R -15.0; v32b was 23)"
+  },
+  "P7h_lean_shared": {
+   "pass": false,
+   "detail": "shared arm lean |mean(phiL,phiR)| 12.4 deg <= 12 (both-arms-forward/backward)"
+  }
+ },
+ "thresholds": {
+  "P7a_anti": -0.5,
+  "P7b_lo": 8.0,
+  "P7b_hi": 70.0,
+  "P7c_lumsw": 40.0,
+  "P7d_coupling": 0.2,
+  "P7e_ratio": [
+   0.7,
+   1.4
+  ],
+  "P7f_min_survive_s": 8.0
+ }
+}

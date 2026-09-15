@@ -1,0 +1,51 @@
+{
+ "taskId": "TASK_20260916_007",
+ "verdict": "FAIL 12/13 (P4)",
+ "registered": [
+  {
+   "fileName": "x1_play_skeleton_060950.mp4",
+   "createTime": "2026-09-16 06:09:57",
+   "policUrl": ""
+  },
+  {
+   "fileName": "model_8394.pt",
+   "createTime": "2026-09-16 06:08:47",
+   "policUrl": "upload/2026/9/16/model_8394_20260916060847A634.pt"
+  },
+  {
+   "fileName": "model_8000.pt",
+   "createTime": "2026-09-16 05:56:02",
+   "policUrl": "upload/2026/9/16/model_8000_20260916055601A875.pt"
+  },
+  {
+   "fileName": "model_7500.pt",
+   "createTime": "2026-09-16 05:40:00",
+   "policUrl": "upload/2026/9/16/model_7500_20260916053959A866.pt"
+  },
+  {
+   "fileName": "model_7395_v45.pt",
+   "createTime": "2026-09-16 05:34:59",
+   "policUrl": "upload/2026/9/16/model_7395_v45_20260916053458A098.pt"
+  },
+  {
+   "fileName": "model_amp_report.pt",
+   "createTime": "2026-09-16 06:10:06",
+   "policUrl": "upload/2026/9/16/model_amp_report_20260916061005A563.pt"
+  },
+  {
+   "fileName": "model_retarget_data.pt",
+   "createTime": "2026-09-16 05:35:10",
+   "policUrl": "upload/2026/9/16/model_retarget_data_20260916053509A875.pt"
+  },
+  {
+   "fileName": "model_retarget_report.pt",
+   "createTime": "2026-09-16 05:35:05",
+   "policUrl": "upload/2026/9/16/model_retarget_report_20260916053504A876.pt"
+  },
+  {
+   "fileName": "pipeline_meta.pt",
+   "createTime": "2026-09-16 05:34:49",
+   "policUrl": "upload/2026/9/16/pipeline_meta_20260916053448A557.pt"
+  }
+ ]
+}
