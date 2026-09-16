@@ -58,6 +58,16 @@ SPEC = {
     "scuff_frac_max": 0.15,       # contact fraction during middle 60% of swing
     # G1
     "base_z_cv_max": 0.04,
+    # KH: human-gait arc (GOAL_HUMAN_GAIT.md §3)
+    "k1_mid_max_deg": 18.0,       # stance 25-75% mean knee flexion, per foot
+    "k2_range_min_deg": 25.0,     # stance knee min->max swing range
+    "h1_heel_first_min": 0.60,    # heel-before-toe landing fraction (walk10)
+    "h2_toe_off_min": 0.90,       # heel-off/toe-on launch fraction
+    "h3_toe_first_max": 0.10,     # true forefoot strike (lead<=-15mm); baseline
+                                  # soup reads 0-9.5% under the fine lead metric
+                                  # (G3's coarse pitch gate stays =0 as the hard
+                                  # no-regress gate); v57 targets 0
+    "kh_min_events": 4,           # per foot, else informational only
 }
 
 # Schmitt trigger thresholds (sole sphere BOTTOM height vs floor z=0)
@@ -152,6 +162,15 @@ def analyze(npz_path):
     R["G1"]["PASS"] = (not meta["fell"]) and R["G1"]["base_z_cv"] < SPEC["base_z_cv_max"]
 
     # ---- per-foot time series + segmentation ---------------------------
+    # LABELING CAVEAT (v56 audit, semantic anchor on 0002): sole cols
+    # [0,1] (+0.07 local z) are the HEEL end and [2,3] the TOE end — the
+    # inverse of the "front/back" names used below (and in the rollout
+    # meta / find_sole_geoms comments). G3's heel_z/toe_z/pitch are
+    # therefore sign-flipped in NAME only; on the flat-landing policies
+    # this segment gates, every quantity measures ~0 either way (24
+    # generations of reports are unaffected). The KH section below uses
+    # the corrected semantics explicitly. Do NOT "fix" G3 in place — it
+    # would silently redefine 24 generations of gate history.
     front, back = slice(0, 2), slice(2, 4)
     bottom = sole[:, :, :, 2] - 0.002              # sphere bottoms, floor z=0
     on_ground = bottom < SPEC["ground_tol_m"]      # (n,2,4) geometric
@@ -303,6 +322,97 @@ def analyze(npz_path):
     else:
         g3["PASS"] = False
     R["G3"] = g3
+
+    # ---- KH: human-gait features (straight knee + heel-toe) --------------
+    # K1/K2: knee angle convention 0=full extension, + = flexion (DEFAULT_Q
+    # knee 0.632 rad = 36.2 deg crouch). Per stance window:
+    #   K1 = mean(theta over the 25%-75% mid-stance span)
+    #   K2 = max(theta) - min(theta) within the stance
+    # HEEL/TOE SEMANTICS (v56 fix): sole cols [0,1] = local z +0.07 = HEEL
+    # end, cols [2,3] = local z -0.07 = TOE end — the OPPOSITE of what the
+    # rollout meta / find_sole_geoms comments claim ("front=+0.07"). Proof:
+    # semantic anchor on 0002_treadmill_slow (human slow walk, heel-strike
+    # is physiological): diag_heeltoe (heel=+0.07) measures 67% heel-first
+    # there, and the alone-down frame counts fit ONLY with +0.07=heel (12
+    # heel-only frames = brief heel-strike phase, 175 toe-only frames =
+    # long push-off); 0005's -0.07 dominance then matches its documented
+    # toe-first drag. cf (cols 0,1) is therefore the HEEL channel and cb
+    # (cols 2,3) the TOE channel in this section.
+    # H1/H2/H3: GEOMETRIC LEAD classification (frame-quantization immune).
+    # lead_td = toe_bottom - heel_bottom at the touchdown frame
+    # (+ = heel end lower = heel-first incline); lead_lo = same at the
+    # last-contact frame (+ = toe end lower = heel-off/toe-off).
+    # Measured lead distributions (probe_kh_metric.py, 2026-09-16):
+    #   0002 heel-exemplar refs: TD lead med +4.0/+3.5, p75 +6.8 mm
+    #     -> the retargeted heel-strike is GENTLE (near-flat, heel 3-7 mm
+    #        lower) — an 8 mm threshold would classify the exemplar flat
+    #   0005 toe-drag refs:      TD lead -22..-26 mm (true forefoot)
+    #   soup534_40 policy:       TD lead -8.6..-11.1 mm (mild plantarflexed
+    #        landing — the doc's "toe-first 0" was the old 10 mm/deadband
+    #        classifier lumping it flat), LO lead +26..+56 mm (toe-off real)
+    # Classification: heel-first lead_td >= +2 mm; true forefoot strike
+    # (H3 violation) lead_td <= -15 mm; toe-off lead_lo >= +2 mm.
+    kh = {}
+    for name in feet:
+        s = st[name]
+        f = s["f"]
+        knee = q[:, hinge.index("left_knee_pitch_joint" if f == 0 else "right_knee_pitch_joint")]
+        # v56 fix: cols [0,1] (+0.07 local z) = HEEL end, [2,3] = TOE end
+        heel_b = bottom[:, f, 0:2].min(1)
+        toe_b = bottom[:, f, 2:4].min(1)
+        k1s, k2s, land, launch = [], [], {"heel": 0, "toe": 0, "flat": 0}, {"toeoff": 0, "flat": 0}
+        for td, lo_i in s["strides"]:
+            span = lo_i - td + 1
+            seg = knee[td:lo_i + 1]
+            m0, m1 = td + span // 4, td + 3 * span // 4
+            k1s.append(float(np.degrees(knee[m0:m1 + 1].mean())))
+            k2s.append(float(np.degrees(seg.max() - seg.min())))
+            lead_td = float(toe_b[td] - heel_b[td])      # + = heel lower
+            if lead_td >= 0.002:
+                land["heel"] += 1
+            elif lead_td <= -0.015:
+                land["toe"] += 1
+            else:
+                land["flat"] += 1
+            lead_lo = float(toe_b[lo_i] - heel_b[lo_i])  # + = toe lower
+            if lead_lo >= 0.002:
+                launch["toeoff"] += 1
+            else:
+                launch["flat"] += 1
+        n_land = sum(land.values())
+        n_launch = sum(launch.values())
+        kh[name] = dict(
+            n_events=len(s["strides"]),
+            k1_mid_deg=float(np.mean(k1s)) if k1s else float("nan"),
+            k2_range_deg=float(np.mean(k2s)) if k2s else float("nan"),
+            land_heel_first_frac=float(land["heel"] / n_land) if n_land else float("nan"),
+            land_toe_first_frac=float(land["toe"] / n_land) if n_land else float("nan"),
+            launch_toe_off_frac=float(launch["toeoff"] / n_launch) if n_launch else float("nan"),
+            n_land=n_land,
+        )
+    # verdict: walk scenarios only (turn exempt — heel/toe timing is not a
+    # turning invariant); both feet must hold K1/K2 and H3=0. H1/H2 gates
+    # are WALK10-only per spec (H1 noise dominates at 0.5 m/s).
+    straight = abs(float(meta["cmd"][2])) <= 0.3
+    kh["exempt_turn"] = not straight
+    feets = feet if straight else []
+    k1_vals = [kh[nm]["k1_mid_deg"] for nm in feets]
+    k2_vals = [kh[nm]["k2_range_deg"] for nm in feets]
+    toe_first = [kh[nm]["land_toe_first_frac"] for nm in feets]
+    enough = all(kh[nm]["n_events"] >= SPEC["kh_min_events"] for nm in feets)
+    cmd_speed = float(np.linalg.norm(meta["cmd"][:2]))
+    is_walk10 = straight and abs(cmd_speed - 1.0) < 0.26
+    h1_vals = [kh[nm]["land_heel_first_frac"] for nm in feets] if is_walk10 else []
+    h2_vals = [kh[nm]["launch_toe_off_frac"] for nm in feets] if is_walk10 else []
+    kh["cmd_speed"] = cmd_speed
+    kh["K1_PASS"] = bool(feets and enough and all(v <= SPEC["k1_mid_max_deg"] for v in k1_vals))
+    kh["K2_PASS"] = bool(feets and enough and all(v >= SPEC["k2_range_min_deg"] for v in k2_vals))
+    kh["H3_PASS"] = bool(feets and enough and all(v <= SPEC["h3_toe_first_max"] for v in toe_first))
+    kh["H1_PASS"] = bool(h1_vals and enough and all(v >= SPEC["h1_heel_first_min"] for v in h1_vals))
+    kh["H2_PASS"] = bool(h2_vals and enough and all(v >= SPEC["h2_toe_off_min"] for v in h2_vals))
+    kh["PASS"] = bool(kh["K1_PASS"] and kh["K2_PASS"] and kh["H3_PASS"] and kh["H2_PASS"] and kh["H1_PASS"])
+    R["KH"] = kh
+    R["_feet"] = feet  # printer aid (excluded from json via default path)
     R["PASS"] = bool(R["G1"]["PASS"] and g2["PASS"] and g3["PASS"])
     return R
 
@@ -334,6 +444,16 @@ def fmt(R):
                      f"clearance={g3['clearance_med_m']*1000:.0f} mm scuff={g3['scuff_med']:.3f}")
     else:
         lines.append("[G3 landing]       PASS=False (no touchdown events)")
+    kh = R["KH"]
+    ex = " [EXEMPT:turn]" if kh.get("exempt_turn") else ""
+    lines.append(f"[KH human-gait]    K1={kh['K1_PASS']} K2={kh['K2_PASS']} "
+                 f"H1={kh['H1_PASS']} H2={kh['H2_PASS']} H3={kh['H3_PASS']}{ex}")
+    for name in R.get("_feet", []):
+        d = kh[name]
+        lines.append(f"    {name:22s} ev={d['n_events']:2d} K1={d['k1_mid_deg']:6.1f}° K2={d['k2_range_deg']:6.1f}° "
+                     f"heel1st={d['land_heel_first_frac']*100:5.1f}% toe1st={d['land_toe_first_frac']*100:4.1f}% "
+                     f"toe-off={d['launch_toe_off_frac']*100:5.1f}%")
+    lines.append(f"    KH gates: K1<=18° K2>=25° H1>=60%(walk10) H2>=90%(walk10) H3<=10%")
     lines.append(f"[VERDICT] {'PASS' if R['PASS'] else 'FAIL'}")
     return "\n".join(lines)
 
@@ -349,6 +469,8 @@ def main():
         out.append(R)
         print(fmt(R))
     if args.json:
+        for R in out:
+            R.pop("_feet", None)
         Path(args.json).write_text(json.dumps(out, indent=1, default=float))
         print(f"[JSON] {args.json}")
     print(f"[TOTAL] {sum(r['PASS'] for r in out)}/{len(out)} scenarios PASS")

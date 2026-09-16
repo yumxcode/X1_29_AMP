@@ -201,6 +201,30 @@ class X1AmpRewards():
             "alpha": 0.02, "lo": 0.52, "hi": 0.79,
         },
     )
+    # v56: STRAIGHT-KNEE stance prior (human-gait arc, K1/K2 gates).
+    # Element-wise foot-stance x knee-angle pairing — explicit ordered
+    # body/joint lists (the v33b indexing lesson; see the func docstring
+    # for the numeric calibration: 36 deg -> 0.12, 15 deg -> 1.0).
+    knee_extension = RewTerm(
+        func=mdp.knee_extension_stance,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_knee_pitch_joint", "right_knee_pitch_joint"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "max_cmd_speed": 1.5,
+            "target": 0.26,
+            "sigma": 0.17,
+        },
+    )
     leg_amp_asym = RewTerm(
         func=mdp.leg_amp_asym,
         weight=0,
@@ -442,10 +466,19 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # says the amplitude is already saturating the band's lower edge;
         # slightly less prior should relax the DC/phase coupling while
         # keeping arms >= 26-30) with the DC guard raised one notch.
-        self.rewards.arm_amp_prior.weight = 0.0  # superseded by the phase-locked term
-        # v55: phase-locked prior at the strong dose (the gate makes it
-        # safe: in-phase flailing and DC lean score zero)
-        self.rewards.arm_amp_phase.weight = 0.25
+        # v56 (human-gait arc): resume the SOUP534_40 regime — v55's
+        # phase-locked term FAILED its accept (8/13, P3a/P3b kernel gates;
+        # TASK_20260916_082), so it is OFF and the flat prior returns to
+        # v54's 0.06 dose (the soup's nearer parent recipe; single-variable
+        # discipline: everything except knee_extension matches the base).
+        self.rewards.arm_amp_prior.weight = 0.06
+        self.rewards.arm_amp_phase.weight = 0.0
+        # v56 single variable: STRAIGHT-KNEE stance prior (GOAL_HUMAN_GAIT
+        # §4.1). w=0.15 starting dose (3-point ladder 0.1/0.15/0.25 planned
+        # if needed, v52-54 methodology). Accept: K1 <= 18 deg (walk10+walk05
+        # stance-mid both feet) with ALL non-regress gates held (arms >= 24
+        # on the soup route).
+        self.rewards.knee_extension.weight = 0.15
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

@@ -495,6 +495,62 @@ def stance_sole_flat_walk(
     return torch.sum(sin_sq * in_contact, dim=-1) * gate
 
 
+def knee_extension_stance(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    max_cmd_speed: float = 1.5,
+    target: float = 0.26,
+    sigma: float = 0.17,
+) -> torch.Tensor:
+    """v56: STRAIGHT-KNEE stance prior — reward extended knees while the
+    foot is in contact, at walking speeds.
+
+    Diagnosis (acceptance/diag_knee.py, 2026-09-16): retargeted references
+    keep the human straight-knee pattern (mid-stance flexion 0.7-6 deg) but
+    every policy since v31 squats through stance at 30-40 deg with a ~6 deg
+    oscillation (no rhythm). Two root causes: DEFAULT_Q knee = 0.632 rad
+    crouch (action bias fights extension) and the joint-regularizer stack
+    favoring the low-CoM comfort solution; the discriminator is weak on
+    knee extension (demo mixes straight-knee walk with flexed jog).
+
+    Reward (GOAL_HUMAN_GAIT.md §4.1): per stance foot,
+        r_i = exp(-max(0, theta_knee_i - target) / sigma)
+    0=fully extended, positive=flexion; target 0.26 rad = 15 deg (human
+    mid-stance is 5-15 deg with margin); sigma 0.17 rad = 10 deg kernel
+    width. Calibration: current theta_mid = 36 deg (0.63 rad) -> r=0.12;
+    at 15 deg -> r=1.0. The kernel is SATURATED below target (no
+    hyper-extension pressure) and carries a live gradient above it
+    (d r/d theta = 0.66/rad at 36 deg, growing to 2.05/rad at 25 deg).
+
+    Walk-speed gate (same regime as stance_sole_flat_walk): jog references
+    are flexed-knee by nature (no straight-knee phase in running) — the
+    term must not fight the jog demo distribution above 1.5 m/s.
+    K1/K2 eval gates are measured at walk10/walk05 (<=1.0 m/s).
+
+    Foot-knee PAIRING: sensor_cfg.body_ids and asset_cfg.joint_ids are both
+    resolved in the env cfg with explicit preserve_order lists
+    ([left_ankle_roll_link, right_ankle_roll_link] vs
+    [left_knee_pitch_joint, right_knee_pitch_joint]) so stance_i pairs with
+    knee_i element-wise (the v33b single-joint indexing lesson).
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    # (N, M) stance indicator from the contact-force history (same detector
+    # as stance_sole_flat_walk / feet_slide)
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+
+    theta = asset.data.joint_pos[:, asset_cfg.joint_ids]        # (N, M) rad, 0=extended
+    kern = torch.exp(-(theta - target).clamp(min=0.0) / sigma)  # (N, M) in (0, 1]
+    r = torch.sum(kern * in_contact.float(), dim=-1)
+
+    cmd = env.command_manager.get_command(command_name)
+    gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()
+    return r * gate
+
+
 def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions if they cross the soft limits.
 

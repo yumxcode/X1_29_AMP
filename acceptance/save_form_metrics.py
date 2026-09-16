@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-"""Persist drift + arm-amplitude metrics as machine-readable JSON (audit).
+"""Persist drift + arm-amplitude + human-gait (K/H) metrics as JSON (audit).
 
 Recomputes from the committed rollout npz: world-y drift (walk10), arm
-swing amplitude (joint-space p95-p5 of shoulder pitch), P7g/P7h proxies.
+swing amplitude (joint-space p95-p5 of shoulder pitch), P7g/P7h proxies,
+and the v56+ human-gait gates K1/K2 (straight-knee) + H1/H2/H3 (heel-toe)
+via sim2sim.gait_metrics.analyze.
 Usage: python save_form_metrics.py <npz> <out.json> [--more npz2 ...]
 """
 import json
 import sys
 
 import numpy as np
+
+sys.path.insert(0, ".")
+from sim2sim.gait_metrics import analyze as gait_analyze  # noqa: E402
 
 SHO = ("left_shoulder_pitch_joint", "right_shoulder_pitch_joint")
 
@@ -36,7 +41,25 @@ def metrics(npz_path):
         "arm_antiphase_corr": corr(il, ir),
         "world_y_drift_m": float(bp[-1, 1] - bp[0, 1]),
         "duration_s": float(T * 0.02),
-    }
+    } | kh_fields(npz_path)
+
+
+def kh_fields(npz_path):
+    """K1/K2/H1/H2/H3 from the same npz via the G-gate analyzer (one source
+    of truth; gates defined in gait_metrics.SPEC)."""
+    try:
+        R = gait_analyze(npz_path)
+        kh = R["KH"]
+        out = {}
+        for name, d in kh.items():
+            if isinstance(d, dict):
+                out[name] = {k: d[k] for k in (
+                    "k1_mid_deg", "k2_range_deg", "land_heel_first_frac",
+                    "land_toe_first_frac", "launch_toe_off_frac", "n_events")}
+        out["gates"] = {k: kh[k] for k in kh if k.endswith("_PASS")}
+        return out
+    except Exception as e:  # metric failure must not kill the whole report
+        return {"kh_error": f"{type(e).__name__}: {e}"}
 
 
 def main():
