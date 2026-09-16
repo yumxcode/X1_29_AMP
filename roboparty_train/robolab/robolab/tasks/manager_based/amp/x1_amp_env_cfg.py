@@ -423,7 +423,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # WORKS) but arm-DC asym 35-54 deg + phase anti lost + drift.
         # v53 mid-dose: hold the amplitude in the [30,45] band with the
         # form gates; arm_asym_lean doubled to contain the DC.
-        self.rewards.arm_amp_prior.weight = 0.08
+        # v54: 0.08 landed the band edge (29-32) but P7g missed by 0.1 deg
+        # and walk05 phase/hip slid — step DOWN one notch (the v53 readout
+        # says the amplitude is already saturating the band's lower edge;
+        # slightly less prior should relax the DC/phase coupling while
+        # keeping arms >= 26-30) with the DC guard raised one notch.
+        self.rewards.arm_amp_prior.weight = 0.06
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
@@ -441,7 +446,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # asymmetry (P7g fail) that coupled into -3.06 m drift
         # v53: doubled again — v52@0.3 prior grew 35-54 deg DC asym; the
         # amplitude lever needs the DC guard at strength
-        self.rewards.arm_asym_lean.weight = -0.8
+        # v54: -0.8 -> -1.2 (v53's residual P7g 12.1 vs 12 is pure DC)
+        self.rewards.arm_asym_lean.weight = -1.2
         # - arm/opposite-leg coupling: refs +0.8..+0.99 vs policy -0.12;
         #   high-passed capped product (positive on ref, mean-shift free)
         self.rewards.arm_leg_coupling.weight = 0.3
