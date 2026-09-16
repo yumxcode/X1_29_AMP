@@ -63,3 +63,8 @@ acceptance/v51_eval/model_*.pt
 acceptance/v52_eval/model_*.pt
 acceptance/v53_eval/model_*.pt
 acceptance/v54_eval/model_*.pt
+
+# video assets: too large for git (kept locally; P6 evidence lives on the platform)
+*.mp4
+*.gif
+acceptance/videos_*/
