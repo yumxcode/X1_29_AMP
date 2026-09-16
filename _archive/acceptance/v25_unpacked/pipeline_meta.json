@@ -1,0 +1,5 @@
+{
+ "pipeline": "x1_amp_v25",
+ "started": "2026-08-25 08:48:58",
+ "note": "t0 anchor: keep model_upload/ on the SDK watch list"
+}

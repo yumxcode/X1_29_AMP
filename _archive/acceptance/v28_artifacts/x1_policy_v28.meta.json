@@ -1,0 +1,14 @@
+{
+ "src_npz": "acceptance/v28_artifacts/model_3999.policy.npz",
+ "in_dim": 288,
+ "out_dim": 29,
+ "hidden": [
+  512,
+  256,
+  128,
+  29
+ ],
+ "activation": "elu",
+ "normalizer": "fused (x-mean)/std",
+ "verify_max_abs_err": 1.71661376953125e-05
+}
