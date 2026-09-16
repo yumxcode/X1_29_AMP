@@ -419,9 +419,11 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # short) — complementary one-metric misses. v46 takes the
         # midpoint to land both inside [0.85, 0.99].
         self.rewards.leg_amp_asym.weight = -1.0
-        # v52: amplitude prior positive weight (comparable to the arm
-        # coupling term +0.3; tune by arm-amp readout)
-        self.rewards.arm_amp_prior.weight = 0.3
+        # v52 @0.3 OVERDOSE: arms 66-71 deg (2.7x plateau — the lever
+        # WORKS) but arm-DC asym 35-54 deg + phase anti lost + drift.
+        # v53 mid-dose: hold the amplitude in the [30,45] band with the
+        # form gates; arm_asym_lean doubled to contain the DC.
+        self.rewards.arm_amp_prior.weight = 0.08
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
@@ -437,7 +439,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         #   (-0.066) -> separates natural small asym from frozen defects
         # v42: doubled — v40 ran with -0.2 and still grew a 33 deg arm-DC
         # asymmetry (P7g fail) that coupled into -3.06 m drift
-        self.rewards.arm_asym_lean.weight = -0.4
+        # v53: doubled again — v52@0.3 prior grew 35-54 deg DC asym; the
+        # amplitude lever needs the DC guard at strength
+        self.rewards.arm_asym_lean.weight = -0.8
         # - arm/opposite-leg coupling: refs +0.8..+0.99 vs policy -0.12;
         #   high-passed capped product (positive on ref, mean-shift free)
         self.rewards.arm_leg_coupling.weight = 0.3
