@@ -1,0 +1,21 @@
+# TASK_20260916_008 x1-amp-ft-v52-ampprior — platform acceptance
+# VERDICT: FAIL 12/13 (P4 87%); P3 all-pass 0.831/0.520
+# BREAKTHROUGH: arms 65.9/69.6 deg (2.7x plateau, 75% of ref 92/83) — direct prior WORKS
+# OVERDOSE: arm-DC asym 35-54 deg, drift -3.05, phase anti lost -> dose too high, v53 tunes
+
+  ok   P2a_ep_len: ep_len 994.7 >= 950
+  ok   P2b_timeout: time_out 0.9904 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0001 + bad_orient 0.0095 <= 0.03
+  ok   P3a_lin_kernel: lin kernel 0.8311 >= 0.82 (reward 1.039)
+  ok   P3b_ang_kernel: ang kernel 0.5199 >= 0.5 (reward 0.650)
+  ok   P3c_err_xy: error_vel_xy 0.4197 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.9397 <= 0.95
+  FAIL P4_no_collapse: last100 24.41 >= 90% x best 28.14
+  ok   P5a_style: style 0.851 >= 0.15
+  ok   P5b_disc: disc_loss 0.00213 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (980KB); play log no base_contact term: True
+  MISS T1_lin_kernel: 0.8311 vs 0.85
+  MISS T2_ang_kernel: 0.5199 vs 0.6
+  HIT  T3_style: 0.851 vs 0.5
+VERDICT: FAIL   (12/13 pass, fails=['P4_no_collapse'])
