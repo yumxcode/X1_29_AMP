@@ -1,0 +1,37 @@
+{
+ "note": "recomputed from rollout npz; p95-p5 shoulder pitch; world-y drift",
+ "rows": [
+  {
+   "file": "v54_walk10.npz",
+   "cmd": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 17.56762647682125,
+    "R": 17.566583266026907
+   },
+   "arm_antiphase_corr": -0.9947782122514639,
+   "world_y_drift_m": 1.4326677487077295,
+   "duration_s": 11.5
+  },
+  {
+   "file": "v54_walk05.npz",
+   "cmd": [
+    0.5,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 17.9780008172131,
+    "R": 17.22990337108488
+   },
+   "arm_antiphase_corr": -0.9943312475531453,
+   "world_y_drift_m": 0.35566158794354574,
+   "duration_s": 11.5
+  }
+ ]
+}
