@@ -271,6 +271,43 @@ def arm_sync_residual(
     return torch.abs(hp_l + hp_r)
 
 
+def arm_amp_phase_prior(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    alpha: float = 0.02, lo: float = 0.52, hi: float = 0.79,
+) -> torch.Tensor:
+    """v55: PHASE-LOCKED amplitude prior — amplitude counts ONLY when the
+    swing is antiphase with the opposite hip (the structural fix for the
+    v52/v53 dual failure: 0.3 prior -> amplitude 66-71 but phase lost and
+    DC asym grew; 0.08 -> band-edge but walk05 phase slid).
+
+    Component: hp_sho = sho_dev - EMA(sho_dev) (the swing), and per side
+    hp_hip (opposite hip high-passed). The reward is min(L,R) amplitude
+    scaled by BOTH: max(0, -corr_gate) where corr_gate = the instantaneous
+    product hp_sho_L * hp_hip_R + hp_sho_R * hp_hip_L (negative = natural
+    antiphase coupling, same pairing as arm_leg_coupling) AND a DC-asym
+    penalty term folded in (|phiL-phiR| style, on the EMA). This makes
+    amplitude un-farmable by in-phase flailing or asymmetric leaning —
+    the two failure modes of the flat prior — and rewards exactly the
+    reference gait's coherent arm swing.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    n = dev.shape[1] // 2  # asset pairs: [shoL, shoR, hipL, hipR]
+    hp = dev - _ema(env, "ampdc", dev, 0.0025)
+    sho_l, sho_r = hp[:, 0], hp[:, 1]
+    hip_l, hip_r = hp[:, 2], hp[:, 3] if n > 1 else hp[:, 0], hp[:, 1]
+    ms_l = _ema(env, "ap_msL", sho_l * sho_l, alpha)
+    ms_r = _ema(env, "ap_msR", sho_r * sho_r, alpha)
+    amp = torch.minimum(torch.sqrt(ms_l.clamp_min(1e-8)), torch.sqrt(ms_r.clamp_min(1e-8)))
+    band = torch.where(amp < lo, (amp / lo).clamp(max=1.0),
+              torch.where(amp <= hi, torch.ones_like(amp),
+                          (1.0 - (amp - hi).clamp(min=0.0) / hi).clamp(min=0.0)))
+    # antiphase gate: coherent swing -> product negative; in-phase -> positive
+    prod = sho_l * hip_r + sho_r * hip_l
+    gate = (-torch.tanh(prod * 20.0)).clamp(min=0.0)   # 0..1, 1 = antiphase
+    return band * gate
+
+
 def arm_swing_amplitude_prior(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     alpha: float = 0.02, lo: float = 0.52, hi: float = 0.79,

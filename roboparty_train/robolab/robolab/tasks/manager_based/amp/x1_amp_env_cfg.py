@@ -174,15 +174,29 @@ class X1AmpRewards():
     # mirrored dataset gives a symmetric prior but nothing penalized
     # asymmetric amplitudes under the new style gradient. Slow EMA (tau 8s)
     # of |dev| envelopes; ref penalty ~0 at any phase structure.
-    # v52: DIRECT arm-swing amplitude prior (audit's structural lever after
-    # v50/v51 falsified the config routes). Positive prior on high-passed
-    # shoulder RMS swing; band [30, 45] deg; min(L,R) anti-farming.
+    # v52: flat amplitude prior (kept for A/B history; superseded in v55)
     arm_amp_prior = RewTerm(
         func=mdp.arm_swing_amplitude_prior,
         weight=0,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot", joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint"],
+                preserve_order=True),
+            "alpha": 0.02, "lo": 0.52, "hi": 0.79,
+        },
+    )
+    # v55: PHASE-LOCKED amplitude prior — amplitude scores only when the
+    # arm swing is antiphase-coherent with the opposite hip (gate on the
+    # instantaneous product, the arm_leg_coupling pairing). Fixes the
+    # v52/v53 dual failure (amplitude-vs-phase/DC trade).
+    arm_amp_phase = RewTerm(
+        func=mdp.arm_amp_phase_prior,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint",
+                             "left_hip_pitch_joint", "right_hip_pitch_joint"],
                 preserve_order=True),
             "alpha": 0.02, "lo": 0.52, "hi": 0.79,
         },
@@ -428,7 +442,10 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # says the amplitude is already saturating the band's lower edge;
         # slightly less prior should relax the DC/phase coupling while
         # keeping arms >= 26-30) with the DC guard raised one notch.
-        self.rewards.arm_amp_prior.weight = 0.06
+        self.rewards.arm_amp_prior.weight = 0.0  # superseded by the phase-locked term
+        # v55: phase-locked prior at the strong dose (the gate makes it
+        # safe: in-phase flailing and DC lean score zero)
+        self.rewards.arm_amp_phase.weight = 0.25
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
