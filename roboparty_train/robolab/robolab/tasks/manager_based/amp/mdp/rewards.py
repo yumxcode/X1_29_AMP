@@ -292,10 +292,9 @@ def arm_amp_phase_prior(
     """
     asset: Articulation = env.scene[asset_cfg.name]
     dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
-    n = dev.shape[1] // 2  # asset pairs: [shoL, shoR, hipL, hipR]
     hp = dev - _ema(env, "ampdc", dev, 0.0025)
     sho_l, sho_r = hp[:, 0], hp[:, 1]
-    hip_l, hip_r = hp[:, 2], hp[:, 3] if n > 1 else hp[:, 0], hp[:, 1]
+    hip_l, hip_r = hp[:, 2], hp[:, 3]  # asset cfg passes all four joints
     ms_l = _ema(env, "ap_msL", sho_l * sho_l, alpha)
     ms_r = _ema(env, "ap_msR", sho_r * sho_r, alpha)
     amp = torch.minimum(torch.sqrt(ms_l.clamp_min(1e-8)), torch.sqrt(ms_r.clamp_min(1e-8)))
