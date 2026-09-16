@@ -1,0 +1,20 @@
+# TASK_20260916_026 x1-amp-ft-v54-ampbalance — platform acceptance
+# VERDICT: FAIL 12/13 (P4 88%); P3 all-pass 0.837/0.541
+# LOCAL: G2 3-walk ALL PASS with phase fully restored (v53's walk05 phase loss FIXED)
+
+  ok   P2a_ep_len: ep_len 996.9 >= 950
+  ok   P2b_timeout: time_out 0.9941 >= 0.95
+  ok   P2c_base_contact: base_contact 0.00000 == 0
+  ok   P2d_bad_sum: base_height 0.0000 + bad_orient 0.0059 <= 0.03
+  ok   P3a_lin_kernel: lin kernel 0.8371 >= 0.82 (reward 1.046)
+  ok   P3b_ang_kernel: ang kernel 0.5413 >= 0.5 (reward 0.677)
+  ok   P3c_err_xy: error_vel_xy 0.4114 <= 0.44
+  ok   P3d_err_yaw: error_vel_yaw 0.8914 <= 0.95
+  FAIL P4_no_collapse: last100 22.43 >= 90% x best 25.62
+  ok   P5a_style: style 0.837 >= 0.15
+  ok   P5b_disc: disc_loss 0.00210 <= 0.05
+  ok   P6_play: video x1_play_skeleton.gif exists (886KB); play log no base_contact term: True
+  MISS T1_lin_kernel: 0.8371 vs 0.85
+  MISS T2_ang_kernel: 0.5413 vs 0.6
+  HIT  T3_style: 0.837 vs 0.5
+VERDICT: FAIL   (12/13 pass, fails=['P4_no_collapse'])
