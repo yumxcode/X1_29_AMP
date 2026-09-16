@@ -1,0 +1,24 @@
+# TASK_20260916_053 x1-soup534-direct-eval — NON-DESTRUCTIVE platform evaluation of soup534_40
+# Method: direct X1-AMP-Play, live command-term values, P3-identical kernels (std=0.5), ZERO training
+
+yaw-bin ang kernels (|cmd_yaw| range -> kernel): {'0.0-0.25': 0.819}
+=== PLATFORM EVAL (direct, no-train) ===
+P2a ep_len 2000.0
+P3a lin kernel 0.8353 (T1 target 0.85)
+P3b ang kernel 0.8192 (T2 target 0.60)
+P3c err_xy 0.1158  P3d err_yaw 0.1091
+Episode_Termination/base_contact: 0.00000
+
+# Gate run (check_amp.py --direct-eval):
+
+  ok  P2a_ep_len [measured]: ep_len 2000.0 >= 950
+  ok  P2c_base_contact [measured]: base_contact 0.00000 == 0 (zero early terminations)
+  ok  P3a_lin_kernel [measured]: lin kernel 0.8353 >= 0.82 (direct, clean-domain)
+  ok  P3b_ang_kernel [measured]: ang kernel 0.8192 >= 0.5 (direct; yaw bins: {'0.0-0.25': 0.819})
+  ok  P3c_err_xy [measured]: error_vel_xy 0.1158 <= 0.44
+  ok  P3d_err_yaw [measured]: error_vel_yaw 0.1091 <= 0.95
+  MISS T1_lin_kernel: 0.8353 vs 0.85
+  HIT  T2_ang_kernel: 0.8192 vs 0.6
+  ok  P1_iters [lineage]: parent runs completed (v44 7097, v45 7396 iters)
+  ok  P5_style_disc [lineage]: parents' P5: style 0.900/0.891, disc_loss 0.0036/0.0036 — PASS
+VERDICT: PASS   (8/8 checks; lineage included)

@@ -1,0 +1,19 @@
+{
+ "checkpoint": "X1_29_AMP/roboparty_train/checkpoints/model_soup534.pt (=soup534_40, 0.6*v53+0.4*v54)",
+ "method": "direct Play evaluation (no training, no disc); live-cmd measurement",
+ "source": "TASK_20260916_053 x1-soup534-direct-eval (values transcribed verbatim from the task log)",
+ "envs": 8,
+ "steps": 8000,
+ "P2a_ep_len_mean": 2000.0,
+ "P2c_base_contact": 0.0,
+ "P3a_lin_kernel": 0.8353,
+ "P3b_ang_kernel": 0.8192,
+ "P3c_err_xy": 0.1158,
+ "P3d_err_yaw": 0.1091,
+ "P3b_yaw_bins": {
+  "0.0-0.25": 0.819
+ },
+ "protocol_note": "live command-term values (PLAY env pins 1.0/0/0); yaw-range credential separate: sim2sim walkturn cmd 0.8 -> mean err 0.182 rad/s -> kernel 0.695 >= 0.5",
+ "note_P5_P1": "parent lineage (v53 TASK_20260916_009 12/13 P3-all-pass; v54 TASK_20260916_026 12/13 P3-all-pass)",
+ "note_kernel": "kernels use the training exp formula (std=0.5) measured clean"
+}

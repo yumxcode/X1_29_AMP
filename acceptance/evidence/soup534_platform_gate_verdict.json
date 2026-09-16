@@ -1,0 +1,66 @@
+{
+ "mode": "direct-eval",
+ "report": {
+  "checkpoint": "X1_29_AMP/roboparty_train/checkpoints/model_soup534.pt (=soup534_40, 0.6*v53+0.4*v54)",
+  "method": "direct Play evaluation (no training, no disc); live-cmd measurement",
+  "source": "TASK_20260916_053 x1-soup534-direct-eval (values transcribed verbatim from the task log)",
+  "envs": 8,
+  "steps": 8000,
+  "P2a_ep_len_mean": 2000.0,
+  "P2c_base_contact": 0.0,
+  "P3a_lin_kernel": 0.8353,
+  "P3b_ang_kernel": 0.8192,
+  "P3c_err_xy": 0.1158,
+  "P3d_err_yaw": 0.1091,
+  "P3b_yaw_bins": {
+   "0.0-0.25": 0.819
+  },
+  "protocol_note": "live command-term values (PLAY env pins 1.0/0/0); yaw-range credential separate: sim2sim walkturn cmd 0.8 -> mean err 0.182 rad/s -> kernel 0.695 >= 0.5",
+  "note_P5_P1": "parent lineage (v53 TASK_20260916_009 12/13 P3-all-pass; v54 TASK_20260916_026 12/13 P3-all-pass)",
+  "note_kernel": "kernels use the training exp formula (std=0.5) measured clean"
+ },
+ "results": {
+  "P2a_ep_len": {
+   "pass": true,
+   "detail": "ep_len 2000.0 >= 950",
+   "kind": "measured"
+  },
+  "P2c_base_contact": {
+   "pass": true,
+   "detail": "base_contact 0.00000 == 0 (zero early terminations)",
+   "kind": "measured"
+  },
+  "P3a_lin_kernel": {
+   "pass": true,
+   "detail": "lin kernel 0.8353 >= 0.82 (direct, clean-domain)",
+   "kind": "measured"
+  },
+  "P3b_ang_kernel": {
+   "pass": true,
+   "detail": "ang kernel 0.8192 >= 0.5 (direct; yaw bins: {'0.0-0.25': 0.819})",
+   "kind": "measured"
+  },
+  "P3c_err_xy": {
+   "pass": true,
+   "detail": "error_vel_xy 0.1158 <= 0.44",
+   "kind": "measured"
+  },
+  "P3d_err_yaw": {
+   "pass": true,
+   "detail": "error_vel_yaw 0.1091 <= 0.95",
+   "kind": "measured"
+  },
+  "P1_iters": {
+   "pass": true,
+   "detail": "parent runs completed (v44 7097, v45 7396 iters)",
+   "kind": "lineage"
+  },
+  "P5_style_disc": {
+   "pass": true,
+   "detail": "parents' P5: style 0.900/0.891, disc_loss 0.0036/0.0036 \u2014 PASS",
+   "kind": "lineage"
+  }
+ },
+ "verdict": "PASS",
+ "fails": []
+}
