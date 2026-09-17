@@ -681,6 +681,52 @@ def heel_first_stance(
     return r * gate
 
 
+def terminal_swing_ankle_rate(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    max_cmd_speed: float = 1.5,
+    height_z: float = 0.040,
+    rate_thr: float = 0.70,
+) -> torch.Tensor:
+    """v57d: terminal-swing ankle-FLICK penalty (the measured heel-toe
+    blocker).
+
+    Forensics (v57c arc, 2026-09-17): every policy since v53 carries a
+    terminal ankle SNAP — dorsiflexed approach (heel 8-14 deg below toe,
+    good) flipped plantarflexed (+10 deg) in the last 100 ms before
+    contact, at +95-110 deg/s ankle_pitch rate; the retargeted
+    references approach smoothly at -18..+38 deg/s (occasional p90
+    +190). The flick is what converts heel-first-ready posture into
+    toe-first contact, and it survived THREE heel_first reward designs
+    (the reward only sees the AT-EDGE outcome, after the flick).
+
+    Penalty: relu(ankle_pitch_rate - rate_thr) while the foot is LOW
+    (min sole end below 40 mm) and NOT in contact — i.e. exactly the
+    terminal-swing frames. Only POSITIVE (plantarflexion) excess is
+    taxed: dorsiflexion is the heel-first approach and must stay free
+    (refs go -18 deg/s there). Calibration: policies' 95-110 deg/s =
+    1.7-1.9 rad/s -> excess ~1.0-1.2 rad/s; refs sit under the 0.70
+    rad/s threshold (40 deg/s) almost always.
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+
+    asset: Articulation = env.scene[asset_cfg.name]
+    ankle_vel = asset.data.joint_vel[:, asset_cfg.joint_ids]           # (N, M) rad/s
+    heel_z = _foot_end_z(env, asset_cfg, _HEEL_OFF)
+    toe_z = _foot_end_z(env, asset_cfg, _TOE_OFF)
+    low = torch.minimum(heel_z, toe_z) <= height_z
+
+    excess = (ankle_vel - rate_thr).clamp(min=0.0)
+    r = torch.sum(excess * low.float() * (~in_contact).float(), dim=-1)
+
+    cmd = env.command_manager.get_command(command_name)
+    gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()
+    return r * gate
+
+
 def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions if they cross the soft limits.
 

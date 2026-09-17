@@ -259,10 +259,41 @@ class X1AmpRewards():
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
+                # v57d: + ankle pitch pairs (v44 precedent: same guard
+                # family, consecutive-pair extension — v57c's L/R landing
+                # asymmetry (L toe-first 33% vs R 95%) coupled into
+                # +4-5 m drift)
                 joint_names=["left_hip_pitch_joint", "right_hip_pitch_joint",
-                             "left_knee_pitch_joint", "right_knee_pitch_joint"],
+                             "left_knee_pitch_joint", "right_knee_pitch_joint",
+                             "left_ankle_pitch_joint", "right_ankle_pitch_joint"],
                 preserve_order=True),
             "alpha": 0.0025,
+        },
+    )
+    # v57d: terminal-swing ankle-FLICK penalty — the measured heel-toe
+    # blocker (policies snap +95-110 deg/s plantarflexion in the last
+    # 100 ms pre-contact; refs approach at -18..+38). Positive-excess
+    # relu only (dorsiflexion stays free); active while foot < 40 mm
+    # and airborne. See the func docstring for calibration.
+    ankle_flick = RewTerm(
+        func=mdp.terminal_swing_ankle_rate,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_ankle_pitch_joint", "right_ankle_pitch_joint"],
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "max_cmd_speed": 1.5,
+            "height_z": 0.040,
+            "rate_thr": 0.70,
         },
     )
     joint_torques_l2 = RewTerm(
@@ -514,6 +545,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # v57c: 0.15 -> 0.40 (event-sparse: ~0.037 events/step; the per-event
         # advantage 0.4x0.28 = 0.11 must be perceivable against ~16/step)
         self.rewards.heel_first.weight = 0.40
+        # v57d: ankle-flick penalty (excess ~1.0-1.2 rad/s on policies,
+        # ~0 on refs -> -0.2..-0.24/step during terminal swing frames)
+        self.rewards.ankle_flick.weight = -0.2
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

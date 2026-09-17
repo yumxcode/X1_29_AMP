@@ -253,6 +253,59 @@ def main():
     scj, acj = foot_cfgs(aij)
     check("jog cmd -> gate OFF", call_sf(envj, scj, acj)[0], 0.0)
 
+    # ---------------- terminal_swing_ankle_rate (v57d) ------------------
+    print("[dryrun] terminal_swing_ankle_rate:")
+
+    def call_af(env, sc, ac):
+        return R.terminal_swing_ankle_rate(env, sc, ac,
+                                           command_name="base_velocity",
+                                           max_cmd_speed=1.5,
+                                           height_z=0.040, rate_thr=0.70)
+
+    # flick: +110deg/s (=1.92 rad/s) ankle vel, foot low (mid 20mm,
+    # pitch 0 -> ends ±20mm <= 40mm), airborne -> excess (1.92-0.70)=1.22
+    envA, aiA = make_env(contact=(False, False), pitch_deg=(0.0, 0.0), mid_z=0.020)
+    envA.scene["robot"].data.joint_vel = torch.zeros(4, 29)
+    envA.scene["robot"].data.joint_vel[:, 21] = math.radians(110)   # L ankle pitch
+    envA.scene["robot"].data.joint_vel[:, 27] = math.radians(110)   # R ankle pitch
+    scA, acA = types.SimpleNamespace(name="contact_forces", body_ids=aiA), \
+        types.SimpleNamespace(name="robot", body_ids=aiA, joint_ids=[21, 27])
+    check("flick +110deg/s low+air -> excess x2",
+          call_af(envA, scA, acA)[0], 2*(math.radians(110)-0.70), 1e-4)
+    # smooth reference-like approach: -18deg/s -> below thr, 0
+    envB, aiB = make_env(contact=(False, False), pitch_deg=(0.0, 0.0), mid_z=0.020)
+    envB.scene["robot"].data.joint_vel = torch.zeros(4, 29)
+    envB.scene["robot"].data.joint_vel[:, 21] = math.radians(-18)
+    envB.scene["robot"].data.joint_vel[:, 27] = math.radians(-18)
+    scB, acB = types.SimpleNamespace(name="contact_forces", body_ids=aiB), \
+        types.SimpleNamespace(name="robot", body_ids=aiB, joint_ids=[21, 27])
+    check("dorsiflexion -18deg/s -> 0 (free)", call_af(envB, scB, acB)[0], 0.0)
+    # high foot (clearance) with flick: exempt (only terminal-swing gated)
+    envC, aiC = make_env(contact=(False, False), pitch_deg=(0.0, 0.0), mid_z=0.12)
+    envC.scene["robot"].data.joint_vel = torch.zeros(4, 29)
+    envC.scene["robot"].data.joint_vel[:, 21] = math.radians(110)
+    envC.scene["robot"].data.joint_vel[:, 27] = math.radians(110)
+    scC, acC = types.SimpleNamespace(name="contact_forces", body_ids=aiC), \
+        types.SimpleNamespace(name="robot", body_ids=aiC, joint_ids=[21, 27])
+    check("high-swing flick exempt (clearance zone)", call_af(envC, scC, acC)[0], 0.0)
+    # in contact with flick rate: exempt (stance dynamics not the flick)
+    envD, aiD = make_env(contact=(True, True), pitch_deg=(0.0, 0.0), mid_z=0.020)
+    envD.scene["robot"].data.joint_vel = torch.zeros(4, 29)
+    envD.scene["robot"].data.joint_vel[:, 21] = math.radians(110)
+    envD.scene["robot"].data.joint_vel[:, 27] = math.radians(110)
+    scD, acD = types.SimpleNamespace(name="contact_forces", body_ids=aiD), \
+        types.SimpleNamespace(name="robot", body_ids=aiD, joint_ids=[21, 27])
+    check("stance flick exempt", call_af(envD, scD, acD)[0], 0.0)
+    # mild positive 45deg/s: excess (0.785-0.70)=0.085 x2
+    envE, aiE = make_env(contact=(False, False), pitch_deg=(0.0, 0.0), mid_z=0.020)
+    envE.scene["robot"].data.joint_vel = torch.zeros(4, 29)
+    envE.scene["robot"].data.joint_vel[:, 21] = math.radians(45)
+    envE.scene["robot"].data.joint_vel[:, 27] = math.radians(45)
+    scE, acE = types.SimpleNamespace(name="contact_forces", body_ids=aiE), \
+        types.SimpleNamespace(name="robot", body_ids=aiE, joint_ids=[21, 27])
+    check("mild +45deg/s graded (0.085 x2)",
+          call_af(envE, scE, acE)[0], 2*(math.radians(45)-0.70), 1e-4)
+
     print(f"[dryrun] {'ALL PASS' if all(ok) else 'FAILURES'} ({sum(ok)}/{len(ok)})")
     sys.exit(0 if all(ok) else 1)
 
