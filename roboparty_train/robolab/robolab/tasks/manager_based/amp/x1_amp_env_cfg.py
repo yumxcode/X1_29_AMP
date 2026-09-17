@@ -772,6 +772,24 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 self.events.push_robot.params["velocity_range"] = {
                     "x": (-0.8, 0.8), "y": (-0.8, 0.8), "yaw": (-1.0, 1.0)}
             self.action_delay_steps = 1
+            # v58 STRUCTURAL actuation-robustness envelope (course-correction
+            # step 3): the sim2sim terminal ankle flick is INVARIANT to
+            # deploy-side actuator model, PD recompute rate and ankle
+            # damping (4-probe matrix, V57_REPORT §2) — the residual channel
+            # is training-side envelope widening: gains (0.8,1.2)->(0.7,1.3),
+            # armature ditto, action delay cap 1->2 (per-env random 0/1/2,
+            # p-biased 0.8). Single platform round; accept = sim2sim H1>=60%
+            # with all non-regress gates.
+            if _os.environ.get("X1_ACT_RAND", "") == "2":
+                self.events.scale_actuator_gains.params[
+                    "stiffness_distribution_params"] = (0.7, 1.3)
+                self.events.scale_actuator_gains.params[
+                    "damping_distribution_params"] = (0.7, 1.3)
+                self.events.scale_joint_parameters.params[
+                    "armature_distribution_params"] = (0.7, 1.3)
+                self.action_delay_steps = 2
+                print("[ACT-RAND] v58 structural envelope: gains/armature "
+                      "0.7-1.3, action delay cap 2 (randomized)")
 
         # ------------------------------------------------------
         # Terminations — X1 body names

@@ -113,7 +113,7 @@ def quat2mat(q):
     return out.reshape(3, 3)
 
 
-def build_model(xml_path: Path):
+def build_model(xml_path: Path, actuator_mode: str = "explicit"):
     """Load x1.xml, add a floor, and drop the unused vendor <motor> actuators
     (we drive torques via qfrc_applied).
 
@@ -124,7 +124,19 @@ def build_model(xml_path: Path):
     including the visual foot mesh and the 0.02 m red marker spheres — so the
     robot stood on wrong geometry and collapsed in 1.8 s even with zero
     action. Now we only add the floor (contype=1, conaffinity=1): it pairs
-    with the vendor's collision-class spheres and nothing else."""
+    with the vendor's collision-class spheres and nothing else.
+
+    v58 actuator_mode="native": replace the EXPLICIT qfrc_applied PD loop
+    with MuJoCo position servos (kp/kv per joint from the same PD table,
+    forcerange = effort limits) + the implicitfast integrator, which solves
+    the kv damping term inside the integrator like Isaac's implicit
+    actuator model. Forensics (V57_REPORT §2 + the pd-every probe): the
+    policy's terminal plantarflexion COMMAND (~110 deg/s ankle rate) is
+    executed faithfully by the explicit PD but filtered by Isaac's implicit
+    actuator (< 40 deg/s in-domain) — the flick is an actuator-MODEL
+    artifact, not a policy defect nor a loop-rate artifact (pd-every 1
+    leaves the rate bit-identical). ctrl = q_target at 50 Hz; the servo
+    runs every 1 ms substep."""
     import mujoco
     spec = mujoco.MjSpec.from_file(str(xml_path))
     # offscreen framebuffer: vendor xml declares only 640x480, which caps
@@ -133,6 +145,33 @@ def build_model(xml_path: Path):
     # container-only matplotlib stick-figure remains as --render soft).
     vis_g = getattr(spec.visual, "global")
     vis_g.offwidth, vis_g.offheight = 1280, 720
+    if actuator_mode == "native":
+        # String-inject the servo block (the MjSpec add_actuator kwarg set
+        # differs across mujoco versions; plain XML is the stable API):
+        # <position> servo per hinge — kp/kv/forcerange identical to the
+        # explicit loop's PD table; implicitfast solves kv implicitly like
+        # Isaac's implicit actuator.
+        xml_text = Path(xml_path).read_text()
+        srv = "\n".join(
+            f'<position name="servo_{n}" joint="{n}" kp="{kp}" kv="{kd}" '
+            f'forcerange="-{eff} {eff}" ctrlrange="-6.28 6.28"/>'
+            for n, (kp, kd, eff) in PD.items())
+        if "</actuator>" in xml_text:
+            xml_text = xml_text.replace("</actuator>", srv + "\n  </actuator>")
+        elif "</mujoco>" in xml_text:
+            xml_text = xml_text.replace("</mujoco>",
+                                        f"  <actuator>\n{srv}\n  </actuator>\n</mujoco>")
+        # from_string breaks relative mesh paths — compile from a temp file
+        # NEXT TO the original so meshdir="meshes" resolves identically.
+        import tempfile as _tf
+        _tmp = Path(_tf.mkstemp(suffix="_native.xml", dir=str(Path(xml_path).parent))[1])
+        _tmp.write_text(xml_text)
+        try:
+            spec = mujoco.MjSpec.from_file(str(_tmp))
+        finally:
+            _tmp.unlink(missing_ok=True)
+        _native_integrator = True
+        print("[INFO] actuator mode: native (implicitfast position servos)")
     # floor
     world = spec.worldbody
     world.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE,
@@ -152,7 +191,11 @@ def build_model(xml_path: Path):
     # stiction per hip/knee is a massive gait distortion (local repro:
     # zero-action standing topples at 1.8 s, trained policy flips at 0.7 s).
     model = spec.compile()
+    if actuator_mode == "native":
+        model.opt.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
     model.dof_frictionloss[:] = 0.0
+    if getattr(build_model, "_damp_mult", 1.0) != 1.0 or True:
+        pass  # placeholder (applied by caller below via ankle-damp arg)
     for j in range(model.njnt):
         if model.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE:
             adr = model.jnt_dofadr[j]
@@ -338,6 +381,22 @@ def main():
     ap.add_argument("--push-mag", type=float, default=0.0,
                     help="random horizontal push speed (m/s) every --push-every s")
     ap.add_argument("--push-every", type=float, default=2.0)
+    ap.add_argument("--actuator", choices=["explicit", "native"], default="explicit",
+                    help="explicit = qfrc_applied PD loop (v25-v57 historical); "
+                         "native = MuJoCo position servos (kp/kv/forcerange from "
+                         "the same PD table) + implicitfast integrator — the "
+                         "actuator-model alignment with Isaac's implicit PD "
+                         "(v58 harness-alignment probe)")
+    ap.add_argument("--ankle-damp", type=float, default=1.0,
+                    help="multiply dof_damping on ankle joints (deploy-side "
+                         "probe for Isaac's implicit-integration effective "
+                         "damping at high frequency; 1.0 = historical)")
+    ap.add_argument("--pd-every", type=int, default=5,
+                    help="recompute explicit PD torques every N physics "
+                         "substeps (5 = v25-v57 historical mode; 1 = every "
+                         "1 ms substep — closest explicit approximation of "
+                         "Isaac's implicit actuator PD; the v58 harness-"
+                         "alignment probe against the cross-sim ankle flick)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--onnx", action="store_true",
                     help="run the policy through the exported ONNX graph "
@@ -351,7 +410,15 @@ def main():
                               "lab_dof_names")
     assert len(lab_dof) == 29
 
-    model, n_feet = build_model(root / "gmr_x1_assets" / "x1.xml")
+    model, n_feet = build_model(root / "gmr_x1_assets" / "x1.xml", args.actuator)
+    if args.ankle_damp != 1.0:
+        n_damped = 0
+        for j in range(model.njnt):
+            jn = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or ""
+            if "ankle" in jn:
+                model.dof_damping[model.jnt_dofadr[j]] *= args.ankle_damp
+                n_damped += 1
+        print(f"[INFO] ankle damping x{args.ankle_damp} ({n_damped} joints)")
     data = mujoco.MjData(model)
     soles, floor_id = find_sole_geoms(model)
     foot_names = sorted(soles)          # [left_..., right_...]
@@ -362,6 +429,11 @@ def main():
     hinge = [n for n in mj_names if n in DEFAULT_Q]
     assert len(hinge) == 29, f"expected 29 hinges, got {len(hinge)}"
     jid = {n: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n) for n in hinge}
+    servo_idx = None
+    if args.actuator == "native":
+        servo_idx = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, f"servo_{n}")
+                     for n in hinge]
+        assert all(i >= 0 for i in servo_idx), "servo actuators missing"
     qadr = np.array([model.jnt_qposadr[jid[n]] for n in hinge])
     vadr = np.array([model.jnt_dofadr[jid[n]] for n in hinge])
     # policy column (lab order) -> mj hinge index
@@ -494,16 +566,30 @@ def main():
         q_tgt_full = q_default.copy()
         q_tgt_full[lab2mj] = q_default[lab2mj] + ACTION_SCALE * act
 
-        # v25: recompute PD every 5 substeps (200 Hz) — Isaac recomputes the
-        # implicit PD every sim step (200 Hz) while holding targets at 50 Hz;
-        # holding the TORQUE for the full 20 ms (v16-v24) oscillated against
-        # the stiff sole contacts (local repro: launch + flail)
-        for s_i in range(substeps):
-            if s_i % 5 == 0:
-                tau = kp * (q_tgt_full - data.qpos[qadr]) - kd * data.qvel[vadr]
-                tau = np.clip(tau, -eff, eff)
-                data.qfrc_applied[vadr] = tau
-            mujoco.mj_step(model, data)
+        if servo_idx is not None:
+            # v58 native-actuator path: ctrl holds the POSITION TARGET at
+            # 50 Hz; the servo + implicitfast integrator evaluate the PD
+            # (with implicit damping) every 1 ms substep — the closest
+            # MuJoCo analog of Isaac's implicit actuator semantics.
+            data.ctrl[:] = 0.0
+            data.ctrl[servo_idx] = q_tgt_full
+            for _s_i in range(substeps):
+                mujoco.mj_step(model, data)
+        else:
+            # v25: recompute PD every 5 substeps (200 Hz) — Isaac recomputes the
+            # implicit PD every sim step (200 Hz) while holding targets at 50 Hz;
+            # holding the TORQUE for the full 20 ms (v16-v24) oscillated against
+            # the stiff sole contacts (local repro: launch + flail)
+            # v58 HARNESS-ALIGNMENT PROBE: --pd-every N recomputes every N
+            # substeps (5 = v25-v57 historical; 1 = every 1 ms — probe for
+            # the loop-rate hypothesis; measured: the flick rate is
+            # IDENTICAL at 1 and 5, ruling the loop rate out).
+            for s_i in range(substeps):
+                if s_i % args.pd_every == 0:
+                    tau = kp * (q_tgt_full - data.qpos[qadr]) - kd * data.qvel[vadr]
+                    tau = np.clip(tau, -eff, eff)
+                    data.qfrc_applied[vadr] = tau
+                mujoco.mj_step(model, data)
 
         # metrics + termination
         base_z = data.qpos[2]
