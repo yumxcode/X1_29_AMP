@@ -199,6 +199,23 @@ def paired_joints_deviation_sum_l1(
 
 
 _EMA_STATE: dict = {}
+_EDGE_STATE: dict = {}
+
+
+def _stance_rising_edge(env, key: str, in_contact: torch.Tensor) -> torch.Tensor:
+    """Per-env per-foot stance rising-edge detector with persistent prev
+    state (the _EMA_STATE pattern, boolean flavor). Contact-sensor history
+    depth is not relied on; state keyed by (id(env), key), shape/device
+    resilient across resets."""
+    skey = (id(env), key)
+    prev = _EDGE_STATE.get(skey)
+    if prev is None or prev.shape != in_contact.shape or prev.device != in_contact.device:
+        prev = torch.zeros_like(in_contact)
+        _EDGE_STATE[skey] = prev
+    edge = in_contact & ~prev
+    with torch.no_grad():
+        prev.copy_(in_contact)
+    return edge
 
 
 def _ema(env, key: str, x: torch.Tensor, alpha: float) -> torch.Tensor:
@@ -472,6 +489,23 @@ def stance_sole_flat_walk(
 
     Gated to walking speeds: at >= 1.5 m/s (jog references in the AMP dataset)
     a forefoot stance is natural and must not be punished.
+
+    v57 PHASED REWORK (GOAL_HUMAN_GAIT §4.3 — the "元凶解除"): the flat
+    version penalized sin^2(tilt) through ALL stance frames, which pressed
+    the heel-strike touch-down phase AND the heel-off push-off phase flat
+    (baseline H1 = 0% with 100% flat landings; toe-off survived only
+    because the tilt stays small until late stance). Phased version with
+    the same heel/toe end geometry as heel_first_stance (12 mm on-ground
+    tolerance ≈ the eval's roll-to-flat spec):
+
+      heel-on & toe-on  -> foot-flat:   sin^2 tilt penalty (original
+                                        anti-toe-walk function, KEPT)
+      heel-on only      -> heel-strike: EXEMPT (the phase §4.2 rewards)
+      toe-on only       -> heel-off/push-off: EXEMPT (toe-off is the
+                                        asset at 100%; do not injure)
+      neither sensed    -> keep the penalty while body contact persists
+                           (conservative default = legacy behavior for
+                           transient sensor gaps)
     """
     contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
     asset: Articulation = env.scene[asset_cfg.name]
@@ -490,9 +524,17 @@ def stance_sole_flat_walk(
     cos_tilt = torch.clamp(up_world[:, :, 2], -1.0, 1.0)                      # dot with world up
     sin_sq = 1.0 - torch.square(cos_tilt)
 
+    # v57 phase gates from heel/toe end geometry (shared helpers above)
+    heel_on = _foot_end_z(env, asset_cfg, _HEEL_OFF) <= 0.012
+    toe_on = _foot_end_z(env, asset_cfg, _TOE_OFF) <= 0.012
+    heel_only = heel_on & ~toe_on          # heel-strike phase
+    toe_only = toe_on & ~heel_on           # heel-off / push-off phase
+    flat_phase = heel_on & toe_on          # foot-flat: penalize
+    exempt = heel_only | toe_only
+
     cmd = env.command_manager.get_command(command_name)
     gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()
-    return torch.sum(sin_sq * in_contact, dim=-1) * gate
+    return torch.sum(sin_sq * in_contact.float() * (~exempt).float(), dim=-1) * gate
 
 
 def knee_extension_stance(
@@ -545,6 +587,85 @@ def knee_extension_stance(
     theta = asset.data.joint_pos[:, asset_cfg.joint_ids]        # (N, M) rad, 0=extended
     kern = torch.exp(-(theta - target).clamp(min=0.0) / sigma)  # (N, M) in (0, 1]
     r = torch.sum(kern * in_contact.float(), dim=-1)
+
+    cmd = env.command_manager.get_command(command_name)
+    gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()
+    return r * gate
+
+
+def _foot_end_z(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    local_offset: torch.Tensor,
+) -> torch.Tensor:
+    """World-frame BOTTOM height (z minus sphere radius 2 mm) of a foot-end
+    point (heel or toe), for each ankle body in asset_cfg.body_ids.
+
+    Foot-frame convention (v56 semantic audit, probe_kh_metric.py): the
+    +0.07 local-z end is the HEEL (world-forward at neutral pose — the
+    vendor xml / find_sole_geoms 'front' comments are wrong; anchored on
+    0002_treadmill_slow where diag_heeltoe measures 64-67% heel-first on
+    human slow walk). Sole plane occupies local -y (X1 vendor URDF rpy
+    (0, pi/2, 0) on ankle_roll) — heel/toe differ along local z.
+
+    Returns (N, M): bottom-of-sphere world z of `local_offset` (shared by
+    both feet; the ±0.0408 lateral split does not affect z).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    quats = asset.data.body_quat_w[:, asset_cfg.body_ids, :]                # (N, M, 4)
+    pos = asset.data.body_pos_w[:, asset_cfg.body_ids, :]                   # (N, M, 3)
+    n, m = quats.shape[0], quats.shape[1]
+    off = local_offset.to(env.device).unsqueeze(0).expand(n * m, 3)
+    world = math_utils.quat_apply(quats.reshape(-1, 4), off).reshape(n, m, 3) + pos
+    return world[:, :, 2] - 0.002
+
+
+# heel / toe probe offsets in the ankle_roll_link frame (see _foot_end_z)
+_HEEL_OFF = torch.tensor([0.0, 0.0, 0.07])
+_TOE_OFF = torch.tensor([0.0, 0.0, -0.07])
+
+
+def heel_first_stance(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    max_cmd_speed: float = 1.5,
+    touch_z: float = 0.010,
+    lead_z: float = 0.002,
+) -> torch.Tensor:
+    """v57: HEEL-STRIKE prior — reward heel-before-toe geometry at the
+    touchdown rising edge (GOAL_HUMAN_GAIT §4.2).
+
+    Baseline (v56 readout): policies land plantarflexed (toe lead -8..-11
+    mm at TD; fine-metric toe-first 65-100%) — the missing piece of the
+    heel-toe roll. Reference 0002 (the heel-first exemplar) lands with a
+    GENTLE +4 mm median heel lead, so the reward's classification mirrors
+    the eval metric exactly (probe_kh_metric.py calibration):
+
+      at the per-foot stance rising edge:
+        heel bottom <= touch_z AND (toe_z - heel_z) >= lead_z -> +1.0
+        both ends down (|lead| < lead_z)                     -> +0.3
+        toe clearly first                                    -> 0 (G3/sole
+        flat terms police the forefoot strike separately)
+
+    Sparse event reward (~1 step per stance, ~2 events/s/env at 50 Hz) —
+    dense enough across the 4096-env batch. Walk-speed gate matches the
+    knee/sole-flat regime (jog forefoot landings are natural above
+    1.5 m/s and must not be fought).
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+
+    edge = _stance_rising_edge(env, "heel_first", in_contact)
+    heel_z = _foot_end_z(env, asset_cfg, _HEEL_OFF)
+    toe_z = _foot_end_z(env, asset_cfg, _TOE_OFF)
+
+    lead = toe_z - heel_z                       # + = heel lower = heel-first
+    heel_first = (heel_z <= touch_z) & (lead >= lead_z)
+    flat = (heel_z <= touch_z) & (toe_z <= touch_z) & (lead.abs() < lead_z)
+    score = torch.where(heel_first, 1.0, torch.where(flat, 0.3, 0.0))
+    r = torch.sum(score * edge.float(), dim=-1)
 
     cmd = env.command_manager.get_command(command_name)
     gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()

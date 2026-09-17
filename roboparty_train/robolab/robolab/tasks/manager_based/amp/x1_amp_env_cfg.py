@@ -225,6 +225,31 @@ class X1AmpRewards():
             "sigma": 0.17,
         },
     )
+    # v57: HEEL-STRIKE prior (human-gait arc, H1/H3 gates) — geometric
+    # lead classification at the stance rising edge (+1.0 heel-first /
+    # +0.3 flat / 0 toe-first), sharing the corrected heel=+z_local
+    # convention with the K/H eval metric. Paired with the phased
+    # stance_sole_flat_walk rework (one coupled variable per GOAL §5).
+    heel_first = RewTerm(
+        func=mdp.heel_first_stance,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "max_cmd_speed": 1.5,
+            "touch_z": 0.010,
+            "lead_z": 0.002,
+        },
+    )
     leg_amp_asym = RewTerm(
         func=mdp.leg_amp_asym,
         weight=0,
@@ -482,6 +507,11 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # expecting K1 ~15-20 with the swing/symmetry costs reduced
         # (v52-54 dose-response methodology: never publish a one-point dose).
         self.rewards.knee_extension.weight = 0.10
+        # v57 (heel-toe round, GOAL §4.2/§4.3 — one coupled variable):
+        # heel-strike prior at w=0.15 + the phased sole-flat rework in
+        # rewards.stance_sole_flat_walk (heel-strike/push-off phases
+        # exempt, foot-flat penalty kept). Baseline H1 0%, H3 65-100%.
+        self.rewards.heel_first.weight = 0.15
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
@@ -585,7 +615,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # v35 set -0.5 (fixed the v34 +4.7 deg/s bias); v47's clean phase
         # regrew +1.81/+2.32 m drift (audit item 1) — double the pressure
         # for regime-recovering fine-tunes.
-        self.rewards.yaw_bias.weight = -1.0
+        # v57 defensive escalation (NOT an experimental variable; v47
+        # precedent — the same play, -0.5 -> -1.0, fixed v47's +4.7 deg/s
+        # clean-phase bias): v56b@0.10's LAST ~400 iters grew a +5.4 deg/s
+        # signed yaw bias (+4.68 m drift; m9000 was clean). Double the
+        # guard for this regime-recovering fine-tune.
+        self.rewards.yaw_bias.weight = -2.0
         # v35 note: task_style_lerp 0.6->0.7 lives in the AGENT cfg
         # (x1_amp_agent_cfg.py): P3a lin kernel sat at 0.78 since v31d
         # (v27/v28: 0.84, old dataset); style reward now 1.14-2.00 (deep in
