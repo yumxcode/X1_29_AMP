@@ -642,20 +642,20 @@ def heel_first_stance(
     heel-toe roll. Reference 0002 (the heel-first exemplar) lands with a
     GENTLE +4 mm median heel lead.
 
-    v57b REWORK — CONTINUOUS RAMP (the v57 r1 three-bucket classifier
-    (+1.0 heel-first / +0.3 flat / 0 toe-first) never scored a single
-    event: the policy's landings sit entirely inside the toe-first bucket
-    whose reward is FLAT — a zero-gradient dead zone exactly where the
-    policy lives; Episode_Reward/heel_first = 0.0000 for the whole run).
-    Replacement, graded in the lead variable at the per-foot stance
-    rising edge:
-
+    v57b REWORK — CONTINUOUS RAMP, and v57c removes the near-ground gate:
+    BOTH r1 (buckets) and r2 (ramp + heel_z <= 10mm gate) scored exactly
+    0.0000 — identical reward streams to r1 confirm the gate was the
+    whole story: at a TOE-FIRST touchdown (lead -8..-15 mm) the contact
+    edge fires when the TOE touches, at which moment the HEEL sits
+    +8..+15 mm ABOVE ground, failing heel_z <= touch_z — the gate
+    excludes precisely the population the term must pull. The lead
+    DIFFERENCE is a sufficient grader by itself (the contact edge
+    already guarantees a striking end is on the ground):
         score = clamp((lead + 0.015) / 0.019, 0, 1)
-        lead = toe_z - heel_z  (+ = heel lower)
-
     -15 mm (deep toe-first) -> 0; +4 mm (reference heel lead) -> 1.0;
-    linear in between — EVERY landing carries gradient toward heel-lead,
-    including the current -10 mm population (~0.26/event at baseline).
+    linear between — the -10 mm baseline population scores ~0.26/event
+    with a live gradient toward heel-lead at every landing.
+
     Eval metric (gait_metrics KH) keeps the classification gates; this
     term is the dense training signal that moves the distribution.
 
@@ -672,10 +672,9 @@ def heel_first_stance(
     toe_z = _foot_end_z(env, asset_cfg, _TOE_OFF)
 
     lead = toe_z - heel_z                       # + = heel lower = heel-first
-    near_ground = heel_z <= touch_z             # the striking end is down
-    # ramp: 0 at lead=-15mm (deep toe-first), 1.0 at +4mm (reference heel lead)
-    score = ((lead + 0.015) / 0.019).clamp(0.0, 1.0)
-    r = torch.sum(score * near_ground.float() * edge.float(), dim=-1)
+    # v57c ramp: 0 at lead=-35mm (terminal-flick toe-first), 1.0 at +4mm
+    score = ((lead + 0.035) / 0.039).clamp(0.0, 1.0)
+    r = torch.sum(score * edge.float(), dim=-1)
 
     cmd = env.command_manager.get_command(command_name)
     gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()

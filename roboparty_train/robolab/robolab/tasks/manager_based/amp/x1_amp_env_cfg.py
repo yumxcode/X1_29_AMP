@@ -511,7 +511,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # heel-strike prior at w=0.15 + the phased sole-flat rework in
         # rewards.stance_sole_flat_walk (heel-strike/push-off phases
         # exempt, foot-flat penalty kept). Baseline H1 0%, H3 65-100%.
-        self.rewards.heel_first.weight = 0.15
+        # v57c: 0.15 -> 0.40 (event-sparse: ~0.037 events/step; the per-event
+        # advantage 0.4x0.28 = 0.11 must be perceivable against ~16/step)
+        self.rewards.heel_first.weight = 0.40
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

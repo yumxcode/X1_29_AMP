@@ -193,8 +193,8 @@ def main():
     # ramp (0+15)/19 = 0.789 per foot (v57b continuous ramp)
     env3, ai3 = make_env(contact=(True, True), pitch_deg=(0.0, 0.0), mid_z=0.004)
     sc3, ac3 = foot_cfgs(ai3)
-    check("flat landing both feet (ramp 15/19 x2)",
-          call_hf(env3, sc3, ac3)[0], 2*(0.015/0.019))
+    check("flat landing both feet (ramp 35/39 x2)",
+          call_hf(env3, sc3, ac3)[0], 2*(0.035/0.039))
     # shallow toe-first (the v56 policy population): pitch -5deg, mid 2mm
     # -> heel 8.1mm ON, lead -12.2mm -> score (2.8/19)=0.147 x2
     env3b, ai3b = make_env(contact=(True, True), pitch_deg=(-5.0, -5.0), mid_z=0.002)
@@ -202,11 +202,23 @@ def main():
     # exact: lead = 2*0.07*sin(5°) = 12.208mm; score=(lead+15mm)/19mm
     lead_exact = 2*0.07*math.sin(math.radians(5))
     check("shallow toe-first graded (lead exact)",
-          call_hf(env3b, sc3b, ac3b)[0], 2*((0.015-lead_exact)/0.019), 1e-4)
-    # toe-first: pitch -12deg, mid 12mm: heel 26.6mm(>10), toe -2.6mm -> 0
+          call_hf(env3b, sc3b, ac3b)[0], 2*((0.035-lead_exact)/0.039), 1e-4)
+    # deep toe-first: pitch -12deg, mid 12mm -> lead = -2*0.07*sin(12°)
+    # = -29.1mm < -15mm -> 0 (ramp floor)
     env4, ai4 = make_env(contact=(True, True), pitch_deg=(-12.0, -12.0), mid_z=0.012)
     sc4, ac4 = foot_cfgs(ai4)
-    check("toe-first landing -> 0", call_hf(env4, sc4, ac4)[0], 0.0)
+    lead_deep = 2*0.07*math.sin(math.radians(12))
+    check("deep toe-first (lead -29mm) graded low (v57c)",
+          call_hf(env4, sc4, ac4)[0], 2*((0.035-lead_deep)/0.039), 1e-4)
+    # v57c REGRESSION: shallow toe-first with the heel HIGH (mid 20mm,
+    # -5deg -> heel 26mm, toe 14mm, lead -12.2mm) — the old near-ground
+    # gate (heel<=10mm) killed exactly this population (the -10mm lead
+    # toe-first landings v56 policies actually produce); must now grade
+    lead_exact2 = 2*0.07*math.sin(math.radians(5))
+    env4b, ai4b = make_env(contact=(True, True), pitch_deg=(-5.0, -5.0), mid_z=0.020)
+    sc4b, ac4b = foot_cfgs(ai4b)
+    check("shallow toe-first heel-high (v57c gate removal) graded",
+          call_hf(env4b, sc4b, ac4b)[0], 2*((0.035-lead_exact2)/0.039), 1e-4)
     # jog gate
     env5, ai5 = make_env(contact=(True, True), pitch_deg=(10.0, 10.0),
                          mid_z=0.016, cmd=(2.5, 0.0, 0.0))
