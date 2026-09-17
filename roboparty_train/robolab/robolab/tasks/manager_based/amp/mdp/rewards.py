@@ -640,14 +640,24 @@ def heel_first_stance(
     Baseline (v56 readout): policies land plantarflexed (toe lead -8..-11
     mm at TD; fine-metric toe-first 65-100%) — the missing piece of the
     heel-toe roll. Reference 0002 (the heel-first exemplar) lands with a
-    GENTLE +4 mm median heel lead, so the reward's classification mirrors
-    the eval metric exactly (probe_kh_metric.py calibration):
+    GENTLE +4 mm median heel lead.
 
-      at the per-foot stance rising edge:
-        heel bottom <= touch_z AND (toe_z - heel_z) >= lead_z -> +1.0
-        both ends down (|lead| < lead_z)                     -> +0.3
-        toe clearly first                                    -> 0 (G3/sole
-        flat terms police the forefoot strike separately)
+    v57b REWORK — CONTINUOUS RAMP (the v57 r1 three-bucket classifier
+    (+1.0 heel-first / +0.3 flat / 0 toe-first) never scored a single
+    event: the policy's landings sit entirely inside the toe-first bucket
+    whose reward is FLAT — a zero-gradient dead zone exactly where the
+    policy lives; Episode_Reward/heel_first = 0.0000 for the whole run).
+    Replacement, graded in the lead variable at the per-foot stance
+    rising edge:
+
+        score = clamp((lead + 0.015) / 0.019, 0, 1)
+        lead = toe_z - heel_z  (+ = heel lower)
+
+    -15 mm (deep toe-first) -> 0; +4 mm (reference heel lead) -> 1.0;
+    linear in between — EVERY landing carries gradient toward heel-lead,
+    including the current -10 mm population (~0.26/event at baseline).
+    Eval metric (gait_metrics KH) keeps the classification gates; this
+    term is the dense training signal that moves the distribution.
 
     Sparse event reward (~1 step per stance, ~2 events/s/env at 50 Hz) —
     dense enough across the 4096-env batch. Walk-speed gate matches the
@@ -662,10 +672,10 @@ def heel_first_stance(
     toe_z = _foot_end_z(env, asset_cfg, _TOE_OFF)
 
     lead = toe_z - heel_z                       # + = heel lower = heel-first
-    heel_first = (heel_z <= touch_z) & (lead >= lead_z)
-    flat = (heel_z <= touch_z) & (toe_z <= touch_z) & (lead.abs() < lead_z)
-    score = torch.where(heel_first, 1.0, torch.where(flat, 0.3, 0.0))
-    r = torch.sum(score * edge.float(), dim=-1)
+    near_ground = heel_z <= touch_z             # the striking end is down
+    # ramp: 0 at lead=-15mm (deep toe-first), 1.0 at +4mm (reference heel lead)
+    score = ((lead + 0.015) / 0.019).clamp(0.0, 1.0)
+    r = torch.sum(score * near_ground.float() * edge.float(), dim=-1)
 
     cmd = env.command_manager.get_command(command_name)
     gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()

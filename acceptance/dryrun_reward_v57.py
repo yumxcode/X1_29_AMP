@@ -189,11 +189,20 @@ def main():
     check("heel-strike edge (L +10° pitch, L-only contact)",
           call_hf(env2, sc, ac)[0], 1.0)
     check("second call, no new edge -> 0", call_hf(env2, sc, ac)[0], 0.0)
-    # flat landing: pitch 0, both ends at mid=4mm <=10mm, lead 0 -> +0.3 x2
+    # flat landing: pitch 0, both ends at mid=4mm <=10mm, lead 0 ->
+    # ramp (0+15)/19 = 0.789 per foot (v57b continuous ramp)
     env3, ai3 = make_env(contact=(True, True), pitch_deg=(0.0, 0.0), mid_z=0.004)
     sc3, ac3 = foot_cfgs(ai3)
-    check("flat landing both feet (+0.3 x2)",
-          call_hf(env3, sc3, ac3)[0], 0.6)
+    check("flat landing both feet (ramp 15/19 x2)",
+          call_hf(env3, sc3, ac3)[0], 2*(0.015/0.019))
+    # shallow toe-first (the v56 policy population): pitch -5deg, mid 2mm
+    # -> heel 8.1mm ON, lead -12.2mm -> score (2.8/19)=0.147 x2
+    env3b, ai3b = make_env(contact=(True, True), pitch_deg=(-5.0, -5.0), mid_z=0.002)
+    sc3b, ac3b = foot_cfgs(ai3b)
+    # exact: lead = 2*0.07*sin(5°) = 12.208mm; score=(lead+15mm)/19mm
+    lead_exact = 2*0.07*math.sin(math.radians(5))
+    check("shallow toe-first graded (lead exact)",
+          call_hf(env3b, sc3b, ac3b)[0], 2*((0.015-lead_exact)/0.019), 1e-4)
     # toe-first: pitch -12deg, mid 12mm: heel 26.6mm(>10), toe -2.6mm -> 0
     env4, ai4 = make_env(contact=(True, True), pitch_deg=(-12.0, -12.0), mid_z=0.012)
     sc4, ac4 = foot_cfgs(ai4)
