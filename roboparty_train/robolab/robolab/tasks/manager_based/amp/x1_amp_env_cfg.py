@@ -474,11 +474,14 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.rewards.arm_amp_prior.weight = 0.06
         self.rewards.arm_amp_phase.weight = 0.0
         # v56 single variable: STRAIGHT-KNEE stance prior (GOAL_HUMAN_GAIT
-        # §4.1). w=0.15 starting dose (3-point ladder 0.1/0.15/0.25 planned
-        # if needed, v52-54 methodology). Accept: K1 <= 18 deg (walk10+walk05
-        # stance-mid both feet) with ALL non-regress gates held (arms >= 24
-        # on the soup route).
-        self.rewards.knee_extension.weight = 0.15
+        # §4.1). DOSE LADDER: 0.15 (v56, TASK_20260916_097) OVERSHOT — K1
+        # hit 10.5-12.9 deg (huge margin vs the 18 gate) but PAID: walk05/
+        # back05 swing height collapsed (off-run 6-7 frames vs soup 13-15;
+        # peak 16-22 mm; near-drag backwalk), walk10 knee symmetry 0.836
+        # (<0.85), fine-metric toe-first ~100%. Step DOWN to 0.10 (v56b)
+        # expecting K1 ~15-20 with the swing/symmetry costs reduced
+        # (v52-54 dose-response methodology: never publish a one-point dose).
+        self.rewards.knee_extension.weight = 0.10
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5
