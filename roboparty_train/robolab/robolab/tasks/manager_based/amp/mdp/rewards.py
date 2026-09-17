@@ -727,6 +727,54 @@ def terminal_swing_ankle_rate(
     return r * gate
 
 
+def heel_down_ready(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    max_cmd_speed: float = 1.5,
+    height_z: float = 0.040,
+) -> torch.Tensor:
+    """v57e: DENSE heel-down readiness prior (the flick's direct opponent).
+
+    v57d verdict: the heel_first EVENT reward saturated in-domain (mean
+    graded lead 0.87/event — Isaac-domain landings are near-flat/slightly
+    heel) yet sim2sim still reads toe-first 86-100%: the terminal
+    plantarflexion SNAP (a G3 flat-landing attractor — 41/42 landings
+    classified flat) happens INSIDE the last 100 ms, after the event
+    reward's sampling; the ankle_flick penalty never fired in Isaac
+    (-0.0002 throughout — the snap is a cross-sim behavior difference,
+    policy-commanded in MuJoCo). Event-sparsity lost three rounds.
+
+    This term is DENSE over every low-swing frame (foot < 40 mm,
+    airborne, walk speeds): a posture ramp on the heel-toe height
+    DIFFERENCE (delta = toe_z - heel_z — SAME sign as heel_first's
+    lead, + = heel lower = ready; the v57e dry-run caught the first
+    draft using heel_z - toe_z, inverted in the vendor frame where the
+    +z end IS the heel):
+        r = clamp((delta + 0.035) / 0.052, 0, 1)
+    delta=+4 mm (reference heel lead) -> 0.75; 0 (flat) -> 0.67;
+    -24 mm (flick) -> 0.21; -35 mm -> 0. NO dead zone; gradient toward
+    dorsiflexed approach at every frame the flick would unfold in;
+    reinforces the approach posture in-domain AND fights the snap if
+    it is policy-commanded.
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+
+    heel_z = _foot_end_z(env, asset_cfg, _HEEL_OFF)
+    toe_z = _foot_end_z(env, asset_cfg, _TOE_OFF)
+    low = torch.minimum(heel_z, toe_z) <= height_z
+
+    delta = toe_z - heel_z                       # + = heel lower = ready
+    score = ((delta + 0.035) / 0.052).clamp(0.0, 1.0)
+    r = torch.sum(score * low.float() * (~in_contact).float(), dim=-1)
+
+    cmd = env.command_manager.get_command(command_name)
+    gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()
+    return r * gate
+
+
 def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions if they cross the soft limits.
 

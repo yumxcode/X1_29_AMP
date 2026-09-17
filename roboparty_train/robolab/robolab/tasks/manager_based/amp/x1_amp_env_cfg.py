@@ -270,6 +270,29 @@ class X1AmpRewards():
             "alpha": 0.0025,
         },
     )
+    # v57e: DENSE heel-down readiness prior — the flick's direct
+    # opponent (see func docstring for the v57d verdict: event rewards
+    # saturate in-domain while the last-100ms snap survives; this term
+    # has gradient at every low-swing frame instead).
+    heel_down_ready = RewTerm(
+        func=mdp.heel_down_ready,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "max_cmd_speed": 1.5,
+            "height_z": 0.040,
+        },
+    )
     # v57d: terminal-swing ankle-FLICK penalty — the measured heel-toe
     # blocker (policies snap +95-110 deg/s plantarflexion in the last
     # 100 ms pre-contact; refs approach at -18..+38). Positive-excess
@@ -548,6 +571,10 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # v57d: ankle-flick penalty (excess ~1.0-1.2 rad/s on policies,
         # ~0 on refs -> -0.2..-0.24/step during terminal swing frames)
         self.rewards.ankle_flick.weight = -0.2
+        # v57e: dense readiness prior at 0.3 (low-swing frames ~15% of
+        # steps; ref-like posture sustains ~0.7 -> ~0.03/step; the flick
+        # posture scores 0.21 -> the delta ~-0.015/step every low frame)
+        self.rewards.heel_down_ready.weight = 0.3
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

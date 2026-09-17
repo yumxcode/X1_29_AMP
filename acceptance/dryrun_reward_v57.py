@@ -306,6 +306,45 @@ def main():
     check("mild +45deg/s graded (0.085 x2)",
           call_af(envE, scE, acE)[0], 2*(math.radians(45)-0.70), 1e-4)
 
+    # ---------------- heel_down_ready (v57e) ----------------------------
+    print("[dryrun] heel_down_ready:")
+
+    def call_hd(env, sc, ac):
+        return R.heel_down_ready(env, sc, ac, command_name="base_velocity",
+                                 max_cmd_speed=1.5, height_z=0.040)
+
+    # READY posture: pitch +8deg (heel end DOWN in the vendor frame),
+    # mid 15mm airborne -> heel=5.3mm toe=24.7mm; delta=toe-heel=+19.4mm
+    # -> (19.4+35)/52 = 1.0 per foot
+    envH1, aiH1 = make_env(contact=(False, False), pitch_deg=(8.0, 8.0), mid_z=0.015)
+    scH1 = types.SimpleNamespace(name="contact_forces", body_ids=aiH1)
+    acH1 = types.SimpleNamespace(name="robot", body_ids=aiH1)
+    check("ready posture (heel down ~19mm) -> 1.0 x2",
+          call_hd(envH1, scH1, acH1)[0], 2.0, 1e-4)
+    # FLICK posture: pitch -8deg (toe down), mid 15mm -> delta=-19.4mm
+    envH2, aiH2 = make_env(contact=(False, False), pitch_deg=(-8.0, -8.0), mid_z=0.015)
+    scH2 = types.SimpleNamespace(name="contact_forces", body_ids=aiH2)
+    acH2 = types.SimpleNamespace(name="robot", body_ids=aiH2)
+    check("flick posture (toe down ~19mm) -> 0.30 x2",
+          call_hd(envH2, scH2, acH2)[0],
+          2 * ((0.035 - 2 * 0.07 * math.sin(math.radians(8))) / 0.052), 1e-4)
+    envH3, aiH3 = make_env(contact=(False, False), pitch_deg=(-30.0, -30.0), mid_z=0.015)
+    scH3 = types.SimpleNamespace(name="contact_forces", body_ids=aiH3)
+    acH3 = types.SimpleNamespace(name="robot", body_ids=aiH3)
+    check("deep flick (toe down ~70mm) -> 0", call_hd(envH3, scH3, acH3)[0], 0.0)
+    envH4, aiH4 = make_env(contact=(True, True), pitch_deg=(8.0, 8.0), mid_z=0.015)
+    scH4 = types.SimpleNamespace(name="contact_forces", body_ids=aiH4)
+    acH4 = types.SimpleNamespace(name="robot", body_ids=aiH4)
+    check("stance exempt", call_hd(envH4, scH4, acH4)[0], 0.0)
+    envH5, aiH5 = make_env(contact=(False, False), pitch_deg=(8.0, 8.0), mid_z=0.12)
+    scH5 = types.SimpleNamespace(name="contact_forces", body_ids=aiH5)
+    acH5 = types.SimpleNamespace(name="robot", body_ids=aiH5)
+    check("clearance zone exempt", call_hd(envH5, scH5, acH5)[0], 0.0)
+    envH6, aiH6 = make_env(contact=(False, False), pitch_deg=(8.0, 8.0), mid_z=0.015,
+                           cmd=(2.0, 0.0, 0.0))
+    scH6 = types.SimpleNamespace(name="contact_forces", body_ids=aiH6)
+    acH6 = types.SimpleNamespace(name="robot", body_ids=aiH6)
+    check("jog gate OFF", call_hd(envH6, scH6, acH6)[0], 0.0)
     print(f"[dryrun] {'ALL PASS' if all(ok) else 'FAILURES'} ({sum(ok)}/{len(ok)})")
     sys.exit(0 if all(ok) else 1)
 

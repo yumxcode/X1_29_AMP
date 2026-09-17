@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """v57 launcher (human-gait arc, round 2): HEEL-STRIKE + phased sole-flat.
 
-Base: v57c model_10392 (TASK_20260917_099 — heel_first reward LIVE and
-learning: mean graded lead 0.32 -> ~0.77/event over the run; K1 held
-10.2-10.7). Carried defects: H1 still 0% (the terminal ankle FLICK
-defeats the at-edge reward — see ankle_flick), drift +4-5 m (L/R
-landing asymmetry L 33% vs R 95% toe-first).
+Base: v57d model_11391 (TASK_20260917_115 — heel reward saturated
+in-domain 0.87/event yet sim2sim still toe-first: the last-100 ms
+plantarflexion snap is a cross-sim behavior; ankle_flick never fired
+in-domain). v57e adds heel_down_ready — the DENSE low-swing posture
+ramp that opposes the snap at every frame it unfolds in.
 
 v57 variable (one coupled pair, GOAL §5): heel_first_stance w=0.15
 (geometric lead at the stance rising edge; +1.0 heel-first / +0.3 flat /
@@ -30,19 +30,19 @@ from pathlib import Path
 os.environ["X1_ROBUST_TRAIN"] = "48"
 os.environ["X1_FORM_GUARDS"] = "1"
 os.environ["X1_DISC_VEL"] = "1"
-os.environ["X1_FINE_TUNE_ITERS"] = "1000"  # v57c 10392 -> 11392
+os.environ["X1_FINE_TUNE_ITERS"] = "1000"  # v57d 11391 -> 12391
 
 _HERE = Path(__file__).resolve().parent
-_EMBEDDED = _HERE / "checkpoints" / "model_10392_v57c.pt"
+_EMBEDDED = _HERE / "checkpoints" / "model_11391_v57d.pt"
 if _EMBEDDED.is_file():
     os.environ["X1_RESUME_CKPT"] = str(_EMBEDDED)
 else:
-    mounted = sorted(_HERE.parent.glob("model_10392_v57c*.pt"))
+    mounted = sorted(_HERE.parent.glob("model_11391_v57d*.pt"))
     if mounted:
         os.environ["X1_RESUME_CKPT"] = str(mounted[0])
     else:
         raise FileNotFoundError("v57c base checkpoint not found "
-                                "(roboparty_train/checkpoints/model_10392_v57c.pt)")
+                                "(roboparty_train/checkpoints/model_11391_v57d.pt)")
 
 sys.argv = [str(_HERE / "run_x1_amp_train.py")] + sys.argv[1:]
 runpy.run_path(str(_HERE / "run_x1_amp_train.py"), run_name="__main__")
