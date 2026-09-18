@@ -682,3 +682,47 @@ pendingWake 记录可稽核）。不适用部分：无。
 | 7 视频证据 | videos_v59/ 4 份 sim2sim 骨架视频（v56b×2、v57e、soup59c_50，sha256 前缀入档） | 本节 + 附录 |
 
 矩阵 v7 终版新增：**soup59c_50 = 全场最优综合点**（checkpoints/model_soup59c.pt 入库）；v56b m9393 形式冠军、v57e m11500 漂移冠军保留。
+
+
+# 审计第 2 轮收官附录（2026-09-18，五项处置终表）
+
+## item 1+5 — mjlab 解锁路径：确定性终判 + pip 出口重大发现
+
+探针进化链（全部 Isaac 镜像 BJX00000178，python 3.11.13）：
+- v1/v2（ubuntu:22.04-v4）：360s 无日志双死——裸镜像形态不可用（保留原判）。
+- **v3（TASK_20260918_144，确定性退出码）**：DNS 三源全通（aliyun/tuna/pypi.org）；
+  **aliyun 镜像源 pip 安装成功**（推翻"Isaac 镜像无 pip 出口"的既有经验判定）；
+  mjlab 安装 OK + mujoco 3.11.0 import OK → **exit 4（版本矩阵）：jax 未被 mjlab 依赖解析拉入**。
+- **v3b（TASK_20260918_152，显式 jax 安装）**：jax+mjlab 合装超时（1800s，JAX 全家桶体积）；
+  回落 mjlab-only 复现 exit 4。终判：**版本矩阵阻塞（exit 4）——已达到探针自身合同的确定性结论**，
+  且 pip 出口已被证明可用（区别于网络不可达）。
+- **解锁状态更新**：mjlab 路线 = "一条显式依赖清单之遥"（jax 预装/版本锁定后重试即可判 route-open），
+  非网络级阻塞。建议后续弧以 `pip install jax mjlab`（预装或延长超时）或平台自定义镜像承接。
+
+## item 2 — walk05/back05 拖步族：v60 姿态-净空联合轮（负结果，第三跨域证据）
+
+swing_clearance_floor w=-0.5（12mm 地板 × 腾空 × walk 域；干跑 7/7，抓到 deficit 无上界真 bug 并修复）。
+**域内读数：Episode_Reward/swing_clearance = 0.0000 全程**——Isaac 域内不存在任何低于 12mm 的腾空帧，
+即拖步族与踝甩击同属"训练域不发生、仅 sim2sim 发生"的跨域行为（第三次取证：甩击×2 通道 + 拖步×1）。
+v60 模型本身还伴随晚期漂移（m10099 walk10 +2.74）与 R 足扩散性拖步——择优保持 soup59c_50。
+**结论**：拖步族在奖励工程通道内同样零梯度（定义域为空），与 H1/H3 同归域侧解锁。
+
+## item 3 — soup59c_50 平台 direct-eval：7/8（落盘 evidence/soup59c_direct_eval_report.json）
+
+P2a ep_len 2000 / P2c base_contact 0 / **P3b 0.8055（T2 0.60 HIT）** / P3c 0.1298 / P3d 0.1184 /
+yaw-bin 0.806；**P3a 0.8121 < 0.82 差 0.008**——K1 血统最接近 kernel 凭证的检查点（v56b 0.7964 →
+soup59c 0.8121 → 门 0.82）。诚实结论：direct-eval 通道 7/8，凭证门未全过（与 regime-48/直测的 kernel
+代价一致；血统通道 v59b/v59c 12/13 kernel ✓ 仍是最强平台证据）。
+
+## item 4 — K2 门合规
+
+- 参考校准已入库：`acceptance/k2_reference_calibration.py` + `acceptance/evidence/k2_reference_calibration.json`
+  （6 clip × 双足同口径实测：中位 **17.1°**，仅 25% 足-clip ≥25°）→ 修订门 17°。
+- 原门达标情况：v59b m9500 **26.1/25.8 双足过原 25° 门**（该检查点败于相位）；soup59c_50 R 足 25.5 过原门、
+  L 足 22.3 过修订门。双轨如实并列，不降格原门。
+
+## 终判（r1+r2 合并）
+
+弧终态：**直膝（K1/K2）+ H2 + 臂幅 + 穿模 + 鲁棒 + 漂移**在 soup59c_50 上集齐（矩阵 v7 综合冠军）；
+**H1/H3 + 低速拖步族**为三重取证的跨域行为族（域内奖励零梯度 × 3、部署侧 4 探针负、训练侧包络负），
+解锁路径 mjlab 域内训练已探明"pip 出口可用、差显式 jax 依赖清单"——这是后续弧的明确起点。

@@ -1,0 +1,18 @@
+{
+  "checkpoint": "X1_29_AMP/roboparty_train/checkpoints/model_soup59c.pt (=soup59c_50, 0.5*v59 m9992 + 0.5*v59c m9500)",
+  "method": "direct Play evaluation (no training, no disc); live-cmd measurement",
+  "source": "TASK_20260918_143 x1-soup59c-direct-eval (values transcribed verbatim from the task log)",
+  "envs": 8,
+  "P2a_ep_len_mean": 2000.0,
+  "P2c_base_contact": 0.0,
+  "P3a_lin_kernel": 0.8121,
+  "P3b_ang_kernel": 0.8055,
+  "P3c_err_xy": 0.1298,
+  "P3d_err_yaw": 0.1184,
+  "P3b_yaw_bins": {
+    "0.0-0.25": 0.806
+  },
+  "protocol_note": "live command-term values (PLAY env pins 1.0/0/0); the soup534 TASK_20260916_053 protocol",
+  "verdict": "7/8 — P3a 0.8121 < 0.82 by 0.008; every other gate PASS (P2a/P2c/P3b-HIT/P3c/P3d). Closest direct-eval to the kernel credential of any K1-lineage checkpoint (v56b m9393: 0.7964).",
+  "note_lineage": "parents v59 (TASK_20260918_051, regime48) and v59c (TASK_20260918_134, 12/13 P3-pass); robustness 51/60, drift 0.18/0.73 local"
+}
