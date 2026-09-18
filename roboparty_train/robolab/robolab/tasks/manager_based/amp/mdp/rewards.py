@@ -775,6 +775,47 @@ def heel_down_ready(
     return r * gate
 
 
+def swing_clearance_floor(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    max_cmd_speed: float = 1.5,
+    floor_z: float = 0.012,
+) -> torch.Tensor:
+    """v60: SWING CLEARANCE FLOOR (posture-clearance joint round, audit r2).
+
+    The walk05/back05 R-foot drag family (apex 8-11 mm vs the healthy
+    foot's 21-24 mm; 0-15 stance events vs 18-22) survives the entire
+    regime-x-yaw 2x2 matrix and 5 soup ratios — coupled to the
+    straight-knee stance posture's reduced clearance margin at low
+    speed. References clear 22-63 mm; G3's eval gate is 15 mm mid-swing.
+
+    Penalty: normalized relu BELOW the floor on the MIN sole height
+    while airborne —
+        r = -relu(floor_z - h_min) / floor_z   per foot, walk speeds only
+    R-drag foot (apex ~8 mm, mean swing height ~5 mm) -> ~-0.5 on drag
+    frames; healthy swing (>=12 mm) and stance frames -> exactly 0.
+    References: 0 (their swing clears the floor everywhere). The
+    terminal-approach frames (legitimately low, dorsiflexed) pay a small
+    shared cost — bounded by the floor (max -1.0/foot-frame) and
+    outweighed by un-dragging a foot that cannot step.
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+
+    heel_z = _foot_end_z(env, asset_cfg, _HEEL_OFF)
+    toe_z = _foot_end_z(env, asset_cfg, _TOE_OFF)
+    h_min = torch.minimum(heel_z, toe_z)                    # lowest end
+
+    deficit = ((floor_z - h_min).clamp(min=0.0) / floor_z).clamp(max=1.0)   # 0..1
+    r = -torch.sum(deficit * (~in_contact).float(), dim=-1)
+
+    cmd = env.command_manager.get_command(command_name)
+    gate = (torch.norm(cmd[:, :2], dim=1) < max_cmd_speed).float()
+    return r * gate
+
+
 def joint_pos_limits(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint positions if they cross the soft limits.
 

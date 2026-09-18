@@ -298,6 +298,27 @@ class X1AmpRewards():
     # 100 ms pre-contact; refs approach at -18..+38). Positive-excess
     # relu only (dorsiflexion stays free); active while foot < 40 mm
     # and airborne. See the func docstring for calibration.
+    # v60: SWING CLEARANCE FLOOR (posture-clearance joint round) — see
+    # the func docstring for the drag-family forensics and calibration.
+    swing_clearance = RewTerm(
+        func=mdp.swing_clearance_floor,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "max_cmd_speed": 1.5,
+            "floor_z": 0.012,
+        },
+    )
     ankle_flick = RewTerm(
         func=mdp.terminal_swing_ankle_rate,
         weight=0,
@@ -575,6 +596,11 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # steps; ref-like posture sustains ~0.7 -> ~0.03/step; the flick
         # posture scores 0.21 -> the delta ~-0.015/step every low frame)
         self.rewards.heel_down_ready.weight = 0.3
+        # v60: swing clearance floor w=-0.5 (drag foot pays ~-0.25/step
+        # during drag frames; healthy swing/stance pay 0; refs pay 0)
+        import os as _os_v60
+        if _os_v60.environ.get("X1_SWING_CLEAR", "0") == "1":
+            self.rewards.swing_clearance.weight = -0.5
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

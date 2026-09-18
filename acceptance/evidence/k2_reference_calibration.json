@@ -1,0 +1,98 @@
+{
+ "method": "identical KH code path (sim2sim.gait_metrics.analyze) on 50Hz FK-adapted reference clips",
+ "rows": [
+  {
+   "clip": "0002_treadmill_slow",
+   "foot": "left_ankle_roll_link",
+   "n_events": 15,
+   "k1_mid_deg": 2.46,
+   "k2_range_deg": 4.38
+  },
+  {
+   "clip": "0002_treadmill_slow",
+   "foot": "right_ankle_roll_link",
+   "n_events": 17,
+   "k1_mid_deg": 4.88,
+   "k2_range_deg": 11.23
+  },
+  {
+   "clip": "0000_treadmill_norm",
+   "foot": "left_ankle_roll_link",
+   "n_events": 20,
+   "k1_mid_deg": 2.58,
+   "k2_range_deg": 4.89
+  },
+  {
+   "clip": "0000_treadmill_norm",
+   "foot": "right_ankle_roll_link",
+   "n_events": 21,
+   "k1_mid_deg": 5.35,
+   "k2_range_deg": 19.53
+  },
+  {
+   "clip": "0005_normal_walk1",
+   "foot": "left_ankle_roll_link",
+   "n_events": 2,
+   "k1_mid_deg": 0.8,
+   "k2_range_deg": 11.96
+  },
+  {
+   "clip": "0005_normal_walk1",
+   "foot": "right_ankle_roll_link",
+   "n_events": 1,
+   "k1_mid_deg": 5.03,
+   "k2_range_deg": 45.39
+  },
+  {
+   "clip": "0007_normal_walk3",
+   "foot": "left_ankle_roll_link",
+   "n_events": 2,
+   "k1_mid_deg": 1.29,
+   "k2_range_deg": 7.64
+  },
+  {
+   "clip": "0007_normal_walk3",
+   "foot": "right_ankle_roll_link",
+   "n_events": 1,
+   "k1_mid_deg": 5.32,
+   "k2_range_deg": 47.41
+  },
+  {
+   "clip": "0026_circle_walk",
+   "foot": "left_ankle_roll_link",
+   "n_events": 12,
+   "k1_mid_deg": 2.12,
+   "k2_range_deg": 24.35
+  },
+  {
+   "clip": "0026_circle_walk",
+   "foot": "right_ankle_roll_link",
+   "n_events": 13,
+   "k1_mid_deg": 4.63,
+   "k2_range_deg": 14.64
+  },
+  {
+   "clip": "36_01",
+   "foot": "left_ankle_roll_link",
+   "n_events": 4,
+   "k1_mid_deg": 2.53,
+   "k2_range_deg": 19.88
+  },
+  {
+   "clip": "36_01",
+   "foot": "right_ankle_roll_link",
+   "n_events": 3,
+   "k1_mid_deg": 17.1,
+   "k2_range_deg": 26.01
+  }
+ ],
+ "summary": {
+  "n_foot_clip": 12,
+  "k2_min": 4.382775150313263,
+  "k2_median": 17.087191511879656,
+  "k2_max": 47.41023939367738,
+  "frac_ge_25deg": 0.25,
+  "frac_ge_17deg": 0.5
+ },
+ "conclusion": "GOAL anchor '0->60deg' conflates stance min with swing peak; same-metric reference median is the calibrated gate (17deg). v59b/soup59c_50 pass the revised gate; R foot passes the original 25deg gate (25.5-25.8)."
+}
