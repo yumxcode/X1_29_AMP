@@ -683,7 +683,11 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # clean-phase bias): v56b@0.10's LAST ~400 iters grew a +5.4 deg/s
         # signed yaw bias (+4.68 m drift; m9000 was clean). Double the
         # guard for this regime-recovering fine-tune.
-        self.rewards.yaw_bias.weight = -2.0
+        # v59 (audit round 1): env-selectable yaw guard — X1_YAW_GUARD
+        # (default -2.0 = the v57+ dose with v57e evidence of holding drift
+        # net; "-1.0" restores the v56 recipe for A/B isolation).
+        import os as _os_y
+        self.rewards.yaw_bias.weight = -float(_os_y.environ.get("X1_YAW_GUARD", "2.0"))
         # v35 note: task_style_lerp 0.6->0.7 lives in the AGENT cfg
         # (x1_amp_agent_cfg.py): P3a lin kernel sat at 0.78 since v31d
         # (v27/v28: 0.84, old dataset); style reward now 1.14-2.00 (deep in
