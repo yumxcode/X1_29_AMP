@@ -62,8 +62,14 @@ def main():
         return 3
 
     # stage 2: install (mirror first, default fallback)
+    # v3b: v3 proved pip+aliyun WORKS on the Isaac image (mjlab installed,
+    # mujoco 3.11) but jax was not dependency-resolved (exit 4). One more
+    # route: install jax EXPLICITLY first (CPU wheel suffices for the
+    # feasibility verdict), then mjlab on top.
     ok = False
-    for label, extra in [("aliyun-mirror", MIRRORS), ("default-index", [])]:
+    for label, extra in [("aliyun-jax+mjlab", MIRRORS + ["jax"]),
+                         ("aliyun-mjlab", MIRRORS),
+                         ("default-index", [])]:
         cmd = [sys.executable, "-m", "pip", "install", "-q",
                "--timeout", "30"] + extra + ["mjlab"]
         hb(2, f"trying {label}")
