@@ -456,8 +456,13 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # gate); mirrors regenerated after the mirror_lab_motions.py
         # column-order fix (dof was written in gmr order since v28 —
         # kb was correct, dof only fed the replay/visualization buffers).
+        # v62: X1_MOTION_DIR swaps the demo dataset (e.g. x1_lab_v32_200 =
+        # PCHIP-upsampled 200 fps demos — 10 ms fetch at 100 Hz lands on
+        # exact keys, no interpolation; upsample_demo_spline.py, 22/22
+        # roundtrip+FK validated).
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
-            ROBOLAB_ROOT_DIR, "data", "motions", "x1_lab_v32"
+            ROBOLAB_ROOT_DIR, "data", "motions",
+            os.environ.get("X1_MOTION_DIR", "x1_lab_v32")
         )
         # Motion weights: must explicitly list motion names (empty dict = load nothing)
         # v28: every clip now has a FK-verified left-right mirrored twin
