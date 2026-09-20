@@ -138,7 +138,15 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 # v36's clean-phase peak was 0.864. Nudge the task mix up
                 # while keeping style well above its floor (v39-v41 style
                 # 0.94-1.07 at 0.65 — ample margin above P5a 0.15).
-                task_style_lerp=0.68
+                task_style_lerp=float(
+                    __import__("os").environ.get("X1_TASK_LERP", "0.68"))
+                # v61f: X1_TASK_LERP=0 removes the style channel from the
+                # reward entirely. v61b/c/d2/e forensics (corrected
+                # arithmetic): the micro-gait's style income is ~2.7x the
+                # 50 Hz champion's PER SECOND (5.4e-3 vs 2.0e-3) — the
+                # re-trained disc equilibrium at 100 Hz ACTIVELY REWARDS
+                # micro-stepping, it is not dead. Single-variable test:
+                # task+guards+prior only (prior stays 0.12 via X1_ARM_PRIOR).
             ),
             loss_type="LSGAN"
         ),
