@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import torch
 import torch.nn as nn
 from torch import autograd
@@ -282,6 +284,13 @@ def resolve_amp_config(alg_cfg, obs: TensorDict, obs_groups: dict, env: VecEnv):
         # the interpolated-demo-frame artifact this prevents).
         _step_dt = env.env.unwrapped.step_dt
         alg_cfg["amp_cfg"]["disc_obs_stride"] = max(1, int(round(0.02 / _step_dt)))
+        # v62: X1_DISC_STRIDE overrides the auto native-cadence derivation.
+        # With 200 fps demos the native key spacing is 5 ms, so a 10 ms disc
+        # cadence (stride=1 at 100 Hz control) is EXACT native sampling —
+        # the auto rule (0.02/step_dt=2) exists only for 120 fps demos.
+        _override = os.environ.get("X1_DISC_STRIDE", "")
+        if _override:
+            alg_cfg["amp_cfg"]["disc_obs_stride"] = max(1, int(_override))
         
         # AMP normalizer
         # TODO

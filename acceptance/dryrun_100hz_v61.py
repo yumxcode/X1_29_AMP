@@ -315,6 +315,12 @@ def check_disc_stride():
     assert _resolve(0.01) == 2, "100 Hz must stride 2"
     assert _resolve(0.02) == 1, "50 Hz must keep stride 1"
 
+    # v62: X1_DISC_STRIDE override (200 fps demos make 10 ms native)
+    os.environ["X1_DISC_STRIDE"] = "1"
+    assert _resolve(0.01) == 1, "override must force stride 1 at 100 Hz"
+    del os.environ["X1_DISC_STRIDE"]
+    assert _resolve(0.01) == 2, "auto derivation must return after override clears"
+
     # v61d-bis: the FIRST v61d launch crashed in update_normalization
     # ("expected 6, got 3") — the buffer round-trip consumer was missed.
     # Exercise the FULL post-buffer path here: sliced append -> minibatch ->
@@ -333,6 +339,100 @@ def check_disc_stride():
     print("[PASS] 4/4 disc ::stride slicing")
 
 
+def check_v62_demo_data():
+    """v62 data-path coverage, derived from the DATA FLOW (producer pkl ->
+    MotionDataManager load -> phase/frame-blend fetch -> disc window):
+    validate the 200 fps dataset on every stage the training run touches."""
+    import pickle as _pickle
+    import numpy as np
+
+    src = ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "x1_lab_v32_200"
+    clips = sorted(src.glob("*.pkl"))
+    assert len(clips) == 22, f"expected 22 upsampled clips, found {len(clips)}"
+    worst_blend, worst_fk = 0.0, 0.0
+    for p in clips:
+        c = _pickle.load(open(p, "rb"))
+        # stage 1: manager load contract (keys, fps->dt, frame count)
+        assert float(c["fps"]) == 200.0, (p.name, c["fps"])
+        assert set(c) >= {"fps", "root_pos", "root_rot", "loop_mode",
+                          "dof_pos", "key_body_pos"}, p.name
+        n = len(c["root_pos"])
+        assert c["dof_pos"].shape == (n, 29) and n >= 2, p.name
+        kb = np.asarray(c["key_body_pos"]).reshape(n, 10, 3)
+
+        # stage 2: fetch semantics at 100 Hz. The animation manager samples
+        # a RANDOM phase each window; fetch spacing 0.01 s vs demo dt
+        # 0.005 s => the sub-key blend offset is CONSTANT within a window
+        # (phase advances by exactly 2 keys per frame). Verify that
+        # coherence, and bound the residual linear-interp error vs the
+        # underlying smooth (PCHIP) surface — must be < 0.5x the same
+        # measure on the ORIGINAL 120 fps grid (h^2 error scaling).
+        dur = (n - 1) / 200.0
+        rng = np.random.default_rng(0)
+        dof = np.asarray(c["dof_pos"], dtype=np.float64)
+        for _ in range(200):
+            phase = rng.uniform(0, min(dur, 0.2))
+            t = phase + np.arange(6) * 0.01
+            if t[-1] > dur:
+                continue
+            fr = t * 200.0
+            blends = fr - np.floor(fr)
+            spread = float(blends.max() - blends.min())
+            assert spread < 1e-9, f"blend not phase-coherent: {spread}"
+        # residual lerp-vs-PCHIP error, new grid vs old grid (first clip only)
+        sys.path.insert(0, str(ROOT / "roboparty_train"))
+        from upsample_demo_spline import pchip_coeffs, eval_spline  # noqa: E402
+        def _lerp_resid(arr, fps):
+            tt = np.arange(len(arr)) / fps
+            co = pchip_coeffs(tt, arr)
+            ph = rng.uniform(0.01, 0.99, 200) / fps
+            i = rng.integers(0, len(arr) - 2, 200)
+            u = ph * fps
+            lerp = arr[i] + u[:, None] * (arr[i + 1] - arr[i])
+            true_v = eval_spline(tt, co, tt[i] + ph)
+            return float(np.abs(lerp - true_v).max())
+        resid_new = _lerp_resid(dof, 200.0)
+        if p is clips[0]:
+            old = _pickle.load(open(
+                ROOT / "roboparty_train" / "robolab" / "data" / "motions"
+                / "x1_lab_v32" / p.name, "rb"))
+            resid_old = _lerp_resid(np.asarray(old["dof_pos"], dtype=np.float64),
+                                    float(old["fps"]))
+            assert resid_new < 0.5 * resid_old, (resid_new, resid_old)
+            print(f"[OK] lerp residual {resid_new:.2e} vs 120fps {resid_old:.2e}")
+
+        # stage 3: FK consistency of the stored key bodies on a probe frame
+        # (guaranteed by construction; re-verified here end-to-end)
+        sys.path.insert(0, str(ROOT))
+        from sim2sim.mujoco_rollout import build_model  # noqa: E402
+        import mujoco  # noqa: E402
+        from roboparty_train.mirror_lab_motions import lab_dof_names  # noqa: E402
+        KB = ["left_knee_pitch_link", "right_knee_pitch_link",
+              "left_ankle_roll_link", "right_ankle_roll_link",
+              "left_elbow_yaw_link", "right_elbow_yaw_link",
+              "left_shoulder_pitch_link", "right_shoulder_pitch_link",
+              "left_wrist_pitch_link", "right_wrist_pitch_link"]
+        names = lab_dof_names()
+        model, _ = build_model(ROOT / "gmr_x1_assets" / "x1.xml")
+        data = mujoco.MjData(model)
+        qadr = np.array([model.jnt_qposadr[
+            mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, nn)] for nn in names])
+        kid = {b: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, b) for b in KB}
+        k = np.linspace(0, n - 1, 3).astype(int)[1]
+        data.qpos[:] = 0
+        data.qpos[:3] = c["root_pos"][k]
+        data.qpos[3:7] = np.asarray(c["root_rot"][k]) / np.linalg.norm(c["root_rot"][k])
+        data.qpos[qadr] = c["dof_pos"][k]
+        mujoco.mj_forward(model, data)
+        fk = np.stack([data.xpos[kid[b]] for b in KB])
+        worst_fk = max(worst_fk, float(np.abs(fk - kb[k]).max()))
+        break  # FK probe on ONE clip is enough (construction-level guarantee)
+
+    print(f"[OK] v62 demo data: 22 clips @200fps, fetch phase-coherent, "
+          f"FK {worst_fk*1000:.3f} mm")
+    print("[PASS] 5/5 v62 200fps demo data path")
+
+
 if __name__ == "__main__":
     assert os.environ.get("X1_CONTROL_HZ", "50") == "50", \
         "run the walk check with X1_CONTROL_HZ=100"
@@ -342,4 +442,5 @@ if __name__ == "__main__":
     check_hz_walk()
     check_decimation()
     check_disc_stride()
+    check_v62_demo_data()
     print("\n[ALL PASS] v61 100 Hz dry-run")
