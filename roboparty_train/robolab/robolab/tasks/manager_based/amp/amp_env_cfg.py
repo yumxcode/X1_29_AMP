@@ -505,7 +505,15 @@ class AmpEnvCfg(AnimationEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 4
+        # v61: control-rate switch. Physics stays at 200 Hz (sim.dt 0.005);
+        # decimation selects the POLICY rate: X1_CONTROL_HZ=50 -> 4 (=20ms,
+        # the v16-v60 lineage default), X1_CONTROL_HZ=100 -> 2 (=10ms).
+        # Everything downstream (animation manager, AMP disc, events) already
+        # derives time from env.step_dt = decimation * sim.dt.
+        import os as _os
+        _hz = int(_os.environ.get("X1_CONTROL_HZ", "50"))
+        assert 200 % _hz == 0 and _hz > 0, f"X1_CONTROL_HZ must divide 200, got {_hz}"
+        self.decimation = 200 // _hz
         self.episode_length_s = 20.0
         # simulation settings
         self.sim.dt = 0.005

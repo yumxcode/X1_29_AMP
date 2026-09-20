@@ -73,6 +73,26 @@ def run_cell(ckpt, cmd, variant_args, seed, duration=12):
     return d
 
 
+def _scale_steps(variant_args, control_dt):
+    """Time-match step-based variants across control rates (v61).
+
+    lat1/lat2/lag1/lag2 are calibrated as control STEPS at the 50 Hz
+    reference (20/40 ms). At another rate the same real-world delay needs
+    ratio = control_dt/0.02 steps, so the sweep stays comparable to the
+    soup59c 50 Hz baseline."""
+    ratio = control_dt / 0.02
+    out, i = [], 0
+    while i < len(variant_args):
+        a = variant_args[i]
+        if a in ("--latency-steps", "--action-lag") and i + 1 < len(variant_args):
+            out += [a, str(max(1, int(round(int(variant_args[i + 1]) * ratio))))]
+            i += 2
+        else:
+            out.append(a)
+            i += 1
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", required=True)
@@ -82,6 +102,10 @@ def main():
     ap.add_argument("--compact", action="store_true",
                     help="7 variants x 3 scenarios (fwd10/turn/stand)")
     ap.add_argument("--jobs", type=int, default=6)
+    ap.add_argument("--control-dt", type=float, default=0.02,
+                    help="policy control period in s (0.02 = 50 Hz lineage; "
+                         "0.01 = v61 100 Hz). Forwarded to mujoco_rollout; "
+                         "lat/lag step variants are time-matched.")
     args = ap.parse_args()
 
     from concurrent.futures import ThreadPoolExecutor
@@ -103,7 +127,10 @@ def main():
     def one_cell(scen, vn, va):
         cell = {"scenario": scen, "variant": vn, "runs": []}
         for s in seeds:
-            d = run_cell(args.ckpt, SCENARIOS[scen], va, s)
+            va2 = _scale_steps(va, args.control_dt)
+            if abs(args.control_dt - 0.02) > 1e-9:
+                va2 += ["--control-dt", str(args.control_dt)]
+            d = run_cell(args.ckpt, SCENARIOS[scen], va2, s)
             cell["runs"].append({"seed": s, "fell": d.get("fell"),
                                  "survived_s": d.get("survived_s"),
                                  "vxy_err": d.get("mean_vxy_err"),

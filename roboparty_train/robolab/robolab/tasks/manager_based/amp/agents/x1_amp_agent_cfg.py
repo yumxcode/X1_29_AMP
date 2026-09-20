@@ -118,7 +118,12 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 # form (v33b 2.00/collapsed was the blind-disc regime;
                 # v38 0.562 with better scoring). Amplify the now-informative
                 # channel. Revert to 1.5 if P3a < 0.80 or P7 fails.
-                style_reward_scale=2.5,
+                # v61: predict_style_reward multiplies by dt (=1/hz), so the
+                # per-step style reward halves at 100 Hz while task terms
+                # stay per-step — task_style_lerp then drifts off its 50Hz
+                # calibration. Scale back up with the control rate so the
+                # style:task balance per step (and per sim-time) is unchanged.
+                style_reward_scale=2.5 * (int(__import__("os").environ.get("X1_CONTROL_HZ", "50")) / 50.0),
                 # v35: 0.6 -> 0.7. History: v21 tested 0.75 (lin +0.003
                 # noise-level, style halved 0.335->0.146 -> P5a FAIL), settled
                 # on 0.6. Today's regime differs: the v31 dataset rebuild made

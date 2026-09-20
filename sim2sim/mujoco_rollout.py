@@ -356,9 +356,14 @@ class SoftRenderer:
 
 def main():
     import mujoco
+    global CONTROL_DT
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", required=True)
+    ap.add_argument("--control-dt", type=float, default=CONTROL_DT,
+                    help="policy control period in s (0.02 = 50 Hz training "
+                         "lineage; 0.01 = v61 100 Hz). Servo/PD substep "
+                         "counts derive from it automatically.")
     ap.add_argument("--repo-root", default=".")
     ap.add_argument("--cmd", nargs=3, type=float, default=[1.0, 0.0, 0.0])
     ap.add_argument("--duration", type=float, default=12.0)
@@ -404,6 +409,7 @@ def main():
     ap.add_argument("--render", choices=["gl", "soft"], default="gl",
                     help="soft = matplotlib stick figure (no GL needed)")
     args = ap.parse_args()
+    CONTROL_DT = float(args.control_dt)
 
     root = Path(args.repo_root).resolve()
     lab_dof = parse_yaml_list(root / "roboparty_train/robolab/scripts/tools/retarget/config/x1.yaml",

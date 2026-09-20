@@ -894,6 +894,12 @@ def sim2sim_fallback_video(policy: Path):
         rollout = REPO_ROOT / "sim2sim" / "mujoco_rollout.py"
         out_dir = OUTSIDE_DIR / "sim2sim"
         out_dir.mkdir(parents=True, exist_ok=True)
+        # v61: the fallback must drive the policy at its TRAINED control rate
+        # (X1_CONTROL_HZ; default 50 keeps the v16-v60 behavior byte-identical)
+        _ctrl_hz = int(os.environ.get("X1_CONTROL_HZ", "50"))
+        _ctrl_dt = 1.0 / _ctrl_hz
+        if _ctrl_hz != 50:
+            print(f"[INFO] sim2sim fallback at {_ctrl_hz} Hz (--control-dt {_ctrl_dt})")
         rollouts = [
             ("walk_1.0", ["--cmd", "1.0", "0.0", "0.0", "--duration", "12"]),
             ("walk_1.5", ["--cmd", "1.5", "0.0", "0.0", "--duration", "8"]),
@@ -909,7 +915,8 @@ def sim2sim_fallback_video(policy: Path):
                     js = out_dir / f"x1_sim2sim_{name}.json"
                     cmd = [sys.executable, str(rollout), "--ckpt", str(policy),
                            "--repo-root", str(REPO_ROOT), "--video", str(mp4),
-                           "--json", str(js), "--render", "soft"] + extra
+                           "--json", str(js), "--render", "soft",
+                           "--control-dt", str(_ctrl_dt)] + extra
                     try:
                         r = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=1200,
                                     capture_output=True, text=True)

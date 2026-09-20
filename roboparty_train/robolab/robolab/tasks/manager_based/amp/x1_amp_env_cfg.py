@@ -822,6 +822,50 @@ class X1AmpEnvCfg(AmpEnvCfg):
                       "0.7-1.3, action delay cap 2 (randomized)")
 
         # ------------------------------------------------------
+        # v61 X1_CONTROL_HZ time-constant compensation. decimation was
+        # already switched in AmpEnvCfg.__post_init__ (200//hz). The 50Hz-
+        # tuned recipe constants below are defined PER CONTROL STEP; at a
+        # different rate they must be re-normalized to keep their TIME-domain
+        # meaning (all weights above stay untouched — they are dt-free
+        # physical/statistical quantities per step except where noted):
+        #   - EMA alphas (tau ~= dt/alpha)          -> alpha / r
+        #   - action_delay_steps (steps -> 20ms)    -> steps * r
+        #   - action-rate/smoothness finite-diff
+        #     penalties (per-step delta^2, steps/s) -> weight * r
+        #   - disc key_body_vel_b EMA alpha         -> alpha / r
+        # (style_reward_scale x r is handled in x1_amp_agent_cfg.py because
+        # predict_style_reward multiplies by dt.)
+        # ------------------------------------------------------
+        _hz = float(_os.environ.get("X1_CONTROL_HZ", "50"))
+        if abs(_hz - 50.0) > 1e-6:
+            _r = _hz / 50.0
+            _scaled_alphas = []
+            _scaled_rates = []
+            for _attr in dir(self.rewards):
+                if _attr.startswith("__"):
+                    continue
+                _term = getattr(self.rewards, _attr)
+                if callable(_term) or _term is None:
+                    continue
+                _params = getattr(_term, "params", None)
+                if isinstance(_params, dict) and "alpha" in _params:
+                    _params["alpha"] = float(_params["alpha"]) / _r
+                    _scaled_alphas.append(_attr)
+                if _attr in ("action_rate_l2", "action_rate_l2_arms", "smoothness_1") and _term.weight:
+                    _term.weight = _term.weight * _r
+                    _scaled_rates.append(_attr)
+            if getattr(self, "action_delay_steps", 0):
+                self.action_delay_steps = int(round(self.action_delay_steps * _r))
+            _disc = self.observations.disc
+            _kbv = getattr(_disc, "key_body_vel_b", None) if _disc is not None else None
+            if _kbv is not None and isinstance(getattr(_kbv, "params", None), dict):
+                _kbv.params["alpha"] = float(_kbv.params.get("alpha", 0.2)) / _r
+            print(f"[CONTROL-HZ] {int(_hz)} Hz: decimation={self.decimation} "
+                  f"delay_steps={self.action_delay_steps} "
+                  f"EMA alpha halved on {sorted(_scaled_alphas)} "
+                  f"action-rate x{_r:g} on {sorted(_scaled_rates)}")
+
+        # ------------------------------------------------------
         # Terminations — X1 body names
         # X1 body structure: base_link → lumbar(yaw/roll/pitch) → arms
         #                     base_link → hip(pitch/roll/yaw) → knee → ankle

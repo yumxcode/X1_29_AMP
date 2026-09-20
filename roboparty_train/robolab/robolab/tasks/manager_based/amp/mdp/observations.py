@@ -179,8 +179,10 @@ def key_body_vel_b(
     if prev is None or prev.shape != key_body_pos_w.shape or prev.device != key_body_pos_w.device:
         vel = torch.zeros_like(key_body_pos_w)
     else:
-        # one control step of dt is implicit in the observation cadence
-        vel = (key_body_pos_w - prev) / 0.02
+        # one control step of dt is implicit in the observation cadence.
+        # v61: derive from the env (decimation * sim.dt) instead of the
+        # hardcoded 0.02 so the channel stays correct at 100 Hz control.
+        vel = (key_body_pos_w - prev) / env.step_dt
         vel = torch.clamp(vel, -10.0, 10.0)
         # EMA smoothing
         _prev_vel = _KB_VEL_STATE.get(("vel", key))

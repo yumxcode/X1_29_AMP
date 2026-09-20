@@ -191,6 +191,7 @@ def self_test(onnx_path, npz_log):
     hist = np.zeros((HIST, 96), dtype=np.float32)
     last_act = np.zeros(29, dtype=np.float32)
     cmd = _np.asarray(meta["cmd"], dtype=_np.float32)
+    _cdt = float(meta.get("control_dt", 0.02))
     jumps, worst = 0, 0.0
     prev = None
     for t in range(len(q)):
@@ -203,7 +204,7 @@ def self_test(onnx_path, npz_log):
         grav = R.T @ _np.array([0, 0, -1.0])
         # body ang vel from quaternion rate (approx: finite diff)
         if t > 0:
-            dqdt = (bq[t] - bq[t - 1]) / 0.02
+            dqdt = (bq[t] - bq[t - 1]) / _cdt
             ang_b = 2.0 * _np.array([w * dqdt[1] - x * dqdt[0] - y * dqdt[3] + zz * dqdt[2],
                                      w * dqdt[2] + x * dqdt[3] - y * dqdt[0] - zz * dqdt[1],
                                      w * dqdt[3] - x * dqdt[2] + y * dqdt[1] - zz * dqdt[0]])
@@ -228,11 +229,16 @@ def self_test(onnx_path, npz_log):
 
 
 def main():
+    global CONTROL_DT
     ap = argparse.ArgumentParser()
     ap.add_argument("--onnx", required=True)
+    ap.add_argument("--control-dt", type=float, default=0.02,
+                    help="policy control period in s (0.02 = 50 Hz lineage; "
+                         "0.01 = v61 100 Hz hardware loop rate)")
     ap.add_argument("--self-test", metavar="NPZ", default=None,
                     help="replay a recorded sim2sim log through the graph")
     args = ap.parse_args()
+    CONTROL_DT = float(args.control_dt)
     if args.self_test:
         self_test(args.onnx, args.self_test)
         return

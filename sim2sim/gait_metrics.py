@@ -71,6 +71,9 @@ SPEC = {
 }
 
 # Schmitt trigger thresholds (sole sphere BOTTOM height vs floor z=0)
+# MIN_ON/MIN_OFF are FRAME counts for the 50 Hz reference (80 ms); main()
+# rescales them from meta["control_dt"] so other control rates keep the
+# same TIME windows (v61 100 Hz support).
 ON_M, OFF_M, MIN_ON, MIN_OFF = 0.004, 0.012, 4, 4
 
 
@@ -137,6 +140,9 @@ def analyze(npz_path):
     z = np.load(npz_path, allow_pickle=False)
     meta = json.loads(str(z["meta"]))
     dt = float(meta["control_dt"])
+    global MIN_ON, MIN_OFF
+    MIN_ON = max(2, int(round(0.08 / dt)))
+    MIN_OFF = max(2, int(round(0.08 / dt)))
     feet = list(meta["foot_names"])
     hinge = list(meta["hinge_names"])
     t = z["t"].astype(np.float64)
