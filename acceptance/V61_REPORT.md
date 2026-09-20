@@ -68,16 +68,27 @@
   X1_ARM_PRIOR/X1_TASK_LERP 环境杠杆
 - 评估链：eval_100hz_battery.py / dryrun_100hz_v61.py / diag_phase_100hz.py
 
-## 活跃工作项（contract rev3，进行中）
+## 升采样实验终判（contract rev3，v62/v62b，2026-09-20 完成）
 
-**demo 升采样 ≥200fps（用户指令 rev3）——v62 正在平台运行（TASK_20260920_146）**。
-已完成：`upsample_demo_spline.py` PCHIP 升采样 120→200fps，22/22 clips
-通过 roundtrip+FK 双验证（key_body 由 FK 重算，构造性一致）；X1_MOTION_DIR/
-X1_DISC_STRIDE 接线；干跑 5/5（fetch 相位相干，lerp 残差较 120fps 网格
-缩小 5.3×）。预注册判定：sim2sim walk10 臂幅 ≥24° 且行走门全绿（步态
-事件≥40、摆高、漂移≤1.0）且非回退门保持（平台 kernel、K1、鲁棒≥48）
-＝『升采样修复 style 坍缩』成立；否则记为第 6 条证伪路线（塌陷根因在
-训练动力学而非 demo 帧统计，与 v61d2 的分布等价仍塌证据一致）。
-评估与 v61 系列同口径（eval_100hz_battery.py）。
+**用户提问（rev3）**：demo 升采样到 ≥200fps（spline 重采样）能否解决 style 坍缩？
 
-其他候选（若 v62 证伪）：disc per-body loss 加权、100Hz 原生参考重采集。
+**答案：不能——升采样单独不修复坍缩（第 6 条证伪路线，预注册判定）**。
+
+| 证据 | 读数 |
+|---|---|
+| v62b 平台验收 | 13/13 + T1/T2/T3（kernel 0.8608）——工程门依旧全绿 |
+| v62b sim2sim walk10（预注册口径） | 臂幅 **7.5/7.8°**（门≥24，全系列最差）；摆高 11.5/22.9mm（拖步）；漂移 **4.89m**（门≤1.0，超 5 倍）；步态事件 61 ✓（唯一达标项） |
+| 训练侧信号 | arm_amp_prior 收益 0.0124（塌陷水平；冠军 0.0218） |
+
+结论链：demo 帧统计已排除——v61d2 把 disc 双侧采样恢复到与 50Hz 冠军分布等价（20ms 间距）仍塌；v62b 把 demo 网格加密到 200fps（相位相干窗口、lerp 残差缩小 5.3×）仍塌且更差。**坍缩根因在训练动力学**：disc 均衡在 100Hz 微调中系统性奖励微步态（style 收益/秒 = 冠军 2.7×），与 demo 数据的时间分辨率无关。
+
+工程遗产（全部入库，commit 3171d86/cd627b9/61ad0ce）：
+- `upsample_demo_spline.py`：PCHIP（Fritsch–Carlson，无过冲）升采样管线，22/22 clips
+  通过 roundtrip+FK 双验证（key_body 由 FK 重算，构造性一致；三次样条在 jog 快段
+  过冲 5.3mm 被 PCHIP 消除）
+- `X1_MOTION_DIR` / `X1_DISC_STRIDE` 数据集与 disc 采样开关
+- 干跑按数据流覆盖（存储形状=消费形状断言防 (n,30)/(n,10,3) 类 0-iter OOM 复发）
+
+其他候选（均未测）：disc per-body loss 加权、100Hz 原生参考重采集、对抗奖励形式的
+频率重参数化（如 style 收益以每秒而非每步计）。
+
