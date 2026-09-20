@@ -33,7 +33,15 @@ KEY_BODY_NAMES = [
     "right_wrist_pitch_link",
 ]
 ANIMATION_TERM_NAME = "animation"
-AMP_NUM_STEPS = 3
+# v61c: disc/animation temporal window in control steps. At 50 Hz the
+# recipe's 3 steps = 60 ms of gait context. v61b ran 100 Hz with 3 steps
+# (30 ms) and the style channel's AMPLITUDE discrimination collapsed
+# (arm swing 34.7 -> 14.5/10.8 deg, swing height < 12 mm drag-walk) while
+# stability/kernel/drift all passed — the pre-registered falsification of
+# "same step count suffices". X1_AMP_NUM_STEPS restores the 60 ms window
+# (6 steps at 100 Hz). Disc-obs expansion on resume re-inits via the
+# amp_runner component-level shape path (v38 lesson).
+AMP_NUM_STEPS = int(__import__("os").environ.get("X1_AMP_NUM_STEPS", "3"))
 
 # v40: joint sets for the legs-vs-arms smoothing-penalty split. MUST live
 # at MODULE level — a SceneEntityCfg attribute inside the @configclass
