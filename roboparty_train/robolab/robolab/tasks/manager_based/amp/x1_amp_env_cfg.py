@@ -579,8 +579,17 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # TASK_20260916_082), so it is OFF and the flat prior returns to
         # v54's 0.06 dose (the soup's nearer parent recipe; single-variable
         # discipline: everything except knee_extension matches the base).
-        self.rewards.arm_amp_prior.weight = 0.06
+        self.rewards.arm_amp_prior.weight = float(
+            __import__("os").environ.get("X1_ARM_PRIOR", "0.06"))
         self.rewards.arm_amp_phase.weight = 0.0
+        # v61e: at 100 Hz the disc equilibrium saturates (rew≈1.0, style
+        # gradient dead — v61d2 forensics: prior credit fell to 1/3 of the
+        # 50 Hz champion's while style ROSE) and the optimizer slides to a
+        # low-amplitude micro-gait. X1_ARM_PRIOR replaces the disc's dead
+        # amplitude pressure with the calibrated dose-response lever
+        # (v52 0.3 -> 66-71 deg, v53 0.08 -> 29-32, champion 0.06 -> 34.7
+        # WITH a live disc; without one, 0.12 sits between v53 band-edge
+        # and v52 blowup).
         # v56 single variable: STRAIGHT-KNEE stance prior (GOAL_HUMAN_GAIT
         # §4.1). DOSE LADDER: 0.15 (v56, TASK_20260916_097) OVERSHOT — K1
         # hit 10.5-12.9 deg (huge margin vs the 18 gate) but PAID: walk05/
