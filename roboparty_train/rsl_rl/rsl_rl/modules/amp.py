@@ -27,11 +27,28 @@ class AMPDiscriminator(nn.Module):
             activation="relu",
             style_reward_scale=1.0, 
             task_style_lerp=0.0,
+            disc_obs_stride: int = 1,
             device="cpu",
         ):
         super().__init__()
         
-        self.input_dim = disc_obs_dim * disc_obs_steps
+        # v61d: disc_obs_stride downsamples the (steps, D) window by taking
+        # every stride-th frame. At 100 Hz control with a 6x10 ms obs window,
+        # stride=2 gives the disc 3 frames at 20 ms spacing — the SAME input
+        # semantics as the 50 Hz champion (3x20 ms), including exact weight-
+        # shape compatibility for warm resume. Rationale: demo motions are
+        # native 50 Hz; fetching at 10 ms yields linearly-interpolated demo
+        # frames whose 2nd differences are exactly zero inside native
+        # intervals — a trivially separable "temporal smoothness" artifact
+        # that collapsed style-guided amplitude at 100 Hz (v61b/v61c drag-
+        # walk micro-stepping, arms 14.5-18.8 deg vs champion 34.7). Slicing
+        # BOTH sides to 20 ms spacing restores first/second-difference parity
+        # with the champion's disc inputs.
+        assert disc_obs_steps % disc_obs_stride == 0, \
+            f"disc_obs_steps ({disc_obs_steps}) must be divisible by disc_obs_stride ({disc_obs_stride})"
+        self.disc_obs_stride = disc_obs_stride
+        self.disc_obs_steps_eff = disc_obs_steps // disc_obs_stride
+        self.input_dim = disc_obs_dim * self.disc_obs_steps_eff
         self.disc_obs_dim = disc_obs_dim
         self.disc_obs_steps = disc_obs_steps
         self.obs_groups = obs_groups
@@ -87,6 +104,8 @@ class AMPDiscriminator(nn.Module):
             assert len(obs_tensor.shape) == 3, "The observation for AMP discriminator must be 3D (num_envs, num_steps, D)."
             num_envs, history_length, obs_dim = obs_tensor.shape
             assert history_length == self.disc_obs_steps, "Discriminator observation history length mismatch."
+            if self.disc_obs_stride > 1:
+                obs_tensor = obs_tensor[:, ::self.disc_obs_stride]
 
             disc_obs_list.append(obs_tensor)
         disc_obs = torch.cat(disc_obs_list, dim=-1)  # [num_envs, disc_obs_steps, disc_obs_dim]
@@ -105,6 +124,8 @@ class AMPDiscriminator(nn.Module):
             assert len(obs_tensor.shape) == 3, "The observation for AMP discriminator must be 3D (num_envs, num_steps, D)."
             num_envs, history_length, obs_dim = obs_tensor.shape
             assert history_length == self.disc_obs_steps, "Discriminator observation history length mismatch."
+            if self.disc_obs_stride > 1:
+                obs_tensor = obs_tensor[:, ::self.disc_obs_stride]
 
             disc_demo_obs_list.append(obs_tensor)
         disc_demo_obs = torch.cat(disc_demo_obs_list, dim=-1)  #[num_envs, disc_obs_steps, disc_obs_dim]
@@ -115,10 +136,10 @@ class AMPDiscriminator(nn.Module):
     def normalize_disc_obs(self, disc_obs: torch.Tensor) -> torch.Tensor:
         assert len(disc_obs.shape) == 3, "Discriminator observations must be a 3D tensor (num_envs, disc_obs_steps, disc_obs_dim)."
         assert self.disc_obs_dim == disc_obs.shape[2], f"Discriminator observation dimension mismatch. Expected {self.disc_obs_dim}, got {disc_obs.shape[2]}."
-        assert self.disc_obs_steps == disc_obs.shape[1], f"Discriminator observation steps mismatch. Expected {self.disc_obs_steps}, got {disc_obs.shape[1]}."
+        assert self.disc_obs_steps_eff == disc_obs.shape[1], f"Discriminator observation steps mismatch. Expected {self.disc_obs_steps_eff}, got {disc_obs.shape[1]}."
         disc_obs_reshaped = disc_obs.reshape(-1, self.disc_obs_dim)  # [num_envs * disc_obs_steps, disc_obs_dim]
         normed_disc_obs = self.disc_obs_normalizer(disc_obs_reshaped)
-        normed_disc_obs = normed_disc_obs.reshape(-1, self.disc_obs_steps, self.disc_obs_dim)  # [num_envs, disc_obs_steps, disc_obs_dim]
+        normed_disc_obs = normed_disc_obs.reshape(-1, self.disc_obs_steps_eff, self.disc_obs_dim)  # [num_envs, disc_obs_steps_eff, disc_obs_dim]
         return normed_disc_obs
     
     def update_normalization(self, disc_obs: torch.Tensor) -> None:
@@ -164,8 +185,8 @@ class AMPDiscriminator(nn.Module):
             raise ValueError("Discriminator observations must be a 3D tensor (num_envs, disc_obs_steps, disc_obs_dim).")
         if self.disc_obs_dim != disc_obs.shape[2]:
             raise ValueError(f"Discriminator observation dimension mismatch. Expected {self.disc_obs_dim}, got {disc_obs.shape[2]}.")
-        if self.disc_obs_steps != disc_obs.shape[1]:
-            raise ValueError(f"Discriminator observation steps mismatch. Expected {self.disc_obs_steps}, got {disc_obs.shape[1]}.")
+        if self.disc_obs_steps_eff != disc_obs.shape[1]:
+            raise ValueError(f"Discriminator observation steps mismatch. Expected {self.disc_obs_steps_eff}, got {disc_obs.shape[1]}.")
         
         was_training = self.training
         with torch.no_grad():
@@ -174,7 +195,7 @@ class AMPDiscriminator(nn.Module):
             # Normalize the input data
             disc_obs_reshaped = disc_obs.view(-1, self.disc_obs_dim)  # [num_envs * disc_obs_steps, disc_obs_dim]
             normed_disc_obs = self.disc_obs_normalizer(disc_obs_reshaped)
-            normed_disc_obs = normed_disc_obs.view(-1, self.disc_obs_steps * self.disc_obs_dim)  # [num_envs, disc_obs_steps * disc_obs_dim]
+            normed_disc_obs = normed_disc_obs.view(-1, self.disc_obs_steps_eff * self.disc_obs_dim)  # [num_envs, disc_obs_steps_eff * disc_obs_dim]
         
             disc_score = self.forward(normed_disc_obs)  # [num_envs, 1]
             
@@ -251,6 +272,12 @@ def resolve_amp_config(alg_cfg, obs: TensorDict, obs_groups: dict, env: VecEnv):
         alg_cfg["amp_cfg"]["disc_obs_dim"] = disc_obs_dim
         # step_dt would be used in computing the AMP reward
         alg_cfg["amp_cfg"]["step_dt"] = env.env.unwrapped.step_dt
+        # v61d: demo motions are native 50 Hz (0.02 s keys). If control runs
+        # faster than the motion cadence, the disc window is sampled at the
+        # NATIVE 20 ms spacing on BOTH sides (see AMPDiscriminator docs for
+        # the interpolated-demo-frame artifact this prevents).
+        _step_dt = env.env.unwrapped.step_dt
+        alg_cfg["amp_cfg"]["disc_obs_stride"] = max(1, int(round(0.02 / _step_dt)))
         
         # AMP normalizer
         # TODO

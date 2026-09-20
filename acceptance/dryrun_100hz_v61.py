@@ -217,6 +217,105 @@ def check_decimation():
     print("[PASS] 3/3 decimation arithmetic")
 
 
+def check_disc_stride():
+    """v61d: AMPDiscriminator ::stride slicing (call-level, REAL module).
+
+    Verifies: (a) stride=2 with steps=6 slices frames [0,2,4] and gives
+    input_dim 3*D — the exact weight shape of the 50 Hz champion disc
+    (warm-resume compatible); (b) stride=1 preserves the v61c semantics;
+    (c) predict_style_reward runs on the sliced window; (d) resolve_amp_
+    config derives stride from step_dt (0.01->2, 0.02->1)."""
+    import importlib.util as _ilu
+    import torch.nn as _nn
+
+    for name in ("rsl_rl", "rsl_rl.utils", "rsl_rl.networks", "rsl_rl.env",
+                 "tensordict"):
+        if name in sys.modules:
+            raise RuntimeError(f"{name} unexpectedly importable/imported")
+
+    rsl = types.ModuleType("rsl_rl")
+    utils = types.ModuleType("rsl_rl.utils")
+    networks = types.ModuleType("rsl_rl.networks")
+    envmod = types.ModuleType("rsl_rl.env")
+    td = types.ModuleType("tensordict")
+
+    class _Norm(_nn.Module):
+        def __init__(self, shape, until=1e8):
+            super().__init__()
+
+        def forward(self, x):
+            return x
+
+    def _act(name):
+        return _nn.ReLU()
+
+    utils.resolve_nn_activation = _act
+    networks.EmpiricalNormalization = _Norm
+    envmod.VecEnv = object
+    td.TensorDict = dict
+    rsl.utils, rsl.networks, rsl.env = utils, networks, envmod
+    sys.modules.update({"rsl_rl": rsl, "rsl_rl.utils": utils,
+                        "rsl_rl.networks": networks, "rsl_rl.env": envmod,
+                        "tensordict": td})
+
+    _ap = (ROOT / "roboparty_train" / "rsl_rl" / "rsl_rl" / "modules"
+           / "amp.py").resolve()
+    _spec = _ilu.spec_from_file_location("amp_disc_dryrun", _ap)
+    AMP = _ilu.module_from_spec(_spec)
+    sys.modules["amp_disc_dryrun"] = AMP
+    _spec.loader.exec_module(AMP)
+
+    D, N = 121, 4
+
+    disc = AMP.AMPDiscriminator(
+        disc_obs_dim=D, disc_obs_steps=6, disc_obs_stride=2,
+        obs_groups={"discriminator": ["disc"],
+                    "discriminator_demonstration": ["disc_demo"]},
+    )
+    assert disc.input_dim == 3 * D, disc.input_dim  # == champion disc (warm resume)
+    # frame tagging: frame i is filled with constant i
+    obs = {"disc": torch.zeros(N, 6, D), "disc_demo": torch.zeros(N, 6, D)}
+    for i in range(6):
+        obs["disc"][:, i, :] = i
+        obs["disc_demo"][:, i, :] = i
+    out = disc.get_disc_obs(obs)
+    assert out.shape == (N, 3, D), out.shape
+    assert torch.allclose(out[:, 0], torch.full((N, D), 0.0))
+    assert torch.allclose(out[:, 1], torch.full((N, D), 2.0))  # frames 0,2,4
+    assert torch.allclose(out[:, 2], torch.full((N, D), 4.0))
+    demo = disc.get_disc_demo_obs(obs)
+    assert demo.shape == (N, 3, D) and torch.allclose(demo[:, 1, 0], torch.full((N,), 2.0))
+    flat = disc.get_disc_obs(obs, flatten_history_dim=True)
+    assert flat.shape == (N, 3 * D), flat.shape
+    rew, score = disc.predict_style_reward(out, dt=0.01)
+    assert rew.shape == (N,) and torch.isfinite(rew).all()
+
+    # stride=1 (50 Hz / legacy default): unchanged semantics
+    disc1 = AMP.AMPDiscriminator(
+        disc_obs_dim=D, disc_obs_steps=6,
+        obs_groups={"discriminator": ["disc"],
+                    "discriminator_demonstration": ["disc_demo"]},
+    )
+    assert disc1.input_dim == 6 * D and disc1.disc_obs_steps_eff == 6
+
+    # resolve_amp_config stride derivation
+    def _resolve(step_dt):
+        alg = {"amp_cfg": {"disc_obs_steps": 6, "disc_obs_dim": D,
+                           "step_dt": step_dt}}
+        obs_probe = {"disc": torch.zeros(2, 6, D), "disc_demo": torch.zeros(2, 6, D)}
+        groups = {"discriminator": ["disc"],
+                  "discriminator_demonstration": ["disc_demo"]}
+        env = types.SimpleNamespace(
+            env=types.SimpleNamespace(unwrapped=types.SimpleNamespace(step_dt=step_dt)))
+        return AMP.resolve_amp_config(alg, obs_probe, groups, env)["amp_cfg"]["disc_obs_stride"]
+
+    assert _resolve(0.01) == 2, "100 Hz must stride 2"
+    assert _resolve(0.02) == 1, "50 Hz must keep stride 1"
+    print("[OK] disc stride: frames[0,2,4], input 3D == champion, "
+          "style reward finite, resolve 0.01->2 / 0.02->1")
+    print("[PASS] 4/4 disc ::stride slicing")
+
+
 if __name__ == "__main__":
     assert os.environ.get("X1_CONTROL_HZ", "50") == "50", \
         "run the walk check with X1_CONTROL_HZ=100"
@@ -225,4 +324,5 @@ if __name__ == "__main__":
     os.environ["X1_CONTROL_HZ"] = "100"
     check_hz_walk()
     check_decimation()
+    check_disc_stride()
     print("\n[ALL PASS] v61 100 Hz dry-run")

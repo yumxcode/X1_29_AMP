@@ -86,6 +86,7 @@ class PPOAMP(PPO):
         self.amp_discriminator: AMPDiscriminator = AMPDiscriminator(
             disc_obs_dim=self.amp_cfg["disc_obs_dim"],
             disc_obs_steps=self.amp_cfg["disc_obs_steps"],
+            disc_obs_stride=self.amp_cfg.get("disc_obs_stride", 1),
             obs_groups=self.policy.obs_groups,
             loss_type=self.loss_type,
             device=device,
