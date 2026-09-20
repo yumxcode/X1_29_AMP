@@ -358,7 +358,14 @@ def check_v62_demo_data():
                           "dof_pos", "key_body_pos"}, p.name
         n = len(c["root_pos"])
         assert c["dof_pos"].shape == (n, 29) and n >= 2, p.name
-        kb = np.asarray(c["key_body_pos"]).reshape(n, 10, 3)
+        # consumer-contract shape: the animation manager indexes
+        # key_body_pos[frame] as (10, 3) (v62 first launch stored the flat
+        # (n, 30) — 0-iter CUDA OOM in quat_apply_inverse broadcasting)
+        kb = np.asarray(c["key_body_pos"])
+        assert kb.shape == (n, 10, 3), (p.name, kb.shape)
+        # dtype parity with the source dataset
+        assert np.asarray(c["root_pos"]).dtype == np.float64, p.name
+        assert np.asarray(c["dof_pos"]).dtype == np.float64, p.name
 
         # stage 2: fetch semantics at 100 Hz. The animation manager samples
         # a RANDOM phase each window; fetch spacing 0.01 s vs demo dt

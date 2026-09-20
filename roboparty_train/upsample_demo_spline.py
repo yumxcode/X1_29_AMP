@@ -173,17 +173,23 @@ def main():
         for key in ("root_pos", "dof_pos"):
             arr = np.asarray(clip[key], dtype=np.float64)
             co = pchip_coeffs(t_old, arr)
-            new[key] = eval_spline(t_old, co, t_new).astype(np.float32)
+            # dtype parity with the source pkls (root_pos/dof_pos float64;
+            # the manager .float()s on load but keep byte-level parity)
+            new[key] = eval_spline(t_old, co, t_new)
         new["root_rot"] = slerp_traj(
             np.asarray(clip["root_rot"], dtype=np.float64), t_old, t_new).astype(np.float32)
         # key_body RECOMPUTED by FK from the resampled dof/root for EVERY
         # new frame: constructively consistent (channel-wise interpolation
         # of dof vs key_body diverges by mm on fast segments — the jog
         # clips' FK error — because the FK map is nonlinear in rotations).
-        kb_flat = np.stack([fk_key_bodies(new["root_pos"][k], new["root_rot"][k],
-                                          new["dof_pos"][k]).ravel()
+        # STORED SHAPE MUST BE (n, 10, 3) — the source format. v62's first
+        # launch stored the flattened (n, 30) and the animation manager's
+        # downstream quat_apply_inverse broadcast exploded (67.5 GiB CUDA
+        # OOM at 0 iters). The consumer's contract is 3D.
+        kb = np.stack([fk_key_bodies(new["root_pos"][k], new["root_rot"][k],
+                                     new["dof_pos"][k])
                             for k in range(n_new)])
-        new["key_body_pos"] = kb_flat.astype(np.float32)
+        new["key_body_pos"] = kb.astype(np.float32)
 
         # validation 1: exact at original timestamps
         co = pchip_coeffs(t_old, np.asarray(clip["dof_pos"], dtype=np.float64))
