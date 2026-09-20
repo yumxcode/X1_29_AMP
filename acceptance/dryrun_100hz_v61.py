@@ -148,9 +148,10 @@ def check_key_body_vel():
 class _Term:
     """Faithful fake of RewardTermCfg for the walk block."""
 
-    def __init__(self, weight=0.0, params=None):
+    def __init__(self, weight=0.0, params=None, func=None):
         self.weight = weight
         self.params = params if params is not None else {}
+        self.func = func
 
 
 class _Rewards(types.SimpleNamespace):
@@ -158,10 +159,29 @@ class _Rewards(types.SimpleNamespace):
 
 
 def check_hz_walk():
-    # --- replica of the X1_CONTROL_HZ block in x1_amp_env_cfg.py ---------
-    import os as _os
+    # THE REAL shared implementation (control_hz_renorm.py) — no replica,
+    # so the dry-run cannot drift from the shipped walk (v61 first-launch
+    # lesson: yaw_bias/arm_opposite_leg_coupling alphas are FUNC DEFAULTS).
+    import importlib.util as _ilu
+    _cp = (ROOT / "roboparty_train" / "robolab" / "robolab" / "tasks"
+           / "manager_based" / "amp" / "control_hz_renorm.py").resolve()
+    _spec = _ilu.spec_from_file_location("control_hz_renorm_dryrun", _cp)
+    RE = _ilu.module_from_spec(_spec)
+    sys.modules["control_hz_renorm_dryrun"] = RE
+    _spec.loader.exec_module(RE)
+
+    def _fake_ema_guard(alpha):
+        # mimics yaw_rate_bias_guard / arm_opposite_leg_coupling: alpha as
+        # a kwarg DEFAULT, not wired into params
+        def _f(env, alpha=alpha):
+            return 0.0
+        return _f
+
     r = _Rewards(
-        yaw_bias=_Term(-1.0, {"alpha": 0.005}),
+        yaw_bias=_Term(-1.0, {"command_name": "base_velocity"},
+                       func=_fake_ema_guard(0.005)),          # v61b gap: func default
+        arm_leg_coupling=_Term(-0.3, {"asset_cfg": "x"},
+                               func=_fake_ema_guard(0.02)),   # v61b gap: func default
         arm_asym_lean=_Term(-0.8, {"alpha": 0.0025}),
         action_rate_l2=_Term(-0.01, {"asset_cfg": "x"}),
         action_rate_l2_arms=_Term(-0.0025, {}),
@@ -170,38 +190,21 @@ def check_hz_walk():
         dead_term=None,                    # None-safe
         a_method=lambda e: 0,              # callable-safe
     )
-    self = types.SimpleNamespace(rewards=r, action_delay_steps=1)
+    kbv = _Term(0.0, {"asset_cfg": "y"}, func=None)            # disc-vel term
+    disc = types.SimpleNamespace(key_body_vel_b=kbv)
 
-    _hz = float(_os.environ.get("X1_CONTROL_HZ", "50"))
-    if abs(_hz - 50.0) > 1e-6:
-        _r = _hz / 50.0
-        _scaled_alphas = []
-        _scaled_rates = []
-        for _attr in dir(self.rewards):
-            if _attr.startswith("__"):
-                continue
-            _term = getattr(self.rewards, _attr)
-            if callable(_term) or _term is None:
-                continue
-            _params = getattr(_term, "params", None)
-            if isinstance(_params, dict) and "alpha" in _params:
-                _params["alpha"] = float(_params["alpha"]) / _r
-                _scaled_alphas.append(_attr)
-            if _attr in ("action_rate_l2", "action_rate_l2_arms", "smoothness_1") and _term.weight:
-                _term.weight = _term.weight * _r
-                _scaled_rates.append(_attr)
-        if getattr(self, "action_delay_steps", 0):
-            self.action_delay_steps = int(round(self.action_delay_steps * _r))
-    # --- end replica -------------------------------------------------------
+    delay = RE.apply_control_hz_renormalization(r, disc, 1)
 
-    assert _hz == 100.0, _hz
+    assert float(os.environ.get("X1_CONTROL_HZ")) == 100.0
     assert r.yaw_bias.params["alpha"] == 0.0025, r.yaw_bias.params
+    assert r.arm_leg_coupling.params["alpha"] == 0.01, r.arm_leg_coupling.params
     assert r.arm_asym_lean.params["alpha"] == 0.00125, r.arm_asym_lean.params
     assert r.action_rate_l2.weight == -0.02, r.action_rate_l2.weight
     assert r.action_rate_l2_arms.weight == -0.005, r.action_rate_l2_arms.weight
     assert r.smoothness_1.weight == 0.0            # zero weight untouched
     assert r.joint_acc_l2.weight == -2.5e-7        # non-alpha term untouched
-    assert self.action_delay_steps == 2
+    assert delay == 2
+    assert kbv.params["alpha"] == 0.1               # 0.2 / 2 default
     print("[OK] walk@100Hz: alphas halved, rates x2, delay 1->2, "
           "zero/None/callable skipped")
     print("[PASS] 2/3 hz-walk logic")
