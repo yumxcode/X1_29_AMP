@@ -150,8 +150,12 @@ class AMPDiscriminator(nn.Module):
         """
         assert len(disc_obs.shape) == 3, "Discriminator observations must be a 3D tensor (num_envs, disc_obs_steps, disc_obs_dim)."
         assert self.disc_obs_dim == disc_obs.shape[2], f"Discriminator observation dimension mismatch. Expected {self.disc_obs_dim}, got {disc_obs.shape[2]}."
-        assert self.disc_obs_steps == disc_obs.shape[1], f"Discriminator observation steps mismatch. Expected {self.disc_obs_steps}, got {disc_obs.shape[1]}."
-        disc_obs_reshaped = disc_obs.reshape(-1, self.disc_obs_dim)  # [num_envs * disc_obs_steps, disc_obs_dim]
+        # v61d: buffers store the STRIDED window (3 frames at 20 ms), not
+        # the raw 6x10 ms history — the first v61d launch crashed here
+        # (expected 6, got 3): every post-buffer consumer must compare
+        # against disc_obs_steps_eff, the sliced cadence.
+        assert self.disc_obs_steps_eff == disc_obs.shape[1], f"Discriminator observation steps mismatch. Expected {self.disc_obs_steps_eff}, got {disc_obs.shape[1]}."
+        disc_obs_reshaped = disc_obs.reshape(-1, self.disc_obs_dim)  # [num_envs * disc_obs_steps_eff, disc_obs_dim]
         self.disc_obs_normalizer.update(disc_obs_reshaped)
 
     def compute_grad_penalty(self, demo_data: torch.Tensor, scale=10):

@@ -246,6 +246,9 @@ def check_disc_stride():
         def forward(self, x):
             return x
 
+        def update(self, x):
+            return None
+
     def _act(name):
         return _nn.ReLU()
 
@@ -311,8 +314,22 @@ def check_disc_stride():
 
     assert _resolve(0.01) == 2, "100 Hz must stride 2"
     assert _resolve(0.02) == 1, "50 Hz must keep stride 1"
+
+    # v61d-bis: the FIRST v61d launch crashed in update_normalization
+    # ("expected 6, got 3") — the buffer round-trip consumer was missed.
+    # Exercise the FULL post-buffer path here: sliced append -> minibatch ->
+    # update_normalization + normalize + forward + grad_penalty shapes.
+    disc.update_normalization(out)                    # was the crash site
+    disc.update_normalization(demo)                   # demo side too
+    normed = disc.normalize_disc_obs(out)
+    assert normed.shape == (N, 3, D), normed.shape
+    scores = disc(normed.reshape(N, -1))
+    assert scores.shape == (N, 1), scores.shape
+    gp = disc.compute_grad_penalty(demo.reshape(N, -1), scale=10.0)
+    assert torch.isfinite(gp), gp
     print("[OK] disc stride: frames[0,2,4], input 3D == champion, "
-          "style reward finite, resolve 0.01->2 / 0.02->1")
+          "style reward finite, resolve 0.01->2 / 0.02->1, "
+          "update_normalization+normalize+forward+grad_penalty all pass")
     print("[PASS] 4/4 disc ::stride slicing")
 
 
