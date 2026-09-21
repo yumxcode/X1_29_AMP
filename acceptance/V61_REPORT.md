@@ -92,3 +92,45 @@
 其他候选（均未测）：disc per-body loss 加权、100Hz 原生参考重采集、对抗奖励形式的
 频率重参数化（如 style 收益以每秒而非每步计）。
 
+
+## v63 弧线：可观测性路线修复 100Hz style 塌缩（contract rev4，2026-09-21）
+
+**三杠杆**（用户建议 + AMP 论文支持，全部默认关，v63 启动器开启）：
+1. **disc 宏观窗 600ms**：`X1_AMP_NUM_STEPS=60`（60×10ms→stride2=30帧@20ms，与冠军同 cadence、窗口×10）；`X1_DISC_BUFFER=24` 控内存 2.9GB——步幅/位移进入判别
+2. **disc 加 root 线速度**：`X1_DISC_LINVEL=1`（obs 121→124）——原仓库注释掉了它；AMP 论文消融标记 velocity 特征为动态动作必需。**这是微步塌缩的观测基础**：无 linvel 时 disc 窗内微步与行走不可分（v61f 取证：微步 style 收入/s = 冠军 2.7×）
+3. **action 低通 10Hz×2 级**：`X1_ACT_LPF_HZ=10`（amp_action_lpf.py torch 侧 + mujoco_rollout --action-lpf numpy 镜像，P7/电池/sweep 全链路转发）——策略有效带宽拉回 demo 带，100Hz PD 伺服好处保留
+
+### 平台轮次（账号 id=8）
+
+| 轮 | 任务 | 变量 | 结果 |
+|---|---|---|---|
+| v63 | TASK_20260921_038 | 三杠杆齐上 | **arms 37.7-42.0°**（v62b 塌缩 7.5/7.8）；P7 PASS（pod 上 mujoco vendored pylibs 生效）；平台 12/13（P4=disc 重置后奖励重基线，尾段稳定 19.0-19.4 无螺旋）；m10500 drift -0.31/-0.52 |
+| v63b | TASK_20260921_064 | yaw guard 2.5 | **反面证伪**：arms 40→17-24，臂 DC 爆到 P7g 48°，末点 pod P7 摔——强 yaw 惩罚毁步态 DC 结构 |
+| v63c | TASK_20260921_066 | arm_asym_lean -2.4, +600 | 平台 **13/13** + P7 PASS@100Hz（P7g 修复轮）；但 arms 16.8-18.8（guard 压幅度，v53 权衡重现） |
+
+### 交付点：soup(m10500+m11000) 50/50 权重平均
+
+| 门 | 读数 | 判定 |
+|---|---|---|
+| P7（100Hz+LPF，本地 FK） | **8/8**：P7a -0.99 / P7g **4.1°** / P7d +0.42 / 肘 p95 33.6 / 存活 23s | ✅ |
+| 臂幅 | **28.6/28.9°**（walk05 26.0/24.6）≥24 | ✅ |
+| 漂移 | **-0.55 / +0.79 m** ≤1.0 | ✅ |
+| 场景 | 5/5 存活（walk10/05/back05/stand/walkturn） | ✅ |
+| K1 | 12.8/13.1° ≤18 | ✅ |
+| 鲁棒 | **48/60** ≥48（lat/lag/noise/mass 45/45；push1.0 0/5 家族性弱点） | ✅ |
+| 平台 13/13 | 母本 m11099 同配方达成（soup 为本地合并，家族先例 soup59c 直测交付） | ✅ |
+| **P8 节律** | cadence ~2.9Hz（人 0.84）/ swing 0.19s（人 0.43）/ duty ~0.95 / 步长 0.15m（人 0.71-0.92） | ❌ 家族性 |
+
+**100Hz style 塌缩判定：已修复**（第 7 条路线成立）。v62b 证伪数据侧（升采样）后，观测侧（窗口+linvel+带宽对齐）正面解决：arms 从 7.5/7.8 → 28.6-40.0，arm_amp_prior 收益 0.0124→0.0186（冠军 0.0218）。
+
+### P8 节律门（contract rev2 新增，2026-09-21）
+
+用户指令落地：`acceptance/rhythm_gates.py` + `RHYTHM_GATES.md` + `evidence/rhythm_reference.json`（demo 实测：cadence 0.839Hz [0.66,1.06] / swing 0.429s / duty 0.611 / 步长 0.71-0.92m@1.0-1.4m/s）。门 R1-R4 阈值=人类带放宽15%。流水线 log-only 集成（家族全员不过 R1/R2/R4——50Hz 冠军 1.85Hz/0.17s/0.27m 也不过；**100Hz 使节律缺陷恶化 54%**，用户观察被定量证实）。后续杠杆（预注册未实验）：overground clip 加权、步频先验、步长 shaping。
+
+### 工程遗产
+
+- `pylibs/` vendored linux cp311 wheels（mujoco 3.2.7+numpy+deps）——pod 离线 P7 从此可用
+- **P7 控制率 bug 修复（16854bc）**：on-pod P7 一直在 50Hz 默认跑 100Hz 策略（教训已入经验库：控制频率类参数必须沿训练→导出→评估全链路显式传播并断言）
+- `X1_ACT_LPF_HZ/X1_DISC_LINVEL/X1_DISC_BUFFER/X1_ARM_ASYM` 环境杠杆（全部默认关，50Hz 配方零影响）
+- `dryrun_v63.py` 6/6（LPF -3dB/节 @10Hz、torch/numpy 零差、600ms 窗全 buffer 路径）
+- API 推送兜底成熟（github 443 断连时 blobs/trees/commits/refs via api.github.com）
