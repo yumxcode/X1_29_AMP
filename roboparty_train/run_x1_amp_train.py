@@ -1083,6 +1083,23 @@ def phase_policy_gait_gate(ckpt: Path | None, policy_npz: Path | None) -> int:
     cmd = [sys.executable, str(gate), "--log", str(log_npz), "--json", str(gate_json)]
     print(f"[INFO] {' '.join(cmd)}")
     rc = subprocess.run(cmd, cwd=str(REPO_ROOT)).returncode
+
+    # v63c+ (contract rev2): P8 RHYTHM gates — cadence/swing/duty/step-length
+    # vs the HUMAN reference (acceptance/RHYTHM_GATES.md). LOG-ONLY for now:
+    # the whole family (50 Hz champion included) fails R1/R2/R4 — the gate
+    # reports the rhythm dimension honestly without failing every task; it
+    # becomes a hard gate once a policy family reaches it.
+    rhythm = REPO_ROOT / "acceptance" / "rhythm_gates.py"
+    if rhythm.exists():
+        rcmd = [sys.executable, str(rhythm), str(log_npz),
+                "--cmd-vel", "1.0",
+                "--json", str(UPLOAD_DIR / "p8_rhythm_gate.json")]
+        print(f"[INFO] {' '.join(rcmd)}")
+        try:
+            subprocess.run(rcmd, cwd=str(REPO_ROOT),
+                           env=dict(os.environ, **({"PYTHONPATH": str(pylibs)} if pylibs.exists() else {})))
+        except Exception as rhythm_err:
+            print(f"[WARN] P8 rhythm gate crashed: {rhythm_err}")
     # v31: report upload only on FAILURE (protect the 5-slot registration
     # budget: anchor, retarget x2, model_2000, model_3999 — see v26 note).
     # On PASS the exit code + full gate stdout in the task log suffice; both
