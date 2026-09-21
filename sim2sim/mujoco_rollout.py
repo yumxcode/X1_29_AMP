@@ -26,6 +26,7 @@ import argparse
 import collections
 import functools
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -381,6 +382,17 @@ def main():
                     help="observation pipeline latency in control steps (0-4)")
     ap.add_argument("--action-lag", type=int, default=0,
                     help="apply the action from N steps ago (comms/actuator lag)")
+    ap.add_argument("--action-lpf", type=float, default=0.0,
+                    help="v63: action low-pass cutoff in Hz (0 = off). "
+                         "Cascaded first-order sections applied to the RAW "
+                         "policy action BEFORE the lag buffer — the exact "
+                         "mirror of training-side X1_ACT_LPF_HZ (AmpEnv."
+                         "_action_lpf): alpha = 1-exp(-2*pi*fc*dt) per "
+                         "section. Restores the policy/demo frequency-"
+                         "hierarchy alignment for 100 Hz policies trained "
+                         "with the filter.")
+    ap.add_argument("--action-lpf-order", type=int, default=2,
+                    help="number of cascaded LPF sections (2 = 12 dB/oct)")
     ap.add_argument("--torso-mass-scale", type=float, default=1.0,
                     help="scale lumbar_pitch_link mass (payload simulation)")
     ap.add_argument("--push-mag", type=float, default=0.0,
@@ -515,6 +527,12 @@ def main():
         print(f"[ROB] torso mass scaled by {args.torso_mass_scale}")
     ob_buf = collections.deque(maxlen=max(1, args.latency_steps) + 1)   # obs pipeline delay
     act_buf = collections.deque(maxlen=max(1, args.action_lag) + 1)     # action comms lag
+    # v63: deploy-side action low-pass — byte-for-byte the training-side
+    # AmpEnv._action_lpf cascade (same alpha, same order, same position in
+    # the pipeline: filter the RAW policy output, then the lag buffer).
+    lpf_alpha = (1.0 - math.exp(-2.0 * math.pi * args.action_lpf * CONTROL_DT)
+                 if args.action_lpf > 0 else None)
+    lpf_state = [np.zeros(29) for _ in range(max(1, args.action_lpf_order))]
     push_every_steps = int(args.push_every / CONTROL_DT)
     NOISE = dict(jpos=0.01, jvel=0.15, ang=0.05, grav=0.03)  # 1.0x = realistic
 
@@ -558,6 +576,11 @@ def main():
             act = np.zeros(29)
         else:
             act = policy_fn(layers, mean, std, ob_eff)
+        if lpf_alpha is not None:
+            for _i in range(len(lpf_state)):
+                lpf_state[_i] = lpf_alpha * np.asarray(act, dtype=np.float64) \
+                    + (1.0 - lpf_alpha) * lpf_state[_i]
+                act = lpf_state[_i]
         # action comms lag: the NEW action enters the buffer head; what the
         # robot actually executes is the entry N steps old (lag=0 -> new act)
         act_buf.appendleft(np.asarray(act, dtype=np.float64).copy())
@@ -672,6 +695,8 @@ def main():
         npz["meta"] = json.dumps({
             "cmd": list(args.cmd), "ckpt": str(args.ckpt),
             "control_dt": CONTROL_DT, "settle_steps": settle_steps,
+            "action_lpf": args.action_lpf,
+            "action_lpf_order": args.action_lpf_order,
             "fell": bool(alive_steps < n_steps - settle_steps),
             "hinge_names": hinge, "foot_names": foot_names,
             "sole_order": "row=foot_names, cols=[front_l, front_r, back_l, back_r]",

@@ -562,6 +562,32 @@ class X1AmpEnvCfg(AmpEnvCfg):
         self.observations.disc.history_length = AMP_NUM_STEPS
 
         # ------------------------------------------------------
+        # v63: X1_DISC_LINVEL=1 — root LINEAR velocity joins the disc obs.
+        # The AMP paper's ablation (Sec. 9.3, Fig. 8) marks velocity
+        # features as REQUIRED for dynamic motion, and both canonical
+        # implementations (IsaacGymEnvs HumanoidAMP, escontro/AMP_for_
+        # hardware) include local root lin vel in Phi(s). This repo had it
+        # commented out; without it the disc window (60-600 ms of
+        # base-relative kinematics) cannot see displacement rate at ALL —
+        # micro-stepping (0.1 m/s) and walking (1.0+ m/s) are locally
+        # near-identical, which is the observation-space basis of the 100 Hz
+        # style collapse (v61f forensics: micro-gait style income 2.7x the
+        # champion's per second). Appended LAST so the obs prefix keeps the
+        # champion ordering; disc_obs_dim 121 -> 124 (disc re-inits on
+        # resume via the amp_runner shape path).
+        # ------------------------------------------------------
+        if __import__("os").environ.get("X1_DISC_LINVEL", "0") == "1":
+            from isaaclab.managers import ObservationTermCfg as ObsTermX
+            self.observations.disc.base_lin_vel = ObsTermX(func=mdp.base_lin_vel)
+            self.observations.disc_demo.ref_root_lin_vel_b = ObsTermX(
+                func=mdp.ref_root_lin_vel_b,
+                params={"animation": ANIMATION_TERM_NAME, "flatten_steps_dim": False},
+            )
+            print("[DISC-LINVEL] root linear velocity ADDED to disc obs "
+                  "(policy: base_lin_vel, demo: ref_root_lin_vel_b; "
+                  "dim 121 -> 124; disc re-inits on resume)")
+
+        # ------------------------------------------------------
         # Rewards
         # ------------------------------------------------------
         # task
@@ -672,7 +698,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # v53: doubled again — v52@0.3 prior grew 35-54 deg DC asym; the
         # amplitude lever needs the DC guard at strength
         # v54: -0.8 -> -1.2 (v53's residual P7g 12.1 vs 12 is pure DC)
-        self.rewards.arm_asym_lean.weight = -1.2
+        # v63c: env lever X1_ARM_ASYM (default -1.2 unchanged) — the 100 Hz
+        #   fine-tune regrows the arm DC to P7g 12.8-13.7 deg (R arm frozen
+        #   ~11-14 deg back); -2.4 (v53-strength) targets the 0.8-1.7 deg
+        #   residual on a SHORT (+600) continuation from m10500.
+        self.rewards.arm_asym_lean.weight = float(
+            __import__("os").environ.get("X1_ARM_ASYM", "-1.2"))
         # - arm/opposite-leg coupling: refs +0.8..+0.99 vs policy -0.12;
         #   high-passed capped product (positive on ref, mean-shift free)
         self.rewards.arm_leg_coupling.weight = 0.3
@@ -886,6 +917,22 @@ class X1AmpEnvCfg(AmpEnvCfg):
         from .control_hz_renorm import apply_control_hz_renormalization
         self.action_delay_steps = apply_control_hz_renormalization(
             self.rewards, self.observations.disc, self.action_delay_steps)
+
+        # ------------------------------------------------------
+        # v63: X1_ACT_LPF_HZ — action low-pass cutoff (Hz), 0 = off (default
+        # keeps every earlier recipe byte-identical). Applied to the raw
+        # policy action BEFORE the delay ring in AmpEnv.step; the mirrored
+        # deploy-side filter is mujoco_rollout.py --action-lpf (same alpha
+        # math, same cascade order — see _action_lpf docstring). Restores
+        # the policy/demo frequency-hierarchy alignment at 100 Hz: the PD
+        # servo keeps its 100 Hz correction bandwidth while the policy's
+        # effective ACTION content is capped at the demo band (~10 Hz).
+        # ------------------------------------------------------
+        self.act_lpf_hz = float(os.environ.get("X1_ACT_LPF_HZ", "0"))
+        self.act_lpf_order = int(os.environ.get("X1_ACT_LPF_ORDER", "2"))
+        if self.act_lpf_hz > 0:
+            print(f"[ACT-LPF] action low-pass {self.act_lpf_hz:g} Hz "
+                  f"order {self.act_lpf_order} (dt={1.0/float(os.environ.get('X1_CONTROL_HZ', '50')):.4f}s)")
 
         # ------------------------------------------------------
         # Terminations — X1 body names

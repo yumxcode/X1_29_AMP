@@ -488,6 +488,11 @@ class AmpEnvCfg(AnimationEnvCfg):
     # action lag but falls under 2-step (40 ms); randomizing the delay in
     # training covers the deployment comms jitter range.
     action_delay_steps: int = 0
+    # v63: action low-pass cutoff in Hz (0 = off) + cascade order.
+    # Applied to the RAW policy action before the delay ring in AmpEnv.step;
+    # mirrored flag-for-flag in sim2sim/mujoco_rollout.py (--action-lpf).
+    act_lpf_hz: float = 0.0
+    act_lpf_order: int = 2
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
