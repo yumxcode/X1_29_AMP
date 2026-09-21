@@ -1,0 +1,15 @@
+{
+ "task": "TASK_20260921_110 (created, awaiting funded account to run)",
+ "baseline_m10500_walk10": {
+  "cadence_hz": 2.857,
+  "swing_s": 0.19,
+  "duty": 0.953,
+  "step_m": 0.145,
+  "p8": "FAIL R1/R2/R3/R4"
+ },
+ "baseline_m10500_walk05": {
+  "p8": "FAIL no-swing (drag)"
+ },
+ "v64_accept": "P8 8/8 subgates on walk10+walk05 + no-regress P7/arms>=24/drift<=1/5-5/K1/robust>=48/13-13",
+ "lpf_required": "--action-lpf 10 --action-lpf-order 2 (v63 lineage)"
+}

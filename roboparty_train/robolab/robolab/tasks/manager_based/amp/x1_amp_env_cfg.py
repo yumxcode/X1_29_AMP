@@ -377,6 +377,27 @@ class X1AmpRewards():
         },
     )
 
+    # v64b: DENSE swing-duration prior (the anti-drag complement to
+    # gait_period — see the func docstring for the v64@0.6 forensics:
+    # event-prior credit gap + drag immunity drove a full drag regression
+    # in sim2sim). t_sw*=0.43 s = P8 reference swing median.
+    swing_airtime = RewTerm(
+        func=mdp.swing_airtime_prior,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "t_sw_s": 0.43,
+            "sigma_s": 0.15,
+            "min_cmd_speed": 0.15,
+            "max_cmd_speed": 1.5,
+        },
+    )
+
     # -- v27: strict gait quality (sim2sim criteria) ---------------------
     # sole must stay flat during stance at walking speeds (no toe-walk /
     # ball-foot); see stance_sole_flat_walk docstring for the frame trap that
@@ -680,6 +701,11 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # ~16/step stream — v57c heel_first 0.15->0.40 precedent).
         self.rewards.gait_period.weight = float(
             __import__("os").environ.get("X1_CADENCE_PRIOR", "0"))
+        # v64b: dense swing-duration prior dose (default 0 = off). Paired
+        # with the cadence prior as ONE rhythm-lever family (v57 heel_first
+        # + sole_flat rework precedent for coupled terms).
+        self.rewards.swing_airtime.weight = float(
+            __import__("os").environ.get("X1_SWING_PRIOR", "0"))
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

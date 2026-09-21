@@ -225,6 +225,39 @@ def main():
     r = R.gait_period_prior(env, cfg, command_name="base_velocity")
     check("1f shape+finite", r.shape == (7,) and torch.isfinite(r).all())
 
+    # 1g) swing_airtime_prior: dense swing-duration kernel
+    #     human swing (0.43 s) high, micro (0.19 s) low, drag ~0
+    def run_swing(cmd, cycle_steps, swing_steps, n_steps=1200, dt=0.02):
+        env, cfg = make_env(cmd=cmd, dt=dt)
+        total = 0.0
+        for step in range(n_steps):
+            env.episode_length_buf += 1
+            t = step * dt
+            ph = (t / (cycle_steps * dt)) % 1.0
+            flags = []
+            for f in range(2):
+                pf = (ph + 0.5 * f) % 1.0
+                on = pf < (1.0 - swing_steps / cycle_steps)  # airborne frac
+                flags.append(on)
+            set_contact(env, tuple(flags))
+            r = R.swing_airtime_prior(env, cfg, command_name="base_velocity")
+            total += float(r.sum())
+        return total / (n_steps * dt)
+
+    rate_h = run_swing((1.0, 0, 0), 55, 22)      # cycle 1.1s swing 0.44s
+    # micro-gait at its MEASURED duty 0.95 (m10500: swing 0.19s of a 0.35s
+    # cycle at 100 Hz ~= 2 airborne steps of 17) — not an idealized 50%-duty
+    rate_m = run_swing((1.0, 0, 0), 17, 2)       # cycle 0.34s swing 0.04s x2... (mock min)
+    rate_m2 = run_swing((1.0, 0, 0), 20, 4)      # cycle 0.4s swing 0.08s (duty 0.8)
+    rate_d = run_swing((1.0, 0, 0), 55, 0)       # drag (never airborne)
+    check("1g swing prior human>micro>drag",
+          rate_h > 5 * max(rate_m, rate_m2) and max(rate_m, rate_m2) > 5 * rate_d and rate_d < 1e-9,
+          f"rate h/m/m2/d = {rate_h:.3f}/{rate_m:.3f}/{rate_m2:.3f}/{rate_d:.3f} per s (w=1)")
+
+    # 1g') jog-speed gate (>1.5 m/s) exempt
+    rate_j = run_swing((2.0, 0, 0), 55, 22)
+    check("1g' jog gate zero", rate_j < 1e-9, f"rate={rate_j:.2e}")
+
     # 2) AST wiring on the REAL env cfg
     src = (ROOT / "roboparty_train" / "robolab" / "robolab" / "tasks"
            / "manager_based" / "amp" / "x1_amp_env_cfg.py").read_text()
@@ -245,6 +278,10 @@ def main():
             found_lever = True
     check("2a RewTerm gait_period exists", found_term)
     check("2b X1_CADENCE_PRIOR lever wired (default 0)", found_lever)
+    check("2e RewTerm swing_airtime exists", "swing_airtime = RewTerm" in src.replace("    ", " "))
+    check("2f X1_SWING_PRIOR lever wired (default 0)", 'X1_SWING_PRIOR' in src)
+    check("2g swing_airtime func referenced",
+          "mdp.swing_airtime_prior" in src)
     check("2c func symbol referenced",
           "mdp.gait_period_prior" in src)
     check("2d both ankles in params",

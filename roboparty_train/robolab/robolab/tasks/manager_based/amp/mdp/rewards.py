@@ -201,6 +201,69 @@ def paired_joints_deviation_sum_l1(
 _EMA_STATE: dict = {}
 _EDGE_STATE: dict = {}
 _TD_STATE: dict = {}
+_AIR_STATE: dict = {}
+
+
+def swing_airtime_prior(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    t_sw_s: float = 0.43,
+    sigma_s: float = 0.15,
+    min_cmd_speed: float = 0.15,
+    max_cmd_speed: float = 1.5,
+) -> torch.Tensor:
+    """v64b: DENSE swing-duration prior — the anti-drag / anti-micro
+    complement to gait_period_prior (GOAL_RHYTHM.md §3 lever family).
+
+    v64@0.6 forensics (TASK_20260921_118): the touchdown-interval event
+    prior alone did NOT move the cadence on-pod and REGRESSED sim2sim to a
+    full drag-gait (both feet within 12 mm of the floor for 100% of frames,
+    0.93 m/s by skating). Two structural causes this term fixes:
+      1. CREDIT GAP: the event reward lands at the touchdown edge, but the
+         actions that set the interval happened 0.35-1.1 s earlier — beyond
+         the 24-step rollout chunk's credit horizon. This term pays EVERY
+         airborne step (credit-local, dense).
+      2. DRAG IMMUNITY: no events = no reward but also no penalty, so
+         lengthening "stance" forever is a free escape. This term pays
+         ZERO for drag and ~0.14/step (w=0.3) for human swing — a 23x
+         differential against both drag AND micro-gait (swing 0.19 s pays
+         ~0.006/step).
+
+    Form: per foot, a = accumulated airborne time (resets on contact);
+    instantaneous score exp(-|a - t_sw*| / sigma) with t_sw* = 0.43 s (P8
+    reference swing median 0.429 s, band [0.22, 0.55]; sigma 0.15 keeps
+    partial credit across the whole band). Reward = sum over airborne feet.
+    Integrating over a swing of duration T maximizes exactly at T = t_sw*
+    (drag T=0 -> 0; micro T=0.19 -> ~0.20 mean score; human T=0.43 -> ~0.6).
+    With gait_period_prior anchoring the FULL cycle (T*=1.46-0.36v), the
+    pair pins duty factor = 1 - 0.43/1.10 ~= 0.61 = the human reference.
+
+    Walk-speed gate identical to the knee/sole-flat regime (jog natural
+    above 1.5 m/s is not fought; standing below 0.15 is exempt).
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+    airborne = ~in_contact                                        # (N, 2)
+
+    skey = (id(env), "swing_air")
+    air = _AIR_STATE.get(skey)
+    if air is None or air.shape != airborne.shape or air.device != airborne.device:
+        air = torch.zeros_like(airborne, dtype=torch.float)
+        _AIR_STATE[skey] = air
+    with torch.no_grad():
+        # accumulate episode-time per airborne foot; contact resets to 0
+        air.copy_(torch.where(airborne, air + env.step_dt,
+                              torch.zeros_like(air)))
+        air.clamp_(max=1.5)
+
+    score = torch.exp(-torch.abs(air - t_sw_s) / sigma_s)
+    r = torch.sum(torch.where(airborne, score, torch.zeros_like(score)), dim=-1)
+
+    cmd = env.command_manager.get_command(command_name)
+    v = torch.norm(cmd[:, :2], dim=1)
+    gate = ((v > min_cmd_speed) & (v < max_cmd_speed)).float()
+    return r * gate
 
 
 def gait_period_prior(
