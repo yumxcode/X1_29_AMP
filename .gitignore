@@ -27,7 +27,9 @@ AMASS/
 AMASS_minimal/smplx/*.pkl
 
 # local venv-target libs and acceptance scratch
-pylibs/
+# (v63: pylibs/ is now COMMITTED — vendored linux x86_64 cp311 wheels
+#  [mujoco 3.2.7 + numpy 1.26.4 + deps] so the pod can run the P7 sim2sim
+#  gate OFFLINE; the pod's pip has no PyPI egress [TASK_20260920_149])
 acceptance/cache/
 whoami.json
 .cache_*

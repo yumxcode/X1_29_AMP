@@ -104,7 +104,15 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
         symmetry_cfg=None,  # DISABLED: X1 29-DOF mirror indices not yet implemented
         amp_cfg=RslRlAmpCfg(
-            disc_obs_buffer_size=100,
+            # v63: X1_DISC_BUFFER — the CircularBuffers store (max_len,
+            # num_envs, disc_frames, dim) per step; with the 600 ms window
+            # (30 strided frames x 124 dims) the v61 default 100 would need
+            # 100*4096*30*124*4 B = 6.1 GB PER BUFFER (x2 = 12.2 GB, OOM on
+            # the 4090D 24G). 24 == num_steps_per_env (the minibatch
+            # fetch_length) is the exact requirement and brings both buffers
+            # to 2.9 GB total (v62b baseline: 2.4 GB at 6x121).
+            disc_obs_buffer_size=int(
+                __import__("os").environ.get("X1_DISC_BUFFER", "100")),
             grad_penalty_scale=10.0,
             disc_trunk_weight_decay=1.0e-3,
             disc_linear_weight_decay=1.0e-1,

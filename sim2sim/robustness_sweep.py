@@ -59,6 +59,12 @@ def run_cell(ckpt, cmd, variant_args, seed, duration=12):
             "--ckpt", ckpt, "--cmd"] + cmd + [
            "--duration", str(duration), "--settle", "0.5",
            "--json", str(js), "--seed", str(seed)] + variant_args
+    # v63: the sweep inherits the action LPF (X1_ACT_LPF_HZ) so robustness
+    # cells exercise the SAME action pipeline as training/deployment
+    _lpf = os.environ.get("X1_ACT_LPF_HZ", "0")
+    if float(_lpf) > 0:
+        cmdl += ["--action-lpf", _lpf,
+                 "--action-lpf-order", os.environ.get("X1_ACT_LPF_ORDER", "2")]
     env = dict(os.environ)
     # 1 thread per worker: parallelism comes from --jobs; without this the
     # N-way process x M-thread BLAS oversubscription collapses throughput ~20x
@@ -106,7 +112,14 @@ def main():
                     help="policy control period in s (0.02 = 50 Hz lineage; "
                          "0.01 = v61 100 Hz). Forwarded to mujoco_rollout; "
                          "lat/lag step variants are time-matched.")
+    ap.add_argument("--action-lpf", type=float, default=-1.0,
+                    help="v63: action low-pass Hz forwarded to every cell "
+                         "(-1 = inherit X1_ACT_LPF_HZ env; >=0 = override)")
+    ap.add_argument("--action-lpf-order", type=int, default=2)
     args = ap.parse_args()
+    if args.action_lpf >= 0:
+        os.environ["X1_ACT_LPF_HZ"] = str(args.action_lpf)
+        os.environ["X1_ACT_LPF_ORDER"] = str(args.action_lpf_order)
 
     from concurrent.futures import ThreadPoolExecutor
     seeds = list(range(args.seeds))

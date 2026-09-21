@@ -917,6 +917,13 @@ def sim2sim_fallback_video(policy: Path):
                            "--repo-root", str(REPO_ROOT), "--video", str(mp4),
                            "--json", str(js), "--render", "soft",
                            "--control-dt", str(_ctrl_dt)] + extra
+                    # v63: keep the fallback-video action pipeline identical
+                    # to training/deployment (X1_ACT_LPF_HZ mirror)
+                    _lpf_hz = float(os.environ.get("X1_ACT_LPF_HZ", "0"))
+                    if _lpf_hz > 0:
+                        cmd += ["--action-lpf", str(_lpf_hz),
+                                "--action-lpf-order",
+                                os.environ.get("X1_ACT_LPF_ORDER", "2")]
                     try:
                         r = _sp.run(cmd, cwd=str(REPO_ROOT), env=env, timeout=1200,
                                     capture_output=True, text=True)
@@ -1028,11 +1035,21 @@ def phase_policy_gait_gate(ckpt: Path | None, policy_npz: Path | None) -> int:
     if log_npz.exists():
         log_npz.unlink()  # stale run must not masquerade as success
 
+    # v63: the rollout must apply the SAME action low-pass the policy was
+    # trained with (X1_ACT_LPF_HZ) or the policy/rollout action pipelines
+    # diverge (obs "actions" term distribution shift).
+    lpf_args = []
+    _lpf_hz = float(os.environ.get("X1_ACT_LPF_HZ", "0"))
+    if _lpf_hz > 0:
+        lpf_args = ["--action-lpf", str(_lpf_hz),
+                    "--action-lpf-order", os.environ.get("X1_ACT_LPF_ORDER", "2")]
+        print(f"[INFO][P7] action low-pass {lpf_args}")
+
     def run_rollout(env: dict, label: str) -> int:
         cmd = [sys.executable, str(rollout), "--ckpt", str(policy_npz),
                "--repo-root", str(REPO_ROOT),
                "--cmd", "1.0", "0.0", "0.0", "--duration", "12",
-               "--log", str(log_npz), "--json", str(roll_json)]
+               "--log", str(log_npz), "--json", str(roll_json)] + lpf_args
         print(f"[INFO][{label}] {' '.join(cmd)}")
         return subprocess.run(cmd, cwd=str(REPO_ROOT), env=env).returncode
 

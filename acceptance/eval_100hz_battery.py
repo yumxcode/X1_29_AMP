@@ -49,6 +49,11 @@ def main():
     ap.add_argument("--quick", action="store_true",
                     help="skip robustness sweep and back05/stand")
     ap.add_argument("--duration", type=float, default=12.0)
+    ap.add_argument("--action-lpf", type=float, default=0.0,
+                    help="v63: action low-pass Hz — must match the policy's "
+                         "training X1_ACT_LPF_HZ (mirrored into every rollout "
+                         "and the robustness sweep)")
+    ap.add_argument("--action-lpf-order", type=int, default=2)
     args = ap.parse_args()
 
     out = Path(args.out) if args.out else ROOT / "acceptance" / f"{args.tag}_eval"
@@ -56,12 +61,15 @@ def main():
     scens = [s for s in SCENARIOS if not args.quick or s[0] in ("walk10", "walk05")]
 
     logs = {}
+    lpf = (["--action-lpf", str(args.action_lpf),
+            "--action-lpf-order", str(args.action_lpf_order)]
+           if args.action_lpf > 0 else [])
     for name, cmd in scens:
         npz = out / f"{args.tag}_{name}.npz"
         r = sh([str(PY), "sim2sim/mujoco_rollout.py", "--ckpt", args.npz,
                 "--cmd"] + cmd + [
             "--duration", str(args.duration), "--settle", "0.5",
-            "--control-dt", str(args.control_dt), "--log", str(npz)])
+            "--control-dt", str(args.control_dt), "--log", str(npz)] + lpf)
         logs[name] = npz if npz.exists() else None
         if r.returncode == 0:
             tail = [l for l in r.stdout.splitlines() if "survived" in l or "v_xy" in l]
@@ -89,7 +97,9 @@ def main():
     if not args.quick:
         rr = out / f"{args.tag}_robustness_report.json"
         sh([str(PY), "sim2sim/robustness_sweep.py", "--ckpt", args.npz,
-            "--out", str(rr), "--control-dt", str(args.control_dt)])
+            "--out", str(rr), "--control-dt", str(args.control_dt),
+            "--action-lpf", str(args.action_lpf),
+            "--action-lpf-order", str(args.action_lpf_order)])
         if rr.exists():
             s = json.loads(rr.read_text())["summary"]
             print(f"[ROBUST] {s['pass']}/{s['cells']} cells verdict={s['verdict']}", flush=True)

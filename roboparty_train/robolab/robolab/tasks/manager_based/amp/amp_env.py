@@ -31,6 +31,8 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
 from typing import Any
 from collections.abc import Sequence
@@ -58,6 +60,24 @@ class AmpEnv(AnimationEnv):
     
     def __init__(self, cfg: AmpEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg=cfg, render_mode=render_mode, **kwargs)
+
+    def _action_lpf(self, action: torch.Tensor) -> torch.Tensor:
+        """v63: cascaded first-order action low-pass (X1_ACT_LPF_HZ).
+
+        The cascade itself lives in amp_action_lpf.py (isaaclab-free, so
+        the dry-run drives the REAL filter); the deploy-side twin is
+        sim2sim/mujoco_rollout.py --action-lpf. Order in the pipeline:
+        filter the RAW policy action FIRST, then the comms-delay ring —
+        mujoco_rollout applies the same order (LPF before act_buf).
+        """
+        if not hasattr(self, "_lpf"):
+            from .amp_action_lpf import TorchActionLPF
+            self._lpf = TorchActionLPF(
+                float(getattr(self.cfg, "act_lpf_hz", 0.0) or 0.0),
+                int(getattr(self.cfg, "act_lpf_order", 2)),
+                float(self.step_dt),
+            )
+        return self._lpf(action)
 
     def _random_action_delay(self, action: torch.Tensor) -> torch.Tensor:
         """Per-env stochastic action delay in [0, cfg.action_delay_steps].
@@ -116,7 +136,11 @@ class AmpEnv(AnimationEnv):
             The AMP observations are included in the observations dictionary under the key "amp".
         """
         # process actions (v29: per-env random comms delay injection)
-        self.action_manager.process_action(self._random_action_delay(action.to(self.device)))
+        # (v63: X1_ACT_LPF_HZ action low-pass runs FIRST — the raw policy
+        # output is filtered, then the delay ring samples it, matching the
+        # sim2sim evaluator's LPF-then-act_buf order)
+        self.action_manager.process_action(
+            self._random_action_delay(self._action_lpf(action.to(self.device))))
 
         self.recorder_manager.record_pre_step()
 
