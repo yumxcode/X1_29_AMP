@@ -68,10 +68,13 @@ SPEC = {
                                   # (G3's coarse pitch gate stays =0 as the hard
                                   # no-regress gate); v57 targets 0
     "kh_min_events": 4,           # per foot, else informational only
-    # R: rhythm gate (v63, GOAL_RHYTHM.md §2) — human cadence + stride.
-    # cycle = same-foot consecutive-TD interval (this file's stride_period_s);
-    # cadence total (both feet) = 120 / cycle. Calibrated on the retargeted
-    # reference set (hip-osc path) + human literature at 1.0/0.5 m/s.
+    # R: rhythm gate quick readout (v64) — see acceptance/rhythm_gates.py
+    # (P8) for the AUTHORITATIVE dual-side gate (cadence/swing/duty/step on
+    # the lift-above-min detector, demo-compatible). This section reports
+    # cycle/stride on the SAME Schmitt segmentation G2 uses (policy-side
+    # quick view in the standard report); numbers agree with P8 within
+    # detector noise. cycle = same-foot consecutive-TD interval; cadence
+    # total (both feet) = 120 / cycle.
     "r1_cycle_lo_s": 0.85,        # walk10: human ~1.03-1.16, gate -18%/+16%
     "r1_cycle_hi_s": 1.35,
     "r1_cycle_lo_s_05": 1.00,     # walk05: human ~1.3-1.5 (refs up to 1.8)
