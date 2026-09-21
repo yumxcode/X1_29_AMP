@@ -112,7 +112,19 @@ class AnimationTerm(ManagerTermBase):
             return
 
         # resample motion ids for the reset envs
-        self.motion_ids[env_ids] = self.motion_data_term.sample_motions(len(env_ids))
+        if getattr(self, "speed_matched_fetch", False) \
+                or getattr(self.cfg, "speed_matched_fetch", False):
+            try:
+                cmd = self._env.command_manager.get_command("base_velocity")
+                env_speeds = torch.linalg.vector_norm(cmd[:, :2], dim=1)[env_ids]
+                self.motion_ids[env_ids] = self.motion_data_term \
+                    .sample_motions_speed_gated(env_speeds)
+            except Exception as e:
+                print(f"[ANIM] speed-gated motion assignment failed ({e}); "
+                      "falling back to uniform weights")
+                self.motion_ids[env_ids] = self.motion_data_term.sample_motions(len(env_ids))
+        else:
+            self.motion_ids[env_ids] = self.motion_data_term.sample_motions(len(env_ids))
         self.motion_durations[env_ids] = self.motion_data_term.get_motion_durations(self.motion_ids[env_ids])
 
         truncate_time = self.num_steps * self._env.step_dt

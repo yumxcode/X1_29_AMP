@@ -391,6 +391,35 @@ class MotionDataTerm(ManagerTermBase):
                 has_any[rows] = False
         return times
 
+    def sample_motions_speed_gated(self, env_speeds: torch.Tensor,
+                                   tol: float = 0.35) -> torch.Tensor:
+        """v65.1 (X1_DISC_VMATCH full composition): sample MOTION ids with
+        weights x in-band-frame-fraction at each env's commanded speed.
+
+        The v65b forensics: gating only the TIME sampling leaves the motion
+        ASSIGNMENT untouched — the in-place treadmill family (77% of the
+        weight mass) still gets assigned to walking-command envs and then
+        falls back to uniform (in-place) frames, so the disc's demo stream
+        at walking commands stays majority-in-place. This closes the leak:
+        at walking commands the overground family (36_01/36_11/0026)
+        carries ~all the assignment mass; at stand commands the in-place
+        family still dominates (its frames are in-band at v~0)."""
+        n = len(env_speeds)
+        # per-clip in-band fraction at each env's speed: (n, num_motions)
+        sp = self.frame_speed                                    # (M, F)
+        valid = ~torch.isnan(sp)
+        tgt = env_speeds.unsqueeze(1).unsqueeze(2)               # (n,1,1)
+        inband = valid & (torch.abs(sp.unsqueeze(0) - tgt) <= tol)
+        denom = valid.float().sum(dim=1).clamp(min=1)            # (M,)
+        frac = inband.float().sum(dim=2) / denom                 # (n, M)
+        w = self.motion_weights.unsqueeze(0) * frac              # (n, M)
+        # zero-row fallback (no clip in band at this speed): plain weights
+        dead = w.sum(dim=1) <= 0
+        if bool(dead.any()):
+            w[dead] = self.motion_weights.unsqueeze(0).expand(int(dead.sum()), -1)
+        ids = torch.multinomial(w, num_samples=1, replacement=True).squeeze(1)
+        return ids
+
     def calc_motion_phase(self, motion_ids, times):
         motion_durations = self.motion_durations[motion_ids]
         loop_modes = self.motion_loop_modes[motion_ids]

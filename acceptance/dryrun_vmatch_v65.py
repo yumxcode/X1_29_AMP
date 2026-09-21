@@ -102,10 +102,34 @@ def main():
     t2 = sampler(term, torch.tensor([1] * 64), torch.zeros(64), window_s=0.6)
     check("1e stand fallback finite", bool(torch.isfinite(t2).all()))
 
+    # 1f) motion ASSIGNMENT gating (v65.1 full composition): at cmd 1.0
+    # the in-place clip (0) must get ~zero assignment mass
+    src2 = src  # motion_data_manager source already loaded
+    fn2 = ast.parse(src2)
+    fn2m = next((n for n in ast.walk(fn2)
+                 if isinstance(n, ast.FunctionDef) and n.name == "sample_motions_speed_gated"), None)
+    mod2 = ast.Module(body=[fn2m], type_ignores=[])
+    ns2 = {"torch": torch}
+    exec(compile(mod2, "<fn2>", "exec"), ns2)
+    term.motion_weights = torch.tensor([2.0, 3.0, 1.0, 2.0])  # in-place, 36_01-like, 36_11-like, mixed
+    assign = ns2["sample_motions_speed_gated"](term, torch.full((2000,), 1.0))
+    hist = torch.bincount(assign, minlength=4).float() / 2000
+    check("1f assignment excludes in-place at walk cmd", hist[0] < 0.05,
+          f"frac per clip = {[round(x,3) for x in hist.tolist()]}")
+    assign0 = ns2["sample_motions_speed_gated"](term, torch.zeros(2000))
+    hist0 = torch.bincount(assign0, minlength=4).float() / 2000
+    check("1f' in-place serves stand cmds", hist0[0] > 0.3,
+          f"stand frac = {[round(x,3) for x in hist0.tolist()]}")
+
     # --- real-file wiring checks -----------------------------------------
     mm = src
     check("2a sampler + frame_speed in motion_data_manager",
-          "def sample_times_speed_gated" in mm and "self.frame_speed" in mm)
+          "def sample_times_speed_gated" in mm and "self.frame_speed" in mm
+          and "def sample_motions_speed_gated" in mm)
+    am_early = (ROOT / "roboparty_train" / "robolab" / "robolab" / "tasks"
+                / "manager_based" / "amp" / "managers" / "animation_manager.py").read_text()
+    check("2f reset() uses gated motion assignment",
+          "sample_motions_speed_gated(env_speeds)" in am_early)
     am = (ROOT / "roboparty_train" / "robolab" / "robolab" / "tasks"
           / "manager_based" / "amp" / "managers" / "animation_manager.py").read_text()
     check("2b _sample_demo_time wired (reset+update)",
