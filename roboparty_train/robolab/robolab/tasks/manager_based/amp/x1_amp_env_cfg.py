@@ -278,6 +278,33 @@ class X1AmpRewards():
             "alpha": 0.0025,
         },
     )
+    # v64c: PHASE-LOCKED hip kinematic reference — the rhythm ANCHOR
+    # (see func docstring: v64/v64b scalar priors did not cross the
+    # single-support balance basin; this term names the trajectory).
+    # Weight via X1_HIP_PHASE (default 0 = off).
+    hip_phase = RewTerm(
+        func=mdp.hip_phase_reference_prior,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_hip_pitch_joint", "right_hip_pitch_joint"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "leg_len_m": 0.70,
+            "sigma_rad": 0.15,
+            "t_star_a": 1.46,
+            "t_star_b": 0.36,
+            "t_star_lo": 0.70,
+            "t_star_hi": 1.75,
+            "amp_lo_rad": 0.15,
+            "amp_hi_rad": 0.50,
+            "min_cmd_speed": 0.15,
+            "max_cmd_speed": 1.5,
+        },
+    )
+
     # v57e: DENSE heel-down readiness prior — the flick's direct
     # opponent (see func docstring for the v57d verdict: event rewards
     # saturate in-domain while the last-100ms snap survives; this term
@@ -706,6 +733,10 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # + sole_flat rework precedent for coupled terms).
         self.rewards.swing_airtime.weight = float(
             __import__("os").environ.get("X1_SWING_PRIOR", "0"))
+        # v64c: phase-locked hip reference dose (default 0 = off). The
+        # rhythm-family v2: kinematic anchor + the two scalar guards.
+        self.rewards.hip_phase.weight = float(
+            __import__("os").environ.get("X1_HIP_PHASE", "0"))
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

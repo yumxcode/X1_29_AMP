@@ -258,6 +258,91 @@ def main():
     rate_j = run_swing((2.0, 0, 0), 55, 22)
     check("1g' jog gate zero", rate_j < 1e-9, f"rate={rate_j:.2e}")
 
+    # 1h) hip_phase_reference_prior: sinusoidal kinematic anchor
+    class _HipEnv:
+        pass
+
+    def run_hip(cmd, track, n_steps=1200, dt=0.02, frozen=0.0):
+        """track=True: hips follow the reference; False: frozen at frozen rad."""
+        env, cfg = make_env(cmd=cmd, dt=dt)
+        total = 0.0
+        import math as _m
+        for step in range(n_steps):
+            env.episode_length_buf += 1
+            t = step * dt
+            v = (cmd[0]**2 + cmd[1]**2) ** 0.5
+            T = min(max(1.46 - 0.36 * v, 0.70), 1.75)
+            A = min(max(_m.asin(min(v * T / 2.8, 0.9)), 0.15), 0.50)
+            hips = []
+            for off in (0.0, _m.pi):
+                ref = A * _m.sin(2 * _m.pi * (t + off) / T)
+                hips.append(ref if track else frozen)
+            # mock asset with joint_pos rows [L, R]
+            asset = types.SimpleNamespace(data=types.SimpleNamespace(
+                joint_pos=_hip_tensor(hips),
+                default_joint_pos=torch.zeros(1, 2)))
+            env.scene["robot"] = asset
+            r = R.hip_phase_reference_prior(env, _HipAssetCfg(), command_name="base_velocity")
+            total += float(r.sum())
+        return total / (n_steps * dt)
+
+    class _HipAssetCfg(types.SimpleNamespace):
+        pass
+
+    def _hip_tensor(hips):
+        return torch.tensor([hips], dtype=torch.float32)
+
+    # need joint_ids on the mock: patch via cfg object
+    def make_hip_env(cmd, dt, joint_ids=(0, 1)):
+        env, _ = make_env(cmd=cmd, dt=dt)
+        cfg = types.SimpleNamespace(name="robot", joint_ids=list(joint_ids))
+        return env, cfg
+
+    def run_hip2(cmd, mode, n_steps=1200, dt=0.02):
+        env, cfg = make_hip_env(cmd, dt)
+        total = 0.0
+        import math as _m
+        v = (cmd[0]**2 + cmd[1]**2) ** 0.5
+        T = min(max(1.46 - 0.36 * v, 0.70), 1.75)
+        A = min(max(_m.asin(min(v * T / 2.8, 0.9)), 0.15), 0.50)
+        for step in range(n_steps):
+            env.episode_length_buf += 1
+            t = (step + 1) * dt          # reward sees buf*step_dt AFTER inc
+            base = 2 * _m.pi * t / T
+            if mode == "track":
+                hips = [A * _m.sin(base), A * _m.sin(base + _m.pi)]
+            elif mode == "frozen":
+                hips = [0.0, 0.0]
+            elif mode == "inphase":  # both feet same phase (wrong)
+                hips = [A * _m.sin(base), A * _m.sin(base)]
+            elif mode == "period2x":  # tracks at half period (micro-cadence)
+                b2 = 2 * 2 * _m.pi * t / T
+                hips = [A * _m.sin(b2), A * _m.sin(b2 + _m.pi)]
+            asset = types.SimpleNamespace(data=types.SimpleNamespace(
+                joint_pos=torch.tensor([hips], dtype=torch.float32),
+                default_joint_pos=torch.zeros(1, 2)))
+            env.scene["robot"] = asset
+            r = R.hip_phase_reference_prior(env, cfg, command_name="base_velocity")
+            total += float(r.sum())
+        return total / n_steps  # per-step (both feet)
+
+    r_tr = run_hip2((1.0, 0, 0), "track")
+    r_fr = run_hip2((1.0, 0, 0), "frozen")
+    r_ip = run_hip2((1.0, 0, 0), "inphase")
+    r_p2 = run_hip2((1.0, 0, 0), "period2x")
+    check("1h hip phase track~max & >> frozen",
+          r_tr > 1.6 and r_tr > 3 * r_fr,
+          f"track={r_tr:.2f} frozen={r_fr:.2f} of 2.0 max (w=1)")
+    check("1h' inphase & 2x-period penalized",
+          r_tr > 1.6 * r_ip and r_tr > 1.6 * r_p2,
+          f"inphase={r_ip:.2f} period2x={r_p2:.2f}")
+    # speed conditioning: v=0.5 also trackable
+    r_05 = run_hip2((0.5, 0, 0), "track")
+    check("1h'' v=0.5 track also high", r_05 > 1.5, f"track05={r_05:.2f}")
+    # stand gate
+    r_st = run_hip2((0.0, 0, 0), "track")
+    check("1h''' stand gate zero", r_st < 1e-9, f"stand={r_st:.2e}")
+
     # 2) AST wiring on the REAL env cfg
     src = (ROOT / "roboparty_train" / "robolab" / "robolab" / "tasks"
            / "manager_based" / "amp" / "x1_amp_env_cfg.py").read_text()
@@ -282,6 +367,10 @@ def main():
     check("2f X1_SWING_PRIOR lever wired (default 0)", 'X1_SWING_PRIOR' in src)
     check("2g swing_airtime func referenced",
           "mdp.swing_airtime_prior" in src)
+    check("2h RewTerm hip_phase exists", "hip_phase = RewTerm" in src.replace("    ", " "))
+    check("2i X1_HIP_PHASE lever wired (default 0)", 'X1_HIP_PHASE' in src)
+    check("2j hip_phase func referenced",
+          "mdp.hip_phase_reference_prior" in src)
     check("2c func symbol referenced",
           "mdp.gait_period_prior" in src)
     check("2d both ankles in params",

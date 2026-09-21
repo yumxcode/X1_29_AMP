@@ -31,6 +31,8 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
 from typing import TYPE_CHECKING
 
@@ -202,6 +204,83 @@ _EMA_STATE: dict = {}
 _EDGE_STATE: dict = {}
 _TD_STATE: dict = {}
 _AIR_STATE: dict = {}
+
+
+def hip_phase_reference_prior(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    leg_len_m: float = 0.70,
+    sigma_rad: float = 0.15,
+    t_star_a: float = 1.46,
+    t_star_b: float = 0.36,
+    t_star_lo: float = 0.70,
+    t_star_hi: float = 1.75,
+    amp_lo_rad: float = 0.15,
+    amp_hi_rad: float = 0.50,
+    min_cmd_speed: float = 0.15,
+    max_cmd_speed: float = 1.5,
+) -> torch.Tensor:
+    """v64c: PHASE-LOCKED hip kinematic reference — the rhythm ANCHOR.
+
+    v64 (event cadence prior) and v64b (dense swing-airtime pair) verdicts
+    both FAIL: in-domain reward income FLAT over 1000 iters (swing
+    0.0099->0.0097, cadence 0.0034->0.0037) despite a 10-15x achievable
+    differential vs the micro-gait, and sim2sim regressed toward drag.
+    Diagnosis: changing LEG cadence requires committing to long
+    single-support balance — a risk-laden basin transition that scalar
+    reward slopes do not cross (contrast: the v52 arm-amplitude prior moved
+    arms 22->66 deg in ONE run because arms carry no balance risk).
+    Weight escalation cannot fix a basin problem (the v61e lesson:
+    doubling a prior cannot out-pull the equilibrium).
+
+    This term removes the DISCOVERY burden: it names the trajectory.
+    Per foot, a mean-zero sinusoidal hip-pitch reference at the human
+    gait period with anti-phased feet:
+        ref_i(t) = A(v) * sin(2*pi * (t + off_i) / T*(v)),  off = (0, T*/2)
+        T*(v) = clamp(1.46 - 0.36 v, 0.70, 1.75)          (same curve as
+                                                           gait_period_prior)
+        A(v)  = clamp(asin(v*T*/(4*leg_len)), 0.15, 0.50) (step-length /
+                                                           leg geometry)
+    Reward per step: sum_i exp(-|hip_dev_i - ref_i| / sigma).
+
+    Why this forces the rhythm: tracking the reference makes the hip
+    oscillate at T*(v) with L/R anti-phase — cadence BY CONSTRUCTION; the
+    amplitude A is the stride geometry — step length BY CONSTRUCTION; and
+    the forward swing cannot drag (feet_slide -0.13/step already punishes
+    scuffing), so foot clearance appears — duty factor follows. Perfect
+    tracking pays w*2/step (0.8 at w=0.4); frozen hips pay ~w*2*0.25.
+
+    Phase/time base: episode clock (episode_length_buf * step_dt) — same
+    as gait_period_prior; resets simply restart the clock. The sinusoid's
+    absolute phase is arbitrary (the policy picks the functional lock via
+    velocity tracking); only the PERIOD and anti-phase are enforced.
+
+    Walk-speed gate matches the other rhythm terms (jog exempt above
+    1.5 m/s; standing exempt below 0.15).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    dev = asset.data.joint_pos[:, asset_cfg.joint_ids] - \
+        asset.data.default_joint_pos[:, asset_cfg.joint_ids]        # (N, 2)
+    t = env.episode_length_buf * env.step_dt                        # (N,)
+
+    cmd = env.command_manager.get_command(command_name)
+    v = torch.norm(cmd[:, :2], dim=1)
+    t_star = (t_star_a - t_star_b * v).clamp(min=t_star_lo, max=t_star_hi)
+    # half-excursion from step geometry: step = v*T*/2, footprint per hip
+    step_half = (v * t_star / (4.0 * leg_len_m)).clamp(max=0.9)
+    amp = torch.asin(step_half).clamp(min=amp_lo_rad, max=amp_hi_rad)
+
+    two_pi = 2.0 * math.pi
+    phase_off = torch.tensor([0.0, math.pi], device=dev.device)
+    phi = two_pi * t.unsqueeze(1) / t_star.unsqueeze(1) + phase_off  # (N,2)
+    ref = amp.unsqueeze(1) * torch.sin(phi)
+
+    score = torch.exp(-torch.abs(dev - ref) / sigma_rad)
+    r = score.sum(dim=-1)
+
+    gate = ((v > min_cmd_speed) & (v < max_cmd_speed)).float()
+    return r * gate
 
 
 def swing_airtime_prior(
