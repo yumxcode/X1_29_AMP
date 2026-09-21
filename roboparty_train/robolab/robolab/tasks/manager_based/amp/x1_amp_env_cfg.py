@@ -582,6 +582,26 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # ------------------------------------------------------
         self.animation.animation.num_steps_to_use = AMP_NUM_STEPS
 
+        # v65 (structural route 1, revised on pairing forensics): SPEED-
+        # MATCHED demo fetch. The disc minibatches pair policy/demo windows
+        # through INDEPENDENT permutations, so per-window phase alignment
+        # does not exist; the implementable data-side repair is demo
+        # COMPOSITION — at walking commands the disc sees only overground
+        # human-cadence segments (0026/36_01/36_11) instead of the
+        # in-place treadmill family (14/22 clips, world v~=0, horizontal
+        # kinematics resembling micro-stepping — the v61-forensics disc
+        # equilibrium preferring micro-gait at 2.7x style income). Also
+        # drops 103_07 (+mirror): 60Hz source stored at 120 = 2x playback,
+        # its 218 spm cadence literally demonstrates micro-gait rhythm.
+        import os as _os_vm
+        if _os_vm.environ.get("X1_DISC_VMATCH", "0") == "1":
+            self.animation.animation.speed_matched_fetch = True
+            for _drop in ("103_07", "103_07_mirror"):
+                if _drop in self.motion_data.motion_dataset.motion_data_weights:
+                    self.motion_data.motion_dataset.motion_data_weights[_drop] = 0.0
+            print("[DISC-VMATCH] speed-matched demo fetch ON; 103_07(+mirror) "
+                  "dropped (2x playback = 218 spm)")
+
         # ------------------------------------------------------
         # Observations — discriminator
         # ------------------------------------------------------

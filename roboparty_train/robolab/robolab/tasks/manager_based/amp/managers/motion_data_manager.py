@@ -226,8 +226,35 @@ class MotionDataTerm(ManagerTermBase):
         
         lengths_shifted = self.motion_num_frames.roll(1)
         lengths_shifted[0] = 0
-        self.motion_start_indices = torch.cumsum(lengths_shifted, dim=0)
-        
+        self.motion_start_indices = torch.cumsum(lengths_shifted, dim=0).to(torch.long)
+
+        # v65 (X1_DISC_VMATCH): per-clip horizontal speed per frame — the
+        # speed-gated demo sampler matches demo fetch segments to the
+        # POLICY's commanded speed. Root cause it repairs (V64_REPORT §root
+        # cause + audit r1): 14/22 demo clips are near-IN-PLACE treadmill
+        # recordings (world v ~= 0) whose horizontal key-body kinematics
+        # resemble micro-stepping — at random fetch the disc's demo stream
+        # is dominated by them and its equilibrium actively prefers the
+        # micro-gait (v61 forensics: 2.7x style income). Speed gating makes
+        # walking commands fetch only overground human-cadence segments.
+        with torch.no_grad():
+            max_frames = int(self.motion_num_frames.max().item())
+            frame_speed = torch.full((num_motions, max_frames), float("nan"),
+                                     dtype=torch.float32, device=self.device)
+            for m in range(num_motions):
+                s = int(self.motion_start_indices[m].item())
+                n = int(self.motion_num_frames[m].item())
+                vel = self.root_vel_w[s:s + n, :2]
+                sp = torch.linalg.vector_norm(vel, dim=1)
+                # 5-frame median-ish smoothing (rolling mean, window 5) to
+                # kill single-frame differentiation spikes
+                if n >= 5:
+                    kern = torch.ones(5, device=self.device) / 5.0
+                    sp = torch.nn.functional.conv1d(
+                        sp.view(1, 1, -1), kern.view(1, 1, 5),
+                        padding=2).view(-1)
+                frame_speed[m, :n] = sp
+            self.frame_speed = frame_speed
         return
          
     # Some helper functions
@@ -313,6 +340,57 @@ class MotionDataTerm(ManagerTermBase):
         
         return sample_times
         
+    def sample_times_speed_gated(self, motion_ids: torch.Tensor, target_speeds: torch.Tensor,
+                                 tol: float = 0.35, window_s: float = 0.6,
+                                 num_tries: int = 8):
+        """v65 (X1_DISC_VMATCH): sample demo times whose LOCAL horizontal
+        speed matches each env's commanded speed (|v_frame - v_cmd| <= tol),
+        keeping a window margin so the num_steps fetch stays inside the
+        matched segment. Falls back to uniform sampling for (clip, speed)
+        pairs with no valid frames (e.g. stand commands on overground-only
+        clips — the treadmill in-place family still serves those).
+
+        Rationale (V64_REPORT structural route 1, revised on pairing
+        forensics): the disc minibatches draw policy/demo windows from
+        INDEPENDENT permutations (CircularBuffer.mini_batch_generator uses
+        its own randperm per buffer), so per-window phase pairing does not
+        exist — the implementable data-side repair is COMPOSITION: make
+        the demo stream that the disc sees at walking commands consist of
+        overground human-cadence segments instead of in-place treadmill
+        frames whose horizontal kinematics mimic micro-stepping.
+        """
+        n = motion_ids.shape[0]
+        device = self.device
+        durations = self.motion_durations[motion_ids]
+        # uniform fallback WITH window margin (mirrors sample_times'
+        # truncate_time_end semantics so no fallback window overruns)
+        time_end = torch.clamp(durations - window_s, min=0.0)
+        times = torch.rand(n, device=device) * time_end
+
+        speeds = self.frame_speed[motion_ids]                      # (n, max_frames)
+        nf = self.motion_num_frames[motion_ids].to(device).long()  # (n,)
+        dt = self.motion_dt[motion_ids].to(device)                 # (n,)
+        max_frame_idx = torch.clamp(
+            (nf - 1) - (window_s / dt).long(), min=0)              # (n,)
+        frames = torch.arange(speeds.shape[1], device=device).unsqueeze(0)
+        valid = (~torch.isnan(speeds)) & (frames <= max_frame_idx.unsqueeze(1)) \
+            & (torch.abs(speeds - target_speeds.unsqueeze(1)) <= tol)
+        has_any = valid.any(dim=1)
+
+        # rejection sampling, vectorized over tries
+        for _ in range(num_tries):
+            need = has_any
+            if not bool(need.any()):
+                break
+            cand = (torch.rand(int(need.sum().item()), device=device)
+                    * max_frame_idx[need].float()).long().clamp(min=0)
+            ok = valid[need].gather(1, cand.unsqueeze(1)).squeeze(1).bool()
+            if bool(ok.any()):
+                rows = torch.nonzero(need, as_tuple=True)[0][ok]
+                times[rows] = cand[ok].float() * dt[rows]
+                has_any[rows] = False
+        return times
+
     def calc_motion_phase(self, motion_ids, times):
         motion_durations = self.motion_durations[motion_ids]
         loop_modes = self.motion_loop_modes[motion_ids]

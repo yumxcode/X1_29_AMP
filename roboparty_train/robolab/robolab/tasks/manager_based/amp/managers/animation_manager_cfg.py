@@ -58,7 +58,14 @@ class AnimationTermCfg:
     
     random_fetch: bool = False
     """Whether to randomly fetch the motion data at each step."""
-    
+
+    speed_matched_fetch: bool = False
+    """v65 (X1_DISC_VMATCH): when random_fetch is on, sample demo times
+    whose LOCAL horizontal speed matches each env's commanded speed
+    (MotionDataTerm.sample_times_speed_gated; see its docstring for the
+    demo-composition rationale). Falls back to uniform sampling for
+    (clip, speed) pairs with no valid frames."""
+
     enable_visualization: bool = True
     """Whether to enable visualization for this animation term."""
     

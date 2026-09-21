@@ -110,18 +110,20 @@ class AnimationTerm(ManagerTermBase):
     def reset(self, env_ids: Sequence[int] | None = None):
         if env_ids is None:
             return
-        
+
         # resample motion ids for the reset envs
         self.motion_ids[env_ids] = self.motion_data_term.sample_motions(len(env_ids))
         self.motion_durations[env_ids] = self.motion_data_term.get_motion_durations(self.motion_ids[env_ids])
-        
+
         truncate_time = self.num_steps * self._env.step_dt
         if self.cfg.random_initialize:
             # random start time
             if self.cfg.num_steps_to_use > 0:
-                self.motion_fetch_time[env_ids, 0] = self.motion_data_term.sample_times(self.motion_ids[env_ids], truncate_time_end=truncate_time)
+                self.motion_fetch_time[env_ids, 0] = self._sample_demo_time(
+                    env_ids, truncate_time_end=truncate_time)
             else:
-                self.motion_fetch_time[env_ids, 0] = self.motion_data_term.sample_times(self.motion_ids[env_ids], truncate_time_start=truncate_time)
+                self.motion_fetch_time[env_ids, 0] = self._sample_demo_time(
+                    env_ids, truncate_time_start=truncate_time)
         else:
             # start from beginning
             self.motion_fetch_time[env_ids, 0] = 0.0
@@ -130,12 +132,39 @@ class AnimationTerm(ManagerTermBase):
 
         self._fetch_motion_data(env_ids)
 
+    def _sample_demo_time(self, env_ids, truncate_time_end: float = None,
+                          truncate_time_start: float = None):
+        """v65: speed-gated demo fetch when X1_DISC_VMATCH is on — the demo
+        segment's local speed must match each env's COMMANDED speed so the
+        discriminator compares like-for-like speed content (overground
+        human-cadence segments at walking commands; see the sampler's
+        docstring for the composition rationale). Falls back to the
+        original uniform sampler when off or unavailable."""
+        motion_ids = self.motion_ids[env_ids]
+        if not getattr(self, "speed_matched_fetch", False) \
+                and not getattr(self.cfg, "speed_matched_fetch", False):
+            return self.motion_data_term.sample_times(
+                motion_ids, truncate_time_start=truncate_time_start,
+                truncate_time_end=truncate_time_end)
+        try:
+            cmd = self._env.command_manager.get_command("base_velocity")
+            speeds = torch.linalg.vector_norm(cmd[:, :2], dim=1)[env_ids]
+        except Exception:
+            return self.motion_data_term.sample_times(
+                motion_ids, truncate_time_start=truncate_time_start,
+                truncate_time_end=truncate_time_end)
+        return self.motion_data_term.sample_times_speed_gated(
+            motion_ids, speeds, window_s=self.num_steps * self._env.step_dt)
+
     def update(self, dt: float):
         if self.cfg.random_fetch:
+            all_envs = torch.arange(self.num_envs, device=self._env.device)
             if self.cfg.num_steps_to_use > 0:
-                self.motion_fetch_time[:, 0] = self.motion_data_term.sample_times(self.motion_ids, truncate_time_end=self.num_steps * dt)
-            else: 
-                self.motion_fetch_time[:, 0] = self.motion_data_term.sample_times(self.motion_ids, truncate_time_start=self.num_steps * dt)
+                self.motion_fetch_time[:, 0] = self._sample_demo_time(
+                    all_envs, truncate_time_end=self.num_steps * dt)
+            else:
+                self.motion_fetch_time[:, 0] = self._sample_demo_time(
+                    all_envs, truncate_time_start=self.num_steps * dt)
             
             if self.num_steps > 1:
                 self.motion_fetch_time[:, 1:] = self.motion_fetch_time[:, 0:1] + self.step_indices[1:].float() * dt

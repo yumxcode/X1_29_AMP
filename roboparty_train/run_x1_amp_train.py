@@ -634,7 +634,15 @@ def final_checkpoint() -> Path | None:
         return None
     def key(name):
         stem = name[len("model_"):-len(".pt")]
-        return (0, int(stem)) if stem.isdigit() else (1, 0)
+        if stem.isdigit():
+            return (2, int(stem), "")          # trained checkpoints win
+        lead = stem.split("_")[0]
+        # base/resume copies like "model_10500_v63.pt" (the X1_RESUME_CKPT
+        # mirror in _resume_src/) must rank BELOW every numeric save —
+        # v64/v64b/v64c on-pod P7/P8 evaluated the BASE this way (readouts
+        # identical to m10500; audit item 4). Suffix stem sorts above
+        # non-parsable junk but below numeric.
+        return (1, int(lead) if lead.isdigit() else -1, stem)
     best = max(ckpts, key=key)
     return ckpts[best]
 
