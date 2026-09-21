@@ -64,6 +64,11 @@ os.environ["X1_FINE_TUNE_ITERS"] = "1000"
 # --- disc observability package (v63-validated, 600 ms at 50 Hz) --------
 os.environ["X1_AMP_NUM_STEPS"] = "30"
 os.environ["X1_DISC_LINVEL"] = "1"
+# v63's memory lever, same reason: the 30-frame x 124-dim disc window at
+# the default buffer length (100) OOMs the 24 GB card inside the grad
+# penalty autograd graph (first v65 launch TASK_20260922_013, 0-iter CUDA
+# OOM). 24 = the v63-proven fetch length for this window size.
+os.environ["X1_DISC_BUFFER"] = "24"
 
 # --- v65 THE variable ----------------------------------------------------
 os.environ["X1_DISC_VMATCH"] = "1"
