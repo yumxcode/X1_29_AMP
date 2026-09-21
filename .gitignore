@@ -70,3 +70,7 @@ acceptance/v54_eval/model_*.pt
 *.mp4
 *.gif
 acceptance/videos_*/
+
+# v63 local eval artifacts (downloaded ckpts + rollout logs)
+acceptance/v63*_eval/
+roboparty_train/checkpoints/*.policy.npz

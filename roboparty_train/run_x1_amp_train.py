@@ -1045,6 +1045,15 @@ def phase_policy_gait_gate(ckpt: Path | None, policy_npz: Path | None) -> int:
                     "--action-lpf-order", os.environ.get("X1_ACT_LPF_ORDER", "2")]
         print(f"[INFO][P7] action low-pass {lpf_args}")
 
+    # v63c BUG FIX: P7 must roll the policy at its TRAINED control rate —
+    # the 100 Hz policies were silently evaluated at the 50 Hz default
+    # (v61b..v63b on-pod P7 verdicts are 50 Hz readings; the honest 100 Hz
+    # local readings live in acceptance/v63*_eval).
+    _hz = int(os.environ.get("X1_CONTROL_HZ", "50"))
+    if _hz != 50:
+        print(f"[INFO][P7] control rate {_hz} Hz -> --control-dt {1.0/_hz:.4f}")
+        lpf_args += ["--control-dt", f"{1.0/_hz:.4f}"]
+
     def run_rollout(env: dict, label: str) -> int:
         cmd = [sys.executable, str(rollout), "--ckpt", str(policy_npz),
                "--repo-root", str(REPO_ROOT),

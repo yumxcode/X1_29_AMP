@@ -667,7 +667,12 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # v53: doubled again — v52@0.3 prior grew 35-54 deg DC asym; the
         # amplitude lever needs the DC guard at strength
         # v54: -0.8 -> -1.2 (v53's residual P7g 12.1 vs 12 is pure DC)
-        self.rewards.arm_asym_lean.weight = -1.2
+        # v63c: env lever X1_ARM_ASYM (default -1.2 unchanged) — the 100 Hz
+        #   fine-tune regrows the arm DC to P7g 12.8-13.7 deg (R arm frozen
+        #   ~11-14 deg back); -2.4 (v53-strength) targets the 0.8-1.7 deg
+        #   residual on a SHORT (+600) continuation from m10500.
+        self.rewards.arm_asym_lean.weight = float(
+            __import__("os").environ.get("X1_ARM_ASYM", "-1.2"))
         # - arm/opposite-leg coupling: refs +0.8..+0.99 vs policy -0.12;
         #   high-passed capped product (positive on ref, mean-shift free)
         self.rewards.arm_leg_coupling.weight = 0.3
