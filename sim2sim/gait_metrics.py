@@ -68,6 +68,18 @@ SPEC = {
                                   # (G3's coarse pitch gate stays =0 as the hard
                                   # no-regress gate); v57 targets 0
     "kh_min_events": 4,           # per foot, else informational only
+    # R: rhythm gate (v63, GOAL_RHYTHM.md §2) — human cadence + stride.
+    # cycle = same-foot consecutive-TD interval (this file's stride_period_s);
+    # cadence total (both feet) = 120 / cycle. Calibrated on the retargeted
+    # reference set (hip-osc path) + human literature at 1.0/0.5 m/s.
+    "r1_cycle_lo_s": 0.85,        # walk10: human ~1.03-1.16, gate -18%/+16%
+    "r1_cycle_hi_s": 1.35,
+    "r1_cycle_lo_s_05": 1.00,     # walk05: human ~1.3-1.5 (refs up to 1.8)
+    "r1_cycle_hi_s_05": 1.65,
+    "r2_stride_min_m": 0.78,      # walk10: ref 0.94-0.99, lit ~1.05
+    "r2_stride_min_m_05": 0.42,   # walk05: ref 0.53-0.73, lit ~0.65
+    "r3_min_events": 4,           # per foot — drag (0 events) fails
+    "r4_cycle_cv_max": 0.20,      # rhythm regularity (same class as stride_cv)
 }
 
 # Schmitt trigger thresholds (sole sphere BOTTOM height vs floor z=0)
@@ -418,6 +430,48 @@ def analyze(npz_path):
     kh["H2_PASS"] = bool(h2_vals and enough and all(v >= SPEC["h2_toe_off_min"] for v in h2_vals))
     kh["PASS"] = bool(kh["K1_PASS"] and kh["K2_PASS"] and kh["H3_PASS"] and kh["H2_PASS"] and kh["H1_PASS"])
     R["KH"] = kh
+
+    # ---- R: rhythm gate (v63, GOAL_RHYTHM.md) ---------------------------
+    # cadence + stride vs human reference. cycle = same-foot consecutive-TD
+    # interval (G2's stride_period_s already computes this per foot — R
+    # gates the ABSOLUTE value, G2 gates symmetry/regularity). stride =
+    # same-foot consecutive-TD world distance (G2's step_len). Gate applies
+    # to straight WALK scenarios only (turn physically breaks symmetric
+    # cadence; back05 stays informational).
+    r = {}
+    cyc = {name: float("nan") for name in feet}
+    for name in feet:
+        tds = [td for td, _ in st[name]["strides"]]
+        if len(tds) >= 2:
+            cyc[name] = float(np.median(np.diff(tds)) * dt)
+    vals = [v for v in cyc.values() if not np.isnan(v)]
+    r["cycle_s"] = {name: v for name, v in cyc.items()}
+    r["cycle_s_med"] = float(np.median(vals)) if len(vals) == 2 else float("nan")
+    r["cad_spm"] = float(120.0 / r["cycle_s_med"]) if not np.isnan(r["cycle_s_med"]) else float("nan")
+    r["stride_m"] = {name: v for name, v in g2["step_len"].items()}
+    sl_vals = [v for v in g2["step_len"].values() if not np.isnan(v)]
+    r["stride_m_med"] = float(np.median(sl_vals)) if len(sl_vals) >= 1 else float("nan")
+    r["n_events"] = {name: len(st[name]["strides"]) for name in feet}
+    is_walk10 = straight and abs(cmd_speed - 1.0) < 0.26
+    is_walk05 = straight and abs(cmd_speed - 0.5) < 0.26
+    gated = is_walk10 or is_walk05
+    r["scenario"] = "walk10" if is_walk10 else ("walk05" if is_walk05 else
+                  ("turn" if not straight else "other"))
+    if gated:
+        lo = SPEC["r1_cycle_lo_s"] if is_walk10 else SPEC["r1_cycle_lo_s_05"]
+        hi = SPEC["r1_cycle_hi_s"] if is_walk10 else SPEC["r1_cycle_hi_s_05"]
+        smin = SPEC["r2_stride_min_m"] if is_walk10 else SPEC["r2_stride_min_m_05"]
+        m = r["cycle_s_med"]
+        r["R1_PASS"] = bool(not np.isnan(m) and lo <= m <= hi)
+        r["R2_PASS"] = bool(not np.isnan(r["stride_m_med"]) and r["stride_m_med"] >= smin)
+        r["R3_PASS"] = bool(all(r["n_events"][name] >= SPEC["r3_min_events"] for name in feet))
+        cv = g2.get("stride_cv", float("nan"))
+        r["R4_PASS"] = bool(not np.isnan(cv) and cv <= SPEC["r4_cycle_cv_max"])
+        r["PASS"] = bool(r["R1_PASS"] and r["R2_PASS"] and r["R3_PASS"] and r["R4_PASS"])
+    else:
+        r["R1_PASS"] = r["R2_PASS"] = r["R3_PASS"] = r["R4_PASS"] = None
+        r["PASS"] = None
+    R["R"] = r
     R["_feet"] = feet  # printer aid (excluded from json via default path)
     R["PASS"] = bool(R["G1"]["PASS"] and g2["PASS"] and g3["PASS"])
     return R
@@ -460,6 +514,18 @@ def fmt(R):
                      f"heel1st={d['land_heel_first_frac']*100:5.1f}% toe1st={d['land_toe_first_frac']*100:4.1f}% "
                      f"toe-off={d['launch_toe_off_frac']*100:5.1f}%")
     lines.append(f"    KH gates: K1<=18° K2>=25° H1>=60%(walk10) H2>=90%(walk10) H3<=10%")
+    r = R.get("R", {})
+    sc = r.get("scenario", "?")
+    if r.get("PASS") is None:
+        lines.append(f"[R rhythm]        informational ({sc}) cycle_med={r.get('cycle_s_med', float('nan')):.3f}s "
+                     f"stride_med={r.get('stride_m_med', float('nan')):.3f}m")
+    else:
+        lines.append(f"[R rhythm]        PASS={r['PASS']} ({sc}) "
+                     f"R1(cycle {r['cycle_s_med']:.3f}s)={r['R1_PASS']} "
+                     f"R2(stride {r['stride_m_med']:.3f}m)={r['R2_PASS']} "
+                     f"R3(events)={r['R3_PASS']} R4(cv)={r['R4_PASS']}")
+        lines.append(f"    cadence = {r['cad_spm']:.1f} spm (human ref 1.0m/s: ~105-117 spm; "
+                     f"gates: cycle [0.85,1.35]s walk10 / [1.0,1.65]s walk05, stride >=0.78/0.42m)")
     lines.append(f"[VERDICT] {'PASS' if R['PASS'] else 'FAIL'}")
     return "\n".join(lines)
 

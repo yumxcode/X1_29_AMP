@@ -282,8 +282,7 @@ class X1AmpRewards():
     # opponent (see func docstring for the v57d verdict: event rewards
     # saturate in-domain while the last-100ms snap survives; this term
     # has gradient at every low-swing frame instead).
-    heel_down_ready = RewTerm(
-        func=mdp.heel_down_ready,
+    heel_down_ready = RewTerm(        func=mdp.heel_down_ready,
         weight=0,
         params={
             "sensor_cfg": SceneEntityCfg(
@@ -351,6 +350,31 @@ class X1AmpRewards():
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
         weight=0.0,
+    )
+
+    # v63: RHYTHM prior — speed-conditioned human gait-cycle cadence
+    # (GOAL_RHYTHM.md). Event reward at each stance rising edge:
+    # exp(-|dt_td - T*(v)| / 0.25), T*(v)=clamp(1.46-0.36v, 0.70, 1.75).
+    # Calibrated on the retargeted reference set (36_01 1.03 s @1.0 m/s,
+    # 0002 slow 1.48 s, 36_11 1.63-1.83 s @0.43) + human literature.
+    # Weight via X1_CADENCE_PRIOR (default 0 = off, single-variable A/B).
+    gait_period = RewTerm(
+        func=mdp.gait_period_prior,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "sigma_s": 0.25,
+            "t_star_a": 1.46,
+            "t_star_b": 0.36,
+            "t_star_lo": 0.70,
+            "t_star_hi": 1.75,
+            "min_cmd_speed": 0.15,
+        },
     )
 
     # -- v27: strict gait quality (sim2sim criteria) ---------------------
@@ -623,6 +647,13 @@ class X1AmpEnvCfg(AmpEnvCfg):
         import os as _os_v60
         if _os_v60.environ.get("X1_SWING_CLEAR", "0") == "1":
             self.rewards.swing_clearance.weight = -0.5
+        # v63: RHYTHM prior dose (GOAL_RHYTHM.md §3). Single-variable
+        # discipline: v63 = v59c recipe frozen + this term only. Dose
+        # ladder planned 0.3/0.6/1.0 (v52-54 methodology); start 0.6
+        # (event-sparse terms need perceivable per-event advantage vs the
+        # ~16/step stream — v57c heel_first 0.15->0.40 precedent).
+        self.rewards.gait_period.weight = float(
+            __import__("os").environ.get("X1_CADENCE_PRIOR", "0"))
         self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.joint_energy.weight = -1e-4
         self.rewards.joint_torques_l2.weight = -1e-5

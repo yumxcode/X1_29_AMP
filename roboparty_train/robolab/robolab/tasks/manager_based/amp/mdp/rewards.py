@@ -200,6 +200,89 @@ def paired_joints_deviation_sum_l1(
 
 _EMA_STATE: dict = {}
 _EDGE_STATE: dict = {}
+_TD_STATE: dict = {}
+
+
+def gait_period_prior(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    sigma_s: float = 0.25,
+    t_star_a: float = 1.46,
+    t_star_b: float = 0.36,
+    t_star_lo: float = 0.70,
+    t_star_hi: float = 1.75,
+    min_cmd_speed: float = 0.15,
+    max_dt_s: float = 3.0,
+) -> torch.Tensor:
+    """v63: RHYTHM prior — speed-conditioned HUMAN gait-cycle cadence.
+
+    Forensics (GOAL_RHYTHM.md §1, 2026-09-21): every policy since v31 walks
+    at a 2.1-2.7x human cadence (m9500@100Hz walk10 cycle 0.40 s / 300 spm /
+    stride 0.46 m vs the retargeted reference's 1.03-1.16 s / ~105 spm /
+    0.94 m at 1.0 m/s). The discriminator cannot see it (60 ms obs window is
+    blind to a ~1 s period — the temporal analogue of the v32-v38 body-
+    coverage blind spot), joint-velocity/acc regularizers are cadence-neutral
+    at fixed speed (v ~ f*A cancels), and high-frequency micro-stepping is
+    the easier balance local optimum. Cadence is a FREE dimension that this
+    term pins to the human value.
+
+    Mechanism: per foot, at each stance RISING EDGE, reward
+        exp(-|dt_td - T*(v)| / sigma)
+    where dt_td = time since the SAME foot's previous touchdown (the gait
+    half-cycle multiple of the same foot = full gait cycle) and
+        T*(v) = clamp(1.46 - 0.36 v, 0.70, 1.75)
+    is the reference-calibrated human cycle target (fit through the
+    retargeted reference set: 36_11 (0.43 m/s, 1.63-1.83 s), 0002 slow
+    (~1.48 s), 36_01 (1.0 m/s, ~1.03 s), 0000 (1.15 s), 0026 (1.2 m/s,
+    ~1.24 s) — cross-checked against human literature 105-120 spm at
+    1.0 m/s).
+
+    Event-rate bookkeeping (why the gradient points the right way): reward
+    RATE = (2/T) * exp(-|T - T*|/sigma). At the current micro-gait
+    T=0.4: 5 * 0.09 = 0.45; at T=0.8: 2.5 * 0.30 = 0.75; at T*=1.1:
+    1.82 * 1.0 = 1.82; at T=1.6: 1.25 * 0.16 = 0.20 — monotone up to T*,
+    so neither farming-more-events nor over-slowing beats matching the
+    human rhythm. The exp kernel has partial credit EVERYWHERE (v57 r1
+    dead-zone lesson: no zero-score buckets over the initial distribution).
+
+    Episode handling: TD times are stored in EPISODE-relative time
+    (episode_length_buf * step_dt). On reset the clock restarts at 0 while
+    the stored state is from the previous episode -> state > t_now marks
+    stale: that edge only RE-ARMS the timer (no reward), so no spurious
+    cross-episode intervals are ever scored.
+
+    Sparse-but-frequent event reward (~2 events/s across both feet at the
+    human target; ~5/s at the current micro-cadence). Gate: inactive when
+    commanded speed < min_cmd_speed (standing exempt).
+    """
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+
+    edge = _stance_rising_edge(env, "gait_period", in_contact)
+    t_now = env.episode_length_buf * env.step_dt          # (N,) episode time
+
+    skey = (id(env), "gait_period_last_td")
+    state = _TD_STATE.get(skey)
+    if state is None or state.shape != edge.shape or state.device != edge.device:
+        state = torch.full_like(edge, -1.0, dtype=torch.float)
+        _TD_STATE[skey] = state
+    dt_td = t_now.unsqueeze(1) - state                    # (N, 2)
+    armed = (state >= 0) & (state <= t_now.unsqueeze(1))  # not first, not stale
+    valid = edge & armed
+
+    cmd = env.command_manager.get_command(command_name)
+    v = torch.norm(cmd[:, :2], dim=1)
+    t_star = (t_star_a - t_star_b * v).clamp(min=t_star_lo, max=t_star_hi)
+
+    score = torch.exp(-torch.abs(dt_td - t_star.unsqueeze(1)) / sigma_s)
+    r = torch.where(valid, score, torch.zeros_like(score)).sum(dim=-1)
+
+    with torch.no_grad():
+        state.copy_(torch.where(edge, t_now.unsqueeze(1).expand_as(state), state))
+
+    gate = (v > min_cmd_speed).float()
+    return r * gate
 
 
 def _stance_rising_edge(env, key: str, in_contact: torch.Tensor) -> torch.Tensor:
