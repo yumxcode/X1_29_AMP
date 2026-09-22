@@ -219,6 +219,15 @@ def phase_gait_gate(venv_dir: Path | None):
     mujoco group) — only a real FAIL blocks training."""
     print("\n=== Phase 2.6: Gait-Quality Acceptance Gate ===\n")
     v31_dir = MOTIONS_DIR / "x1_lab_v31"
+    # v67: gate the dataset TRAINING will actually consume — the S3
+    # weights<->files consistency check compares the ACTIVE env weights
+    # (x1_amp_env_cfg) against this dir, so a swapped X1_MOTION_DIR
+    # library must be the one verified (first v67 launch died on
+    # dangling=['138_18'] against the pod-rebuilt v31).
+    _mdir = os.environ.get("X1_MOTION_DIR", "")
+    if _mdir and _mdir != "x1_lab_v31" and (MOTIONS_DIR / _mdir).is_dir():
+        v31_dir = MOTIONS_DIR / _mdir
+        print(f"[INFO][GATE] X1_MOTION_DIR={_mdir} — gating that dataset")
     gate = REPO_ROOT / "acceptance" / "check_retarget_gait.py"
     gate_json = UPLOAD_DIR / "gait_gate_report.json"
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
