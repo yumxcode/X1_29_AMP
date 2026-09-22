@@ -537,24 +537,23 @@ class X1AmpEnvCfg(AmpEnvCfg):
             os.environ.get("X1_MOTION_DIR", "x1_lab_v32")
         )
         # v67 (audit r2 directive 4 — the REAL demo-replacement route):
-        # overground-dominant library. 138_18 (CMU, 93 spm, 1.19 m/s,
-        # 6.45 s, diag_cmu GOOD — deep screen 116->3) rescued from the
-        # v30 dataset, key bodies extended to the v32 10-body format
-        # (FK gate 0.0 mm) + FK-verified mirror (0.35 mm). Overground
-        # family (36_01/36_11/0026/138_18) = 74% of weight mass; the
-        # in-place treadmill family stays at token weights to serve
-        # stand/near-zero commands under VMATCH; 103_07 (2x playback)
-        # excluded entirely.
+        # overground-dominant library. Candidate 138_18 went through the
+        # FULL v31 fix chain (arm decomposition + ground root + mirror +
+        # 10-body extend) but still fails the A5 shoulder-antiphase /
+        # C2 coupling gates (+0.47 / -0.20 — the same reason v31 dropped
+        # it); EXCLUDED. The overground family is 36_01/36_11/0026
+        # (+mirrors) = 69% of weight mass; the in-place treadmill family
+        # stays at token weights to serve stand/near-zero commands under
+        # VMATCH; 103_07 (2x playback) excluded entirely.
         if os.environ.get("X1_MOTION_DIR", "x1_lab_v32") == "x1_lab_v67":
             self.motion_data.motion_dataset.motion_data_weights = {
                 "36_01": 4.0, "36_11": 3.0, "0026_circle_walk": 3.0,
-                "138_18": 3.0,
                 "0000_treadmill_norm": 0.5, "0002_treadmill_slow": 0.5,
                 "0005_normal_walk1": 0.5, "0007_normal_walk3": 0.5,
                 "0008_normal_walk4": 0.5,
                 "0003_treadmill_jog": 1.0, "0009_normal_jog1": 1.0,
                 "36_01_mirror": 4.0, "36_11_mirror": 3.0,
-                "0026_circle_walk_mirror": 3.0, "138_18_mirror": 3.0,
+                "0026_circle_walk_mirror": 3.0,
                 "0000_treadmill_norm_mirror": 0.5,
                 "0002_treadmill_slow_mirror": 0.5,
                 "0005_normal_walk1_mirror": 0.5,
@@ -564,7 +563,7 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 "0009_normal_jog1_mirror": 1.0,
             }
             print("[DATASET] v67 overground-dominant weights active "
-                  "(103_07 excluded; 138_18 @3.0)")
+                  "(103_07 + 138_18 excluded)")
         # Motion weights: must explicitly list motion names (empty dict = load nothing)
         # v28: every clip now has a FK-verified left-right mirrored twin
         # (roboparty_train/mirror_lab_motions.py, FK mirror error < 0.8 mm on

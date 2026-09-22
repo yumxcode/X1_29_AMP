@@ -64,7 +64,7 @@ CLASSES = {
     "CIRCLE": {"0026_circle_walk"},
     "JOG": {"0003_treadmill_jog", "0009_normal_jog1"},
     "CMU_OLD": {"36_01", "36_11"},
-    "CMU_NEW": {"103_07"},
+    "CMU_NEW": {"103_07", "138_18"},
 }
 LUMY_SWING = {"PRIMARY": 32.0, "CIRCLE": 32.0, "JOG": 65.0,
               "CMU_OLD": 55.0, "CMU_NEW": 75.0}
@@ -167,7 +167,10 @@ def fk_metrics(clip):
         mujoco.mj_forward(model, data)
         cur = np.array([data.xpos[b] for b in c["kb_bid"]])
         kb_pos[i] = cur
-        kb_err.append(np.abs(cur - kb[t]).max())
+        # v67: kb may carry 10 bodies (v32+ format) while the checker's FK
+        # list is the original 6 — compare the first 6 columns (the FK gate
+        # of extend_key_bodies_v32.py covers the full 10 separately)
+        kb_err.append(np.abs(cur - kb[t][:6]).max())
         for f in range(2):
             pts = np.array([data.geom_xpos[g] for g in c["sole_geoms"][f]])
             low[i, f] = pts[:, 2].min()
@@ -268,7 +271,8 @@ def check_clip(name, cls, clip, mirror_clip):
         T = min(len(src_kb), len(mir_kb))
         want = src_kb[:T][:, LR_SWAP].copy()
         want[:, :, 1] *= -1
-        e = float(np.percentile(np.linalg.norm(mir_kb[:T] - want, axis=2), 95))
+        e = float(np.percentile(np.linalg.norm(
+            mir_kb[:T][:, :6] - want, axis=2), 95))
         nf += add("M1", e <= 0.020, f"mirror key_body y-flip+swap p95 {e*1000:.1f} mm <= 20")
     else:
         rows.append(("M1", "FAIL", "mirror clip missing"))
@@ -356,9 +360,11 @@ def main():
         mirror_clip = pickle.load(open(d / f"{name}_mirror.pkl", "rb")) \
             if (d / f"{name}_mirror.pkl").exists() else None
 
-        # S4 schema
+        # S4 schema (v67: kb width 6 OR 10 — v32+ datasets ship 10-body)
+        _kbw = np.asarray(clip["key_body_pos"]).shape[1]
         shape_ok = (np.asarray(clip["dof_pos"]).shape[1] == 29
-                    and np.asarray(clip["key_body_pos"]).shape[1:] == (6, 3)
+                    and _kbw in (6, 10)
+                    and np.asarray(clip["key_body_pos"]).shape[2] == 3
                     and np.isfinite(clip["dof_pos"]).all()
                     and np.allclose(np.linalg.norm(clip["root_rot"], axis=1), 1.0, atol=1e-3))
         rows, nf, nw = check_clip(name, cls, clip, mirror_clip)
