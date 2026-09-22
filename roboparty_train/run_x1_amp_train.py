@@ -468,6 +468,11 @@ def phase_train() -> int:
     train_script = robolab_src / "scripts" / "rsl_rl" / "train.py"
     cmd = [sys.executable, str(train_script),
            "--task=X1-AMP", "--headless", "--logger=tensorboard", "--num_envs=4096"]
+    # v67: fresh-run iteration budget override (pod wall-clock sizing —
+    # v66's planned 4000 died at ~3463 in 2h51m; continuations fill the gap)
+    _fresh_iters = os.environ.get("X1_FRESH_ITERS", "")
+    if _fresh_iters and not os.environ.get("X1_RESUME_CKPT", "").strip():
+        cmd += ["--max_iterations", _fresh_iters]
 
     # ------------------------------------------------------------------
     # v29d fine-tune resume: X1_RESUME_CKPT (absolute path to a platform-
