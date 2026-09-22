@@ -624,11 +624,15 @@ class X1AmpEnvCfg(AmpEnvCfg):
         import os as _os_vm
         if _os_vm.environ.get("X1_DISC_VMATCH", "0") == "1":
             self.animation.animation.speed_matched_fetch = True
+            # drop 103_07 (+mirror): 60Hz source stored at 120 = 2x
+            # playback (218 spm). REMOVE from the weights dict (a zero
+            # weight still requires the file to exist — first v67c launch
+            # died in the loader on exactly that).
+            _mw = self.motion_data.motion_dataset.motion_data_weights
             for _drop in ("103_07", "103_07_mirror"):
-                if _drop in self.motion_data.motion_dataset.motion_data_weights:
-                    self.motion_data.motion_dataset.motion_data_weights[_drop] = 0.0
+                _mw.pop(_drop, None)
             print("[DISC-VMATCH] speed-matched demo fetch ON; 103_07(+mirror) "
-                  "dropped (2x playback = 218 spm)")
+                  "removed from weights (2x playback = 218 spm)")
 
         # ------------------------------------------------------
         # Observations — discriminator
