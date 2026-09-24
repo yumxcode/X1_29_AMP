@@ -1,3 +1,4 @@
+import sys
 #!/usr/bin/env python3
 """Scan the local AMASS/CMU archive (~2k clips) for TRUE OVERGROUND WALKING
 windows (v31 source selection, plan A).
@@ -25,7 +26,10 @@ print = functools.partial(print, flush=True)
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".cache_amass_scan.jsonl"
-DIRS = [ROOT / "AMASS/CMU"]
+# 2026-09 slim-down: the full AMASS/CMU archive (~8.6G) was relocated
+# off-repo. Pass the archive path as sys.argv[1] when re-running the
+# v67-style deep screen, e.g. python scan_amass_walking.py /path/to/AMASS/CMU
+DIRS = [Path(sys.argv[1])] if len(sys.argv) > 1 else []
 
 
 def trans_stats(path_str):

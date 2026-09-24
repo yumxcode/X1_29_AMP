@@ -36,10 +36,10 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 REPO_ROOT = None
 for candidate in [SCRIPT_DIR, SCRIPT_DIR.parent, SCRIPT_DIR.parent.parent,
                   SCRIPT_DIR.parent.parent.parent.parent]:
-    if (candidate / "AMASS_minimal").is_dir() and (candidate / "roboparty_train").is_dir():
+    if (candidate / "roboparty_train").is_dir():
         REPO_ROOT = candidate
         break
-    if (candidate / "AMASS_minimal").is_dir() and (candidate / "X1_29_AMP" / "roboparty_train").is_dir():
+    if (candidate / "X1_29_AMP" / "roboparty_train").is_dir():
         REPO_ROOT = candidate / "X1_29_AMP"
         break
 if REPO_ROOT is None:
@@ -318,7 +318,7 @@ def phase_package_retarget(gmr_output: Path, lab_output: Path):
         retarget_pkg[f"x1_lab_v31/{f.name}"] = f.read_bytes()
     for f in sorted(gmr_output.glob("*.pkl")):
         retarget_pkg[f"x1_gmr/{f.name}"] = f.read_bytes()
-    auto_cfg = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+    auto_cfg = REPO_ROOT / "data" / "amass" / "smplx_to_x1_auto.json"
     if auto_cfg.exists():
         retarget_pkg["smplx_to_x1_auto.json"] = auto_cfg.read_bytes()
     p = UPLOAD_DIR / "model_retarget_data.pt"

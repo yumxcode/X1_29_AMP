@@ -38,7 +38,7 @@ XML = ROOT / "gmr_x1_assets" / "x1.xml"
 YAML = ROOT / "roboparty_train/robolab/scripts/tools/retarget/config/x1.yaml"
 ORIG_DIR = ROOT / "roboparty_train/robolab/data/motions/x1_lab"
 V30_DIR = ROOT / "roboparty_train/robolab/data/motions/x1_lab_v30"
-SMPLX_DIRS = [ROOT / "AMASS_minimal/BMLrub_stageii", ROOT / "AMASS_minimal/CMU"]
+SMPLX_DIRS = [ROOT / "data/amass/BMLrub_stageii", ROOT / "data/amass/CMU"]
 
 LAB = parse_yaml_list(YAML, "lab_dof_names")
 IDX = {n: i for i, n in enumerate(LAB)}

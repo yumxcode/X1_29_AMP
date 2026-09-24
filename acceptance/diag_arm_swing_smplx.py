@@ -23,8 +23,8 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = {
-    "BMLrub": ROOT / "AMASS_minimal/BMLrub_stageii",
-    "CMU": ROOT / "AMASS_minimal/CMU",
+    "BMLrub": ROOT / "data/amass/BMLrub_stageii",
+    "CMU": ROOT / "data/amass/CMU",
 }
 CLIPS = ["0005_normal_walk1", "0007_normal_walk3", "0008_normal_walk4",
          "0000_treadmill_norm", "0002_treadmill_slow", "0009_normal_jog1",

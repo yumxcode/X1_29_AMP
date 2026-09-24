@@ -22,7 +22,7 @@ GMR = ROOT / "_gmr_local" / "GMR"
 register_x1_in_gmr(GMR)
 
 # body models
-smplx_pkl = ROOT / "AMASS_minimal" / "smplx" / "SMPLX_NEUTRAL.pkl"
+smplx_pkl = ROOT / "data" / "amass" / "smplx" / "SMPLX_NEUTRAL.pkl"
 bm = GMR / "assets" / "body_models" / "smplx"
 bm.mkdir(parents=True, exist_ok=True)
 for g in ["NEUTRAL", "MALE", "FEMALE"]:

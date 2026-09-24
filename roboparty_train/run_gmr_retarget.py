@@ -31,10 +31,14 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 REPO_ROOT = None
 for candidate in [SCRIPT_DIR, SCRIPT_DIR.parent, SCRIPT_DIR.parent.parent,
                   SCRIPT_DIR.parent.parent.parent.parent]:
-    if (candidate / "AMASS_minimal").is_dir() and (candidate / "roboparty_train").is_dir():
+    # 2026-09 slim-down: AMASS sources moved to data/amass (AMASS/ and
+    # AMASS_minimal/ relocated off-repo); keep AMASS_minimal probe for
+    # legacy pod clones created before the move.
+    has_amass = (candidate / "data" / "amass").is_dir() or (candidate / "AMASS_minimal").is_dir()
+    if has_amass and (candidate / "roboparty_train").is_dir():
         REPO_ROOT = candidate
         break
-    if (candidate / "AMASS_minimal").is_dir() and (candidate / "X1_29_AMP" / "roboparty_train").is_dir():
+    if has_amass and (candidate / "X1_29_AMP" / "roboparty_train").is_dir():
         REPO_ROOT = candidate / "X1_29_AMP"
         break
 
@@ -53,8 +57,10 @@ print(f"[INFO] REPO_ROOT = {REPO_ROOT}")
 
 # ── Step 1: Reassemble SMPLX_NEUTRAL.pkl ───────────────────────────
 def reassemble_smplx():
+    # data/amass is the current location; smplx_parts reassembly is a
+    # legacy path for old clones (chunks no longer shipped in data/)
     chunks_dir = REPO_ROOT / "AMASS_minimal" / "smplx_parts"
-    output_dir = REPO_ROOT / "AMASS_minimal" / "smplx"
+    output_dir = REPO_ROOT / "data" / "amass" / "smplx"
     output_file = output_dir / "SMPLX_NEUTRAL.pkl"
 
     if output_file.exists():
@@ -124,7 +130,7 @@ def setup_gmr():
     gmr_body_models_root = gmr_dir / "assets" / "body_models"
     gmr_body_models = gmr_body_models_root / "smplx"
     gmr_body_models.mkdir(parents=True, exist_ok=True)
-    smplx_pkl = REPO_ROOT / "AMASS_minimal" / "smplx" / "SMPLX_NEUTRAL.pkl"
+    smplx_pkl = REPO_ROOT / "data" / "amass" / "smplx" / "SMPLX_NEUTRAL.pkl"
     
     # Copy NEUTRAL to all 3 genders (GMR requires all 3)
     for gender in ["NEUTRAL", "MALE", "FEMALE"]:
@@ -162,7 +168,7 @@ def register_x1_in_gmr(gmr_dir: Path):
     print(f"[INFO] Copied X1 assets to {x1_assets_dst}")
 
     # 3b. Copy rough IK config (as input for auto-IK)
-    ik_src = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1.json"
+    ik_src = REPO_ROOT / "data" / "amass" / "smplx_to_x1.json"
     ik_dst = gmr_dir / "general_motion_retargeting" / "ik_configs" / "smplx_to_x1.json"
     shutil.copy2(ik_src, ik_dst)
     print(f"[INFO] Copied IK config to {ik_dst}")
@@ -252,7 +258,7 @@ def run_auto_ik(gmr_dir: Path, venv_dir: Path):
         print(f"[INFO] Updated active IK config with auto-calibrated version")
 
         # Also save to repo for reference
-        repo_copy = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+        repo_copy = REPO_ROOT / "data" / "amass" / "smplx_to_x1_auto.json"
         shutil.copy2(output_config, repo_copy)
 
         return output_config
@@ -286,7 +292,7 @@ output_dir = repo_root / "roboparty_train" / "robolab" / "data" / "motions" / "x
 
 npz_files = []
 for subdir in ["CMU", "BMLrub_stageii"]:
-    d = repo_root / "AMASS_minimal" / subdir
+    d = repo_root / "data" / "amass" / subdir
     if d.is_dir():
         npz_files.extend(sorted(d.glob("**/*.npz")))
 
@@ -523,7 +529,7 @@ def package_lab_results(lab_output: Path, auto_config_path=None):
             package[f.name] = fh.read()
         print(f"  Added: {f.name} ({f.stat().st_size // 1024}KB)")
 
-    auto_cfg = REPO_ROOT / "AMASS_minimal" / "smplx_to_x1_auto.json"
+    auto_cfg = REPO_ROOT / "data" / "amass" / "smplx_to_x1_auto.json"
     if auto_cfg.exists():
         package["smplx_to_x1_auto.json"] = auto_cfg.read_bytes()
 
