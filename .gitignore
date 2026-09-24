@@ -74,3 +74,8 @@ acceptance/videos_*/
 # v63 local eval artifacts (downloaded ckpts + rollout logs)
 acceptance/v63*_eval/
 roboparty_train/checkpoints/*.policy.npz
+
+# 2026-09 slim-down: AMASS sources relocated to data/amass (off-repo archives);
+# eval .pt stay local-only (platform OSS has every checkpoint)
+data/
+acceptance/**/*.pt
