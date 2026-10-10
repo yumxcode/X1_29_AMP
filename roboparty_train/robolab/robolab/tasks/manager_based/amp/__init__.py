@@ -71,3 +71,23 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.x1_amp_agent_cfg:X1RslRlOnPolicyRunnerAmpCfg",
     },
 )
+
+gym.register(
+    id="F1-AMP",
+    entry_point=f"{__name__}.amp_env:AmpEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.f1_amp_env_cfg:F1AmpEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.f1_amp_agent_cfg:F1RslRlOnPolicyRunnerAmpCfg",
+    },
+)
+
+gym.register(
+    id="F1-AMP-Play",
+    entry_point=f"{__name__}.amp_env:AmpEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.f1_amp_env_cfg:F1AmpEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.f1_amp_agent_cfg:F1RslRlOnPolicyRunnerAmpCfg",
+    },
+)
