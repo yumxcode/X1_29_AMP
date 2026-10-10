@@ -128,11 +128,19 @@ def wait_for_sdk(seconds: int, why: str):
 
 
 def mirror_checkpoint(ckpt: Path, tag: str):
-    """Five SDK-visible locations (v29e3 evidence: in-tree checkpoints/ is
-    the PRIMARY; model_upload/ v23; repo-flat probe2; exported_data pattern
-    skill-doc; outside-tree archive)."""
+    """Mirror the checkpoint to every SDK-visible location.
+
+    v1e forensics (TASK_20261010_178): the SDK 'Found PT file' uploader only
+    ever queued logs/rsl_rl/f1_amp/_resume_src/model_3999.pt — the run-dir /
+    checkpoints/ / model_upload/ / repo-flat / outside-tree mirrors were all
+    merely 'detected globally', never uploaded. The skill-documented PROVEN
+    channel (8-round probe matrix) is output/{unique-name}.pt at the TOP
+    level of the task output dir — added here as the PRIMARY."""
     copied = []
-    for dst in [REPO_ROOT / "roboparty_train" / "checkpoints" / ckpt.name,
+    isaaclab = REPO_ROOT.parent if REPO_ROOT.parent.name == "isaaclab" else Path("/workspace/isaaclab")
+    for dst in [isaaclab / "output" / ckpt.name,
+                REPO_ROOT / "output" / ckpt.name,
+                REPO_ROOT / "roboparty_train" / "checkpoints" / ckpt.name,
                 UPLOAD_DIR / ckpt.name,
                 REPO_ROOT / ckpt.name,
                 REPO_ROOT / "logs" / "rsl_rl" / EXP / "exported_data" / tag / ckpt.name,
@@ -308,11 +316,12 @@ def main():
     # final mirror pass (belt and braces)
     if ck is not None:
         mirror_checkpoint(ck, TAG)
-    # v1d lesson: wait for the SDK upload cycle so the final model is
-    # registered before the pod dies (16-min scan period; 1100s covers one
-    # full cycle plus upload time)
+    # v1d/v1e lesson: the SDK scan cycle is ~16-17 min and the PT uploader
+    # only queues files it sees fresh; wait spans a full cycle AFTER the
+    # final mirror so model_5498 actually reaches the platform before the
+    # pod dies.
     if ck is not None:
-        wait_for_sdk(1100, "final checkpoint registration")
+        wait_for_sdk(1400, "final checkpoint registration")
     print(f"\n=== DONE in {(time.time()-t0)/60:.1f} min ===")
     print(f"checkpoint={ck}")
     print(f"video={video}")
