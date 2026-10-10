@@ -190,10 +190,17 @@ def main():
                 return v
         raise KeyError(name)
 
-    # ---- mesh assets
+    # ---- mesh assets (scale lives on <mesh>, not <geom> — F1 ships
+    # mm-scale meshes that need scale="0.001 0.001 0.001")
     mesh_files = {}
-    def register(mesh_name):
-        mesh_files.setdefault(mesh_name, f"m{len(mesh_files)}")
+    mesh_scales = {}
+
+    def register(mesh_name, scale=None):
+        if mesh_name not in mesh_files:
+            mesh_files[mesh_name] = f"m{len(mesh_files)}"
+            mesh_scales[mesh_name] = scale
+        elif scale is not None:
+            mesh_scales[mesh_name] = mesh_scales[mesh_name] or scale
 
     def visual_of(link_name):
         vis = []
@@ -204,7 +211,7 @@ def main():
                 continue
             fn = os.path.basename(g.get("filename"))
             mname = os.path.splitext(fn)[0]
-            register(mname)
+            register(mname, g.get("scale"))
             vis.append(dict(mesh=mname,
                             pos=(o.get("xyz", "0 0 0") if o is not None else "0 0 0"),
                             euler=(o.get("rpy", "0 0 0") if o is not None else "0 0 0"),
@@ -220,7 +227,7 @@ def main():
         if g is not None:
             fn = os.path.basename(g.get("filename"))
             mname = os.path.splitext(fn)[0]
-            register(mname)
+            register(mname, g.get("scale"))
             o = c.find("origin")
             base_col_mesh = dict(mesh=mname,
                                  pos=(o.get("xyz", "0 0 0") if o is not None else "0 0 0"),
@@ -287,7 +294,9 @@ def main():
     L.append('    </default>')
     L.append('  <asset>')
     for mname, mid in sorted(mesh_files.items(), key=lambda kv: kv[1]):
-        L.append(f'    <mesh name="{mname}" file="{mname}.STL" />')
+        msc = mesh_scales.get(mname)
+        sc = f' scale="{msc}"' if msc else ""
+        L.append(f'    <mesh name="{mname}" file="{mname}.STL"{sc} />')
     L.append('  </asset>')
     L.append('  <worldbody>')
     L.append('    <body name="base_link" pos="0 0 0.8">')
@@ -295,12 +304,10 @@ def main():
     L.append(f'      <inertial pos="{f(ip)}" mass="{m:.7g}" quat="{f(q)}" diaginertia="{f(dg)}" />')
     L.append('      <freejoint name="floating_base" />')
     for v in base_vis:
-        sc = f' scale="{v["scale"]}"' if v["scale"] else ""
-        L.append(f'      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="{v["mesh"]}" pos="{v["pos"]}" euler="{v["euler"]}"{sc} />')
+        L.append(f'      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="{v["mesh"]}" pos="{v["pos"]}" euler="{v["euler"]}"/>')
     if base_col_mesh:
         v = base_col_mesh
-        sc = f' scale="{v["scale"]}"' if v["scale"] else ""
-        L.append(f'      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="{v["mesh"]}" class="collision" pos="{v["pos"]}" euler="{v["euler"]}"{sc} />')
+        L.append(f'      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="{v["mesh"]}" class="collision" pos="{v["pos"]}" euler="{v["euler"]}"/>')
     L.append('      <camera name="track" pos="0 -3 1" quat="0.850651 0.525731 0 0" mode="track" />')
     L.append('      <site name="imu" size="0.01" pos="0 0 0" />')
 
@@ -338,8 +345,7 @@ def main():
         L.append(f'{ind}  <inertial pos="{f(ip)}" mass="{m:.7g}" quat="{f(q)}" diaginertia="{f(dg)}" />')
         L.append(f'{ind}  <joint name="{jn}" type="hinge" pos="0 0 0" axis="{ax}" damping="{ja["damping"]}" range="{ja["range"][0]} {ja["range"][1]}" frictionloss="{ja["frictionloss"]}" />')
         for v in visuals[bn]:
-            sc = f' scale="{v["scale"]}"' if v["scale"] else ""
-            L.append(f'{ind}  <geom type="mesh" mesh="{v["mesh"]}" pos="{v["pos"]}" euler="{v["euler"]}"{sc} rgba="1 0.4 0.4 1" />')
+            L.append(f'{ind}  <geom type="mesh" mesh="{v["mesh"]}" pos="{v["pos"]}" euler="{v["euler"]}" rgba="1 0.4 0.4 1" />')
         if bn.endswith("ankle_roll_link"):
             side = "left" if bn.startswith("left") else "right"
             cls = "collision-left" if side == "left" else "collision-right"
@@ -401,6 +407,14 @@ def main():
     os.makedirs(os.path.join(gmr_dir, "meshes"), exist_ok=True)
     txt = "\n".join(L) + "\n"
     txt = txt.replace('meshdir="../meshes"', 'meshdir="meshes"')
+    # foot contact spheres: plain class="collision" in the gmr/build_model
+    # flow (floor contype=1/conaffinity=1 pairs with contype=1 spheres; the
+    # collision-left/right split pairs with the flat.xml conaffinity=7 floor
+    # used by the serial-xml include flow only — X1 gmr xml precedent).
+    # Anchor on the geom-line closing " />" so the <default class="...">
+    # DEFINITION lines keep their split classes.
+    txt = txt.replace('class="collision-left" />', 'class="collision" />')
+    txt = txt.replace('class="collision-right" />', 'class="collision" />')
     with open(os.path.join(gmr_dir, "f1.xml"), "w") as fh:
         fh.write(txt)
     for mname in mesh_files:

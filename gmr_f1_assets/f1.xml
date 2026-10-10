@@ -33,22 +33,22 @@
     <mesh name="right_elbow_yaw" file="right_elbow_yaw.STL" />
     <mesh name="right_wrist_pitch" file="right_wrist_pitch.STL" />
     <mesh name="right_wrist_roll" file="right_wrist_roll.STL" />
-    <mesh name="left_hip_pitch_self" file="left_hip_pitch_self.STL" />
+    <mesh name="left_hip_pitch_self" file="left_hip_pitch_self.STL" scale="0.001 0.001 0.001" />
     <mesh name="left_hip_roll" file="left_hip_roll.STL" />
     <mesh name="left_hip_yaw" file="left_hip_yaw.STL" />
     <mesh name="lumbar_pitch" file="lumbar_pitch.STL" />
     <mesh name="left_knee_pitch" file="left_knee_pitch.STL" />
     <mesh name="left_ankle_pitch" file="left_ankle_pitch.STL" />
     <mesh name="left_ankle_roll" file="left_ankle_roll.STL" />
-    <mesh name="right_hip_pitch_self_p4_mirrored" file="right_hip_pitch_self_p4_mirrored.STL" />
+    <mesh name="right_hip_pitch_self_p4_mirrored" file="right_hip_pitch_self_p4_mirrored.STL" scale="0.001 0.001 0.001" />
     <mesh name="right_hip_roll_p4_mirrored" file="right_hip_roll_p4_mirrored.STL" />
     <mesh name="right_hip_yaw_p4_mirrored" file="right_hip_yaw_p4_mirrored.STL" />
     <mesh name="right_knee_pitch_p4_mirrored" file="right_knee_pitch_p4_mirrored.STL" />
     <mesh name="right_ankle_pitch_p4_mirrored" file="right_ankle_pitch_p4_mirrored.STL" />
     <mesh name="right_ankle_roll_p4_mirrored" file="right_ankle_roll_p4_mirrored.STL" />
-    <mesh name="base_link_simple_self_center_symmetric" file="base_link_simple_self_center_symmetric.STL" />
+    <mesh name="base_link_simple_self_center_symmetric" file="base_link_simple_self_center_symmetric.STL" scale="0.001 0.001 0.001" />
     <mesh name="left_shoulder_pitch" file="left_shoulder_pitch.STL" />
-    <mesh name="base_link_simple_self_center_symmetric_collision" file="base_link_simple_self_center_symmetric_collision.STL" />
+    <mesh name="base_link_simple_self_center_symmetric_collision" file="base_link_simple_self_center_symmetric_collision.STL" scale="0.001 0.001 0.001" />
     <mesh name="left_shoulder_roll" file="left_shoulder_roll.STL" />
     <mesh name="left_shoulder_yaw" file="left_shoulder_yaw.STL" />
     <mesh name="left_elbow_pitch" file="left_elbow_pitch.STL" />
@@ -60,8 +60,8 @@
     <body name="base_link" pos="0 0 0.8">
       <inertial pos="-1.089e-05 5.5e-07 -0.00680031" mass="2.715066" quat="-1.4657494e-16 -0.70216501 1.6765992e-16 0.71201426" diaginertia="0.010092054 0.013207172 0.020341033" />
       <freejoint name="floating_base" />
-      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="base_link_simple_self_center_symmetric" pos="0.0100323 -0.112409 -0.0106" euler="1.57 0 1.57" scale="0.001 0.001 0.001" />
-      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="base_link_simple_self_center_symmetric_collision" class="collision" pos="0.0100323 -0.112409 0" euler="1.57 0 1.57" scale="0.001 0.001 0.001" />
+      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="base_link_simple_self_center_symmetric" pos="0.0100323 -0.112409 -0.0106" euler="1.57 0 1.57"/>
+      <geom type="mesh" rgba="0.8 0.4 0 1" mesh="base_link_simple_self_center_symmetric_collision" class="collision" pos="0.0100323 -0.112409 0" euler="1.57 0 1.57"/>
       <camera name="track" pos="0 -3 1" quat="0.850651 0.525731 0 0" mode="track" />
       <site name="imu" size="0.01" pos="0 0 0" />
       <body name="lumbar_yaw_link" pos="0.00245 0 0.11553403" quat="1 0 0 -2.274557e-05" gravcomp="0">
@@ -152,7 +152,7 @@
       <body name="left_hip_pitch_link" pos="0 0.0869 -0.0367101" quat="0.50039816 -0.49999984 -0.49960184 0.49999984" gravcomp="0">
         <inertial pos="-0.03056421 0.02610956 -0.01996173" mass="1.045468" quat="0.99951793 0.00023478415 -0.031041978 0.000502267" diaginertia="0.0012390794 0.0013587111 0.0014921375" />
         <joint name="left_hip_pitch_joint" type="hinge" pos="0 0 0" axis="1 0 0" damping="2.0" range="-3.14 3.14" frictionloss="4.0" />
-        <geom type="mesh" mesh="left_hip_pitch_self" pos="-0.199309 0.0261101 0.0100323" euler="0 0 0" scale="0.001 0.001 0.001" rgba="1 0.4 0.4 1" />
+        <geom type="mesh" mesh="left_hip_pitch_self" pos="-0.199309 0.0261101 0.0100323" euler="0 0 0" rgba="1 0.4 0.4 1" />
         <body name="left_hip_roll_link" pos="0.05837 0 -0.0341" quat="2.6794897e-08 1 0 0" gravcomp="0">
           <inertial pos="0.00014604 -0.04123483 -0.01015339" mass="0.2856219" quat="-0.23594177 0.6650998 0.66693304 0.23911095" diaginertia="0.00027528831 0.00055729377 0.00061295792" />
           <joint name="left_hip_roll_joint" type="hinge" pos="0 0 0" axis="0 0 -1" damping="1.5" range="-2.7 0.3" frictionloss="3.0" />
@@ -173,13 +173,13 @@
                   <inertial pos="0.00017156 -0.02524695 -0.00019936" mass="0.5897121" quat="0.50741897 -0.49044917 -0.49158279 -0.51022737" diaginertia="0.00054139113 0.0015211445 0.0019006944" />
                   <joint name="left_ankle_roll_joint" type="hinge" pos="0 0 0" axis="0 0 1" damping="0.8" range="-0.5 0.5" frictionloss="1.5" />
                   <geom type="mesh" mesh="left_ankle_roll" pos="0 0 0" euler="0 0 0" rgba="1 0.4 0.4 1" />
-                  <geom type="sphere" size="0.002" pos="0.03 0.0408 0.07" class="collision-left" />
+                  <geom type="sphere" size="0.002" pos="0.03 0.0408 0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="0.03 0.0408 0.07" rgba="255 0 0 0.5" />
-                  <geom type="sphere" size="0.002" pos="-0.03 0.0408 0.07" class="collision-left" />
+                  <geom type="sphere" size="0.002" pos="-0.03 0.0408 0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="-0.03 0.0408 0.07" rgba="255 0 0 0.5" />
-                  <geom type="sphere" size="0.002" pos="0.03 0.0408 -0.07" class="collision-left" />
+                  <geom type="sphere" size="0.002" pos="0.03 0.0408 -0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="0.03 0.0408 -0.07" rgba="255 0 0 0.5" />
-                  <geom type="sphere" size="0.002" pos="-0.03 0.0408 -0.07" class="collision-left" />
+                  <geom type="sphere" size="0.002" pos="-0.03 0.0408 -0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="-0.03 0.0408 -0.07" rgba="255 0 0 0.5" />
                 </body>
               </body>
@@ -190,7 +190,7 @@
       <body name="right_hip_pitch_link" pos="0 -0.0869 -0.0367101" quat="0.49999984 -0.49960184 -0.49999984 0.50039816" gravcomp="0">
         <inertial pos="0.03056421 0.02610956 -0.01996173" mass="1.045468" quat="0.99951793 0.00023478415 0.031041978 -0.000502267" diaginertia="0.0012390794 0.0013587111 0.0014921375" />
         <joint name="right_hip_pitch_joint" type="hinge" pos="0 0 0" axis="1 0 0" damping="2.0" range="-3.14 3.14" frictionloss="4.0" />
-        <geom type="mesh" mesh="right_hip_pitch_self_p4_mirrored" pos="-0.025509 0.0261101 0.0100323" euler="0 0 0" scale="0.001 0.001 0.001" rgba="1 0.4 0.4 1" />
+        <geom type="mesh" mesh="right_hip_pitch_self_p4_mirrored" pos="-0.025509 0.0261101 0.0100323" euler="0 0 0" rgba="1 0.4 0.4 1" />
         <body name="right_hip_roll_link" pos="-0.05837 0 -0.0341" quat="1.6155446e-15 4.328835e-23 2.6794897e-08 1" gravcomp="0">
           <inertial pos="0.00014604 -0.04123483 0.01015339" mass="0.2856219" quat="0.66693304 -0.23911095 -0.23594177 -0.6650998" diaginertia="0.00027528831 0.00055729377 0.00061295792" />
           <joint name="right_hip_roll_joint" type="hinge" pos="0 0 0" axis="0 0 1" damping="1.5" range="-2.7 0.3" frictionloss="3.0" />
@@ -211,13 +211,13 @@
                   <inertial pos="0.00017156 0.02524695 -0.00019936" mass="0.5897121" quat="-0.49044917 0.50741897 0.51022737 0.49158279" diaginertia="0.00054139113 0.0015211445 0.0019006944" />
                   <joint name="right_ankle_roll_joint" type="hinge" pos="0 0 0" axis="0 0 1" damping="0.8" range="-0.5 0.5" frictionloss="1.5" />
                   <geom type="mesh" mesh="right_ankle_roll_p4_mirrored" pos="0 0 0" euler="0 0 0" rgba="1 0.4 0.4 1" />
-                  <geom type="sphere" size="0.002" pos="0.03 -0.0408 0.07" class="collision-right" />
+                  <geom type="sphere" size="0.002" pos="0.03 -0.0408 0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="0.03 -0.0408 0.07" rgba="255 0 0 0.5" />
-                  <geom type="sphere" size="0.002" pos="-0.03 -0.0408 0.07" class="collision-right" />
+                  <geom type="sphere" size="0.002" pos="-0.03 -0.0408 0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="-0.03 -0.0408 0.07" rgba="255 0 0 0.5" />
-                  <geom type="sphere" size="0.002" pos="0.03 -0.0408 -0.07" class="collision-right" />
+                  <geom type="sphere" size="0.002" pos="0.03 -0.0408 -0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="0.03 -0.0408 -0.07" rgba="255 0 0 0.5" />
-                  <geom type="sphere" size="0.002" pos="-0.03 -0.0408 -0.07" class="collision-right" />
+                  <geom type="sphere" size="0.002" pos="-0.03 -0.0408 -0.07" class="collision" />
                   <geom type="sphere" size="0.02" pos="-0.03 -0.0408 -0.07" rgba="255 0 0 0.5" />
                 </body>
               </body>
