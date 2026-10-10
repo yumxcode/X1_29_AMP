@@ -1,0 +1,5 @@
+# F1 run env overrides (launcher reads KEY=VALUE; startScript cannot pass env)
+# v1e: X1 v60 swing-clearance lever ON — v1 sim2sim showed left-foot drag
+# (swing 5-11mm below the 12mm Schmitt detector); the -0.5 drag penalty is
+# the proven X1 recipe element for exactly this failure mode (refs pay 0).
+X1_SWING_CLEAR=1

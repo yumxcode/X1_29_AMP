@@ -117,6 +117,16 @@ def all_checkpoints():
     return ckpts
 
 
+def wait_for_sdk(seconds: int, why: str):
+    """Post-mirror wait: the SDK scans globally every ~16 min and the FINAL
+    checkpoint appears right before task exit — v1d (TASK_20261010_133) lost
+    model_4000..5498 to exactly this (detected 19:10:13, pod died before
+    upload; the mid-run 091 uploads only succeeded because its run was long
+    enough to span scan cycles)."""
+    print(f"[WAIT] {why}: sleeping {seconds}s for the SDK upload cycle...")
+    time.sleep(seconds)
+
+
 def mirror_checkpoint(ckpt: Path, tag: str):
     """Five SDK-visible locations (v29e3 evidence: in-tree checkpoints/ is
     the PRIMARY; model_upload/ v23; repo-flat probe2; exported_data pattern
@@ -278,6 +288,17 @@ def phase_play_video(ckpt):
 
 def main():
     t0 = time.time()
+    # optional per-run env overrides committed as roboparty_train/f1_env.txt
+    # (KEY=VALUE lines) — startScript cannot pass env vars to gm-run.
+    env_file = SCRIPT_DIR / "f1_env.txt"
+    if env_file.exists():
+        for line in env_file.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+        print(f"[ENV] f1_env.txt overrides: "
+              f"{[l.split('=')[0] for l in env_file.read_text().splitlines() if '=' in l and not l.strip().startswith('#')]}")
     if not phase_dataset_gate():
         sys.exit(2)
     rc = phase_train()
@@ -287,6 +308,11 @@ def main():
     # final mirror pass (belt and braces)
     if ck is not None:
         mirror_checkpoint(ck, TAG)
+    # v1d lesson: wait for the SDK upload cycle so the final model is
+    # registered before the pod dies (16-min scan period; 1100s covers one
+    # full cycle plus upload time)
+    if ck is not None:
+        wait_for_sdk(1100, "final checkpoint registration")
     print(f"\n=== DONE in {(time.time()-t0)/60:.1f} min ===")
     print(f"checkpoint={ck}")
     print(f"video={video}")
