@@ -91,6 +91,24 @@ DEFAULT_Q = {
     "right_ankle_pitch_joint": -0.27224, "right_ankle_roll_joint": 0.0,
 }
 
+# F1_29DOF standing pose (FK-verified IK: feet flat at X1-init placements;
+# retarget_f1_from_x1lab.py solve, residual 0.0 mm). F1 legs differ from X1:
+# orthogonal hip (sign flip on hip_pitch), shorter legs, wider hips.
+F1_DEFAULT_Q = dict(DEFAULT_Q)
+F1_DEFAULT_Q.update({
+    "left_hip_pitch_joint": -0.23847, "left_hip_roll_joint": 0.02102,
+    "left_hip_yaw_joint": 0.00600, "left_knee_pitch_joint": 0.39231,
+    "left_ankle_pitch_joint": -0.14583, "left_ankle_roll_joint": 0.02171,
+    "right_hip_pitch_joint": -0.23715, "right_hip_roll_joint": -0.02104,
+    "right_hip_yaw_joint": -0.00587, "right_knee_pitch_joint": 0.39412,
+    "right_ankle_pitch_joint": -0.14649, "right_ankle_roll_joint": -0.02125,
+})
+
+ROBOT_CFG = {
+    "x1": dict(xml="gmr_x1_assets/x1.xml", default_q=DEFAULT_Q),
+    "f1": dict(xml="gmr_f1_assets/f1.xml", default_q=F1_DEFAULT_Q),
+}
+
 
 def parse_yaml_list(path, key):
     out, cur = [], False
@@ -415,6 +433,9 @@ def main():
                          "Isaac's implicit actuator PD; the v58 harness-"
                          "alignment probe against the cross-sim ankle flick)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--robot", choices=["x1", "f1"], default="x1",
+                    help="robot model + default pose (x1 = gmr_x1_assets/"
+                         "x1.xml; f1 = gmr_f1_assets/f1.xml, F1_29DOF)")
     ap.add_argument("--onnx", action="store_true",
                     help="run the policy through the exported ONNX graph "
                          "(deployment-artifact-in-the-loop parity check)")
@@ -428,7 +449,9 @@ def main():
                               "lab_dof_names")
     assert len(lab_dof) == 29
 
-    model, n_feet = build_model(root / "gmr_x1_assets" / "x1.xml", args.actuator)
+    robot_cfg = ROBOT_CFG[args.robot]
+    _default_q_table = robot_cfg["default_q"]
+    model, n_feet = build_model(root / robot_cfg["xml"], args.actuator)
     if args.ankle_damp != 1.0:
         n_damped = 0
         for j in range(model.njnt):
@@ -444,7 +467,7 @@ def main():
 
     # joint indices (MuJoCo) and lab->mj mapping
     mj_names = [model.joint(i).name for i in range(model.njnt)]
-    hinge = [n for n in mj_names if n in DEFAULT_Q]
+    hinge = [n for n in mj_names if n in _default_q_table]
     assert len(hinge) == 29, f"expected 29 hinges, got {len(hinge)}"
     jid = {n: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n) for n in hinge}
     servo_idx = None
@@ -459,7 +482,7 @@ def main():
     kp = np.array([PD[n][0] for n in hinge])
     kd = np.array([PD[n][1] for n in hinge])
     eff = np.array([PD[n][2] for n in hinge])
-    q_default = np.array([DEFAULT_Q[n] for n in hinge])
+    q_default = np.array([_default_q_table[n] for n in hinge])
 
     if Path(args.ckpt).suffix == ".onnx":
         import onnxruntime as _ort

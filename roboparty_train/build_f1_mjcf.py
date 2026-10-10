@@ -395,6 +395,21 @@ def main():
                  '</mujoco>\n')
     print(f"[OK] wrote {flat} + environment/flat.xml")
 
+    # ---- gmr-style standalone copy for sim2sim (mujoco_rollout.build_model
+    # loads the xml as the MAIN file: meshdir must resolve from its own dir)
+    gmr_dir = os.path.join(ROOT, "gmr_f1_assets")
+    os.makedirs(os.path.join(gmr_dir, "meshes"), exist_ok=True)
+    txt = "\n".join(L) + "\n"
+    txt = txt.replace('meshdir="../meshes"', 'meshdir="meshes"')
+    with open(os.path.join(gmr_dir, "f1.xml"), "w") as fh:
+        fh.write(txt)
+    for mname in mesh_files:
+        src = os.path.join(ROOT, "F1_29DOF/meshes", f"{mname}.STL")
+        if not os.path.exists(src):
+            src = os.path.join(ROOT, "F1_29DOF/meshes", f"{mname}.stl")
+        shutil.copy(src, os.path.join(gmr_dir, "meshes", os.path.basename(src)))
+    print(f"[OK] wrote gmr_f1_assets/f1.xml + {len(mesh_files)} meshes")
+
     # ---- self-check: xml parses + joint count + mesh files exist
     root = ET.parse(OUT_XML).getroot()
     bodies = root.findall(".//body")
