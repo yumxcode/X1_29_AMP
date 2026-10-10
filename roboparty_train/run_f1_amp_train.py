@@ -185,7 +185,11 @@ def phase_train() -> int:
         resume_run.mkdir(parents=True, exist_ok=True)
         dst = resume_run / src.name
         shutil.copy2(src, dst)
-        cmd += ["--resume", str(dst),
+        # rsl_rl resume semantics (X1 launcher precedent, verified twice):
+        # --resume is a bool; the checkpoint is located via --load_run +
+        # --checkpoint; on resume max_iterations is ADDITIONAL.
+        cmd += ["--resume", "--load_run", "_resume_src",
+                "--checkpoint", src.name,
                 "--max_iterations", os.environ.get("F1_FINE_TUNE_ITERS", "1500")]
         print(f"[RESUME] fine-tune from {src.name} +{os.environ.get('F1_FINE_TUNE_ITERS', '1500')}")
 
