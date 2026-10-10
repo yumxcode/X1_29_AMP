@@ -213,6 +213,8 @@ def phase_train() -> int:
 
     stop_monitor = threading.Event()
     mirrored = set()
+    _resume_src_dir = REPO_ROOT / "logs" / "rsl_rl" / EXP / "_resume_src"
+    _resume_src_cleaned = threading.Event()
 
     def monitor():
         last = None
@@ -222,6 +224,25 @@ def phase_train() -> int:
                 if names != last:
                     print(f"[MONITOR] checkpoints on disk: {names}")
                     last = names
+                # v1d/v1e/v1f forensics: the SDK PT-uploader claims exactly
+                # ONE directory per task (the first one holding a .pt at a
+                # scan) and never switches. _resume_src existing at the
+                # startup scan starves the training run dir of uploads.
+                # Delete it as soon as the real run dir has a checkpoint —
+                # the next ~16-min scan then claims the run dir (091
+                # precedent: a dir created after startup IS claimable).
+                if resume_ckpt and not _resume_src_cleaned.is_set() and _resume_src_dir.exists():
+                    for root in find_checkpoint_roots():
+                        for d in root.glob("*/"):
+                            if d.name == "exported_data" or d.name == "_resume_src":
+                                continue
+                            if list(d.glob("model_*.pt")):
+                                shutil.rmtree(_resume_src_dir, ignore_errors=True)
+                                _resume_src_cleaned.set()
+                                print(f"[MONITOR] _resume_src removed (run dir {d.name} now holds the checkpoints)")
+                                break
+                        if _resume_src_cleaned.is_set():
+                            break
                 for nm, ck in sorted(all_checkpoints().items()):
                     if nm.startswith("model_") and nm not in mirrored:
                         print(f"[MONITOR] new checkpoint mirror: {nm}")
