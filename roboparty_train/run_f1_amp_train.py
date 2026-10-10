@@ -213,7 +213,7 @@ def phase_train() -> int:
 
     print(f"[INFO] {' '.join(cmd)}")
     print(f"[INFO] cwd={REPO_ROOT}  stdout -> {TRAIN_LOG.name}")
-    with open(TRAIN_LOG, "wb") as logf:
+    with open(TRAIN_LOG, "w", encoding="utf-8", errors="replace") as logf:
         proc = subprocess.Popen(cmd, cwd=str(REPO_ROOT), stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         for raw in iter(proc.stdout.readline, b""):
