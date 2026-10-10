@@ -762,8 +762,14 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # advantage 0.4x0.28 = 0.11 must be perceivable against ~16/step)
         self.rewards.heel_first.weight = 0.40
         # v57d: ankle-flick penalty (excess ~1.0-1.2 rad/s on policies,
-        # ~0 on refs -> -0.2..-0.24/step during terminal swing frames)
-        self.rewards.ankle_flick.weight = -0.2
+        # ~0 on refs -> -0.2..-0.24/step during terminal swing frames).
+        # F1 v1i lesson (2026-10-11): SWING_CLEAR=-0.5 satisfied clearance
+        # via PLANTARFLEXION (toe-reach) instead of knee flexion — toe-first
+        # landing exploded to 74-100%. X1_ANKLE_FLICK doubles the penalty
+        # (-0.4) to close the plantarflexion cheat path while SWING_CLEAR
+        # keeps pushing swing height.
+        self.rewards.ankle_flick.weight = -float(
+            __import__("os").environ.get("X1_ANKLE_FLICK", "0.2"))
         # v57e: dense readiness prior at 0.3 (low-swing frames ~15% of
         # steps; ref-like posture sustains ~0.7 -> ~0.03/step; the flick
         # posture scores 0.21 -> the delta ~-0.015/step every low frame)

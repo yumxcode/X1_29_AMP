@@ -1,5 +1,6 @@
 # F1 run env overrides (launcher reads KEY=VALUE; startScript cannot pass env)
-# v1e: X1 v60 swing-clearance lever ON — v1 sim2sim showed left-foot drag
-# (swing 5-11mm below the 12mm Schmitt detector); the -0.5 drag penalty is
-# the proven X1 recipe element for exactly this failure mode (refs pay 0).
+# v1j: SWING_CLEAR held (11->17mm verified) + ankle_flick doubled — v1i
+# showed SWING_CLEAR alone teaches plantarflexion toe-reach (toe-first
+# 74-100%); the doubled flick penalty targets the cheat path directly.
 X1_SWING_CLEAR=1
+X1_ANKLE_FLICK=0.4
