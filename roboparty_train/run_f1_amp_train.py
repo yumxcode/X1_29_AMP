@@ -201,20 +201,23 @@ def phase_train() -> int:
             raise FileNotFoundError(f"F1_RESUME_CKPT not found: {src}")
         resume_run = REPO_ROOT / "logs" / "rsl_rl" / EXP / "_resume_src"
         resume_run.mkdir(parents=True, exist_ok=True)
-        dst = resume_run / src.name
+        # v1g lesson: NEVER let a scan-visible extension (.pt/.pth/.ckpt)
+        # sit under _resume_src — the SDK PT-uploader LATCHES onto the first
+        # .pt-containing directory and ignores the training run dir forever
+        # (v1d/e/f starved); deleting it later CRASHES the scanner (v1g,
+        # Errno 2 at 23:17:38 -> task killed). train.py's --checkpoint is a
+        # REGEX against filenames — a .bin name is invisible to the SDK but
+        # resolves fine for resume.
+        dst = resume_run / (src.stem + ".bin")
         shutil.copy2(src, dst)
-        # rsl_rl resume semantics (X1 launcher precedent, verified twice):
-        # --resume is a bool; the checkpoint is located via --load_run +
-        # --checkpoint; on resume max_iterations is ADDITIONAL.
         cmd += ["--resume", "--load_run", "_resume_src",
-                "--checkpoint", src.name,
+                "--checkpoint", src.stem + ".bin",
                 "--max_iterations", os.environ.get("F1_FINE_TUNE_ITERS", "1500")]
-        print(f"[RESUME] fine-tune from {src.name} +{os.environ.get('F1_FINE_TUNE_ITERS', '1500')}")
+        print(f"[RESUME] fine-tune from {src.name} (+.bin stealth rename) "
+              f"+{os.environ.get('F1_FINE_TUNE_ITERS', '1500')}")
 
     stop_monitor = threading.Event()
     mirrored = set()
-    _resume_src_dir = REPO_ROOT / "logs" / "rsl_rl" / EXP / "_resume_src"
-    _resume_src_cleaned = threading.Event()
 
     def monitor():
         last = None
@@ -224,25 +227,10 @@ def phase_train() -> int:
                 if names != last:
                     print(f"[MONITOR] checkpoints on disk: {names}")
                     last = names
-                # v1d/v1e/v1f forensics: the SDK PT-uploader claims exactly
-                # ONE directory per task (the first one holding a .pt at a
-                # scan) and never switches. _resume_src existing at the
-                # startup scan starves the training run dir of uploads.
-                # Delete it as soon as the real run dir has a checkpoint —
-                # the next ~16-min scan then claims the run dir (091
-                # precedent: a dir created after startup IS claimable).
-                if resume_ckpt and not _resume_src_cleaned.is_set() and _resume_src_dir.exists():
-                    for root in find_checkpoint_roots():
-                        for d in root.glob("*/"):
-                            if d.name == "exported_data" or d.name == "_resume_src":
-                                continue
-                            if list(d.glob("model_*.pt")):
-                                shutil.rmtree(_resume_src_dir, ignore_errors=True)
-                                _resume_src_cleaned.set()
-                                print(f"[MONITOR] _resume_src removed (run dir {d.name} now holds the checkpoints)")
-                                break
-                        if _resume_src_cleaned.is_set():
-                            break
+                # v1d/v1e/v1f: _resume_src with a .pt starved the run dir of
+                # SDK uploads (single-dir claim latch). Fixed upstream by the
+                # .bin stealth rename — nothing to clean here; DELETING the
+                # dir mid-run crashes the SDK scanner (v1g).
                 for nm, ck in sorted(all_checkpoints().items()):
                     if nm.startswith("model_") and nm not in mirrored:
                         print(f"[MONITOR] new checkpoint mirror: {nm}")
