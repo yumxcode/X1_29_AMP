@@ -39,6 +39,11 @@ def local_build_model(xml_path, actuator_mode="explicit"):
     finally:
         os.remove(tmp)
     m.dof_frictionloss[:] = 0.0
+    # raise offscreen framebuffer for the GL render path (build_model parity)
+    try:
+        m.vis.global_.offwidth, m.vis.global_.offheight = 1280, 720
+    except Exception:
+        pass
     for j in range(m.njnt):
         if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE:
             m.dof_damping[m.jnt_dofadr[j]] = 1.0

@@ -1,0 +1,66 @@
+{
+  "cells": {
+    "fwd10/nominal": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "fwd10/lat1": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "fwd10/noise1x": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "fwd10/mass+15%": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "fwd10/push0.75": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "stand/nominal": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "stand/lat1": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "stand/noise1x": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "stand/mass+15%": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "stand/push0.75": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "turn/nominal": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "turn/lat1": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "turn/noise1x": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "turn/mass+15%": {
+      "fell": false,
+      "dist": 0.0
+    },
+    "turn/push0.75": {
+      "fell": false,
+      "dist": 0.0
+    }
+  },
+  "alive": 15,
+  "total": 15
+}
