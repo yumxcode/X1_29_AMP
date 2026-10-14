@@ -1,0 +1,17 @@
+{
+ "ckpt": "acceptance/v68_eval/soup68_end.policy.npz",
+ "cmd": [
+  1.0,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 575,
+ "survived_s": 11.5,
+ "mean_vxy_err": 0.11947230061278814,
+ "mean_yaw_err": 0.17707888700963648,
+ "distance_m": 10.406324718844564,
+ "final_base_z": 0.6060187127413957,
+ "fell": false
+}
