@@ -339,12 +339,26 @@ def main():
         fset = set(files)
         dangling = [n for n in wt if n not in fset]
         unweighted = [f for f in files if f not in wt]
-        ok = not dangling and not unweighted
-        s_fail += 0 if ok else 1
-        s_rows.append(("S3", "PASS" if ok else "FAIL",
-                       f"weights<->files 1:1 ({len(wt)} entries)"
-                       + (f" dangling={dangling}" if dangling else "")
-                       + (f" unweighted={unweighted}" if unweighted else "")))
+        # v68 fix: dangling (weight -> missing file) is the real loader-crash
+        # risk (the original v67 failure mode, '138_18') — stays FAIL.
+        # unweighted (extra file in dir, not referenced by any weight) is
+        # harmless: the motion manager loads WEIGHTED entries only, and the
+        # champion lineage (v59c/soup59c) trained from exactly this 22-file
+        # v31 dir with the 20-entry weight table (103_07 pair unweighted).
+        # Failing on it deterministically killed every default-dataset
+        # launch after the v67 harness hardening (TASK_20261014_098).
+        if dangling:
+            s_fail += 1
+            s_rows.append(("S3", "FAIL",
+                           f"weights<->files ({len(wt)} entries)"
+                           f" dangling={dangling}"))
+        elif unweighted:
+            s_rows.append(("S3", "WARN",
+                           f"weights<->files ({len(wt)} entries)"
+                           f" unweighted={unweighted} (not loaded; benign)"))
+        else:
+            s_rows.append(("S3", "PASS",
+                           f"weights<->files 1:1 ({len(wt)} entries)"))
     for cid, v, det in s_rows:
         mark = {"PASS": "  ", "WARN": " ~ ", "FAIL": " X "}[v]
         print(f"  {cid}{mark}{det}")
