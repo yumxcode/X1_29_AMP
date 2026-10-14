@@ -1,0 +1,17 @@
+{
+ "ckpt": "acceptance/v59c_eval/soup59c_50.policy.npz",
+ "cmd": [
+  0.5,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 62,
+ "survived_s": 1.24,
+ "mean_vxy_err": 0.40671718035170623,
+ "mean_yaw_err": 0.7243152412030005,
+ "distance_m": 0.7231311370331805,
+ "final_base_z": 0.28181528654263305,
+ "fell": true
+}

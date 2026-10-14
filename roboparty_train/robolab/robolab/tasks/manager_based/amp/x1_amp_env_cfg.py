@@ -1021,6 +1021,25 @@ class X1AmpEnvCfg(AmpEnvCfg):
                       "0.7-1.3, action delay cap 2 (randomized)")
 
         # ------------------------------------------------------
+        # v68 sim2real re-identification envelope (x1_armature_pd.md §2,
+        # 2026-10-14). The nominal armature/kd in assets/robots/x1.py are now
+        # the IDENTIFIED values (kd=8.0 on lumbar/hip_pitch/hip_roll/knee is
+        # the R86/R52 firmware ceiling). Consequences, applied AFTER the
+        # X1_ACT_RAND block so no path re-widens them:
+        #   - armature randomization upper edge (0.8,1.2) -> (0.8,1.3)
+        #     (the x1_armature_pd.md §2 widening; multiplies the NEW nominal)
+        #   - damping randomization TIGHTENS to (0.8,1.0): 1.2 x 8 = 9.6
+        #     exceeds the firmware kd range — training against unreachable
+        #     gains. stiffness keeps (0.8,1.2) (kp is firmware-reachable).
+        # ------------------------------------------------------
+        self.events.scale_joint_parameters.params[
+            "armature_distribution_params"] = (0.8, 1.3)
+        self.events.scale_actuator_gains.params[
+            "damping_distribution_params"] = (0.8, 1.0)
+        print("[V68-SIM2REAL] armature rand (0.8,1.3), damping rand (0.8,1.0), "
+              "kp/kd/armature per x1_armature_pd.md")
+
+        # ------------------------------------------------------
         # v61 X1_CONTROL_HZ time-constant compensation. decimation was
         # already switched in AmpEnvCfg.__post_init__ (200//hz). The shared
         # implementation lives in control_hz_renorm.py (isaaclab-free) so

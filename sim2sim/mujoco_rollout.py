@@ -42,30 +42,34 @@ FALL_Z = 0.30          # base height below which we count a fall (MuJoCo frame)
 FALL_TILT = 60.0       # deg
 
 # X1_CFG PD gains / effort limits (Isaac -> MuJoCo by joint name)
+# v68 (2026-10-14, x1_armature_pd.md): kp/kd per the sim2real identification
+# (lab 12-DOF torque ID + on-robot walk-log fits; kd capped at 8.0 by the
+# R86/R52 MIT firmware range). Old v16-v67 values in comments where changed.
+# ARMATURE per joint replaces the flat 0.01 (md §3).
 PD = {
-    "lumbar_yaw_joint": (120.0, 4.0, 180.0),
-    "lumbar_roll_joint": (120.0, 4.0, 180.0),
-    "lumbar_pitch_joint": (150.0, 5.0, 180.0),
-    "left_hip_pitch_joint": (120.0, 4.0, 180.0),
-    "right_hip_pitch_joint": (120.0, 4.0, 180.0),
-    "left_hip_roll_joint": (100.0, 3.3, 180.0),
-    "right_hip_roll_joint": (100.0, 3.3, 180.0),
+    "lumbar_yaw_joint": (90.0, 8.0, 180.0),      # was 120/4.0
+    "lumbar_roll_joint": (70.0, 8.0, 180.0),     # was 120/4.0
+    "lumbar_pitch_joint": (100.0, 8.0, 180.0),   # was 150/5.0
+    "left_hip_pitch_joint": (65.0, 8.0, 180.0),   # was 120/4.0
+    "right_hip_pitch_joint": (65.0, 8.0, 180.0),  # was 120/4.0
+    "left_hip_roll_joint": (60.0, 8.0, 180.0),    # was 100/3.3
+    "right_hip_roll_joint": (60.0, 8.0, 180.0),   # was 100/3.3
     "left_hip_yaw_joint": (100.0, 3.3, 180.0),
     "right_hip_yaw_joint": (100.0, 3.3, 180.0),
-    "left_knee_pitch_joint": (150.0, 5.0, 180.0),
-    "right_knee_pitch_joint": (150.0, 5.0, 180.0),
-    "left_ankle_pitch_joint": (50.0, 2.5, 80.0),
-    "right_ankle_pitch_joint": (50.0, 2.5, 80.0),
+    "left_knee_pitch_joint": (85.0, 8.0, 180.0),  # was 150/5.0
+    "right_knee_pitch_joint": (85.0, 8.0, 180.0), # was 150/5.0
+    "left_ankle_pitch_joint": (50.0, 4.0, 80.0),  # was 50/2.5
+    "right_ankle_pitch_joint": (50.0, 4.0, 80.0), # was 50/2.5
     "left_ankle_roll_joint": (50.0, 2.5, 80.0),
     "right_ankle_roll_joint": (50.0, 2.5, 80.0),
-    "left_shoulder_pitch_joint": (40.0, 2.0, 27.0),
-    "right_shoulder_pitch_joint": (40.0, 2.0, 27.0),
-    "left_shoulder_roll_joint": (40.0, 2.0, 27.0),
-    "right_shoulder_roll_joint": (40.0, 2.0, 27.0),
+    "left_shoulder_pitch_joint": (40.0, 4.0, 27.0),  # was 40/2.0
+    "right_shoulder_pitch_joint": (40.0, 4.0, 27.0), # was 40/2.0
+    "left_shoulder_roll_joint": (40.0, 4.0, 27.0),   # was 40/2.0
+    "right_shoulder_roll_joint": (40.0, 4.0, 27.0),  # was 40/2.0
     "left_shoulder_yaw_joint": (40.0, 2.0, 27.0),
     "right_shoulder_yaw_joint": (40.0, 2.0, 27.0),
-    "left_elbow_pitch_joint": (30.0, 1.5, 27.0),
-    "right_elbow_pitch_joint": (30.0, 1.5, 27.0),
+    "left_elbow_pitch_joint": (30.0, 1.9, 27.0),   # was 30/1.5
+    "right_elbow_pitch_joint": (30.0, 1.9, 27.0),  # was 30/1.5
     "left_elbow_yaw_joint": (20.0, 1.0, 27.0),
     "right_elbow_yaw_joint": (20.0, 1.0, 27.0),
     "left_wrist_pitch_joint": (15.0, 1.0, 10.0),
@@ -73,6 +77,48 @@ PD = {
     "left_wrist_roll_joint": (15.0, 1.0, 10.0),
     "right_wrist_roll_joint": (15.0, 1.0, 10.0),
 }
+
+# v68: per-joint rotor+reflected armature from the sim2real identification
+# (x1_armature_pd.md §1/§3) — replaces the flat 0.01 in build_model.
+# Mirrors X1_CFG.actuators.armature in assets/robots/x1.py exactly.
+ARMATURE = {
+    "lumbar_yaw_joint": 0.022, "lumbar_roll_joint": 0.021,
+    "lumbar_pitch_joint": 0.012,
+    "left_hip_pitch_joint": 0.208, "right_hip_pitch_joint": 0.208,
+    "left_hip_roll_joint": 0.25, "right_hip_roll_joint": 0.25,
+    "left_hip_yaw_joint": 0.0148, "right_hip_yaw_joint": 0.0148,
+    "left_knee_pitch_joint": 0.273, "right_knee_pitch_joint": 0.273,
+    "left_ankle_pitch_joint": 0.15, "right_ankle_pitch_joint": 0.15,
+    "left_ankle_roll_joint": 0.035, "right_ankle_roll_joint": 0.035,
+    "left_shoulder_pitch_joint": 0.02, "right_shoulder_pitch_joint": 0.02,
+    "left_shoulder_roll_joint": 0.013, "right_shoulder_roll_joint": 0.013,
+    "left_shoulder_yaw_joint": 0.01, "right_shoulder_yaw_joint": 0.01,
+    "left_elbow_pitch_joint": 0.01, "right_elbow_pitch_joint": 0.01,
+    "left_elbow_yaw_joint": 0.01, "right_elbow_yaw_joint": 0.01,
+    "left_wrist_pitch_joint": 0.01, "right_wrist_pitch_joint": 0.01,
+    "left_wrist_roll_joint": 0.01, "right_wrist_roll_joint": 0.01,
+}
+
+# v16-v67 (pre-identification) gains + flat 0.01 armature — kept ONLY for the
+# --pd-preset legacy A/B regression check (e.g. re-verifying an old checkpoint
+# under the dynamics it was trained in). Default preset is v68.
+PD_LEGACY = {k: v for k, v in {
+    "lumbar_yaw_joint": (120.0, 4.0), "lumbar_roll_joint": (120.0, 4.0),
+    "lumbar_pitch_joint": (150.0, 5.0),
+    "left_hip_pitch_joint": (120.0, 4.0), "right_hip_pitch_joint": (120.0, 4.0),
+    "left_hip_roll_joint": (100.0, 3.3), "right_hip_roll_joint": (100.0, 3.3),
+    "left_hip_yaw_joint": (100.0, 3.3), "right_hip_yaw_joint": (100.0, 3.3),
+    "left_knee_pitch_joint": (150.0, 5.0), "right_knee_pitch_joint": (150.0, 5.0),
+    "left_ankle_pitch_joint": (50.0, 2.5), "right_ankle_pitch_joint": (50.0, 2.5),
+    "left_ankle_roll_joint": (50.0, 2.5), "right_ankle_roll_joint": (50.0, 2.5),
+    "left_shoulder_pitch_joint": (40.0, 2.0), "right_shoulder_pitch_joint": (40.0, 2.0),
+    "left_shoulder_roll_joint": (40.0, 2.0), "right_shoulder_roll_joint": (40.0, 2.0),
+    "left_shoulder_yaw_joint": (40.0, 2.0), "right_shoulder_yaw_joint": (40.0, 2.0),
+    "left_elbow_pitch_joint": (30.0, 1.5), "right_elbow_pitch_joint": (30.0, 1.5),
+    "left_elbow_yaw_joint": (20.0, 1.0), "right_elbow_yaw_joint": (20.0, 1.0),
+    "left_wrist_pitch_joint": (15.0, 1.0), "right_wrist_pitch_joint": (15.0, 1.0),
+    "left_wrist_roll_joint": (15.0, 1.0), "right_wrist_roll_joint": (15.0, 1.0),
+}.items()}
 
 # Isaac X1_CFG init joint_pos == x1.xml keyframe (verified identical)
 DEFAULT_Q = {
@@ -108,6 +154,9 @@ ROBOT_CFG = {
     "x1": dict(xml="gmr_x1_assets/x1.xml", default_q=DEFAULT_Q),
     "f1": dict(xml="gmr_f1_assets/f1.xml", default_q=F1_DEFAULT_Q),
 }
+
+# mutable preset holder set from --pd-preset in main(); build_model consults it
+PD_ACTIVE_PRESET = ["v68"]
 
 
 def parse_yaml_list(path, key):
@@ -171,10 +220,12 @@ def build_model(xml_path: Path, actuator_mode: str = "explicit"):
         # explicit loop's PD table; implicitfast solves kv implicitly like
         # Isaac's implicit actuator.
         xml_text = Path(xml_path).read_text()
+        _tbl = PD if PD_ACTIVE_PRESET[0] == "v68" else {
+            k: (PD_LEGACY[k][0], PD_LEGACY[k][1], PD[k][2]) for k in PD}
         srv = "\n".join(
             f'<position name="servo_{n}" joint="{n}" kp="{kp}" kv="{kd}" '
             f'forcerange="-{eff} {eff}" ctrlrange="-6.28 6.28"/>'
-            for n, (kp, kd, eff) in PD.items())
+            for n, (kp, kd, eff) in _tbl.items())
         if "</actuator>" in xml_text:
             xml_text = xml_text.replace("</actuator>", srv + "\n  </actuator>")
         elif "</mujoco>" in xml_text:
@@ -219,7 +270,15 @@ def build_model(xml_path: Path, actuator_mode: str = "explicit"):
         if model.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE:
             adr = model.jnt_dofadr[j]
             model.dof_damping[adr] = 1.0
-            model.dof_armature[adr] = 0.01
+            # v68: per-joint IDENTIFIED armature (x1_armature_pd.md §3),
+            # replacing the flat 0.01 — otherwise sim2sim stays "light legs"
+            # and cannot validate the new-policy dynamics. `legacy` preset
+            # (A/B regression only) keeps the flat 0.01.
+            jname = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j)
+            if PD_ACTIVE_PRESET[0] == "v68":
+                model.dof_armature[adr] = ARMATURE.get(jname, 0.01)
+            else:
+                model.dof_armature[adr] = 0.01
     return model, n_feet
 
 
@@ -436,6 +495,10 @@ def main():
     ap.add_argument("--robot", choices=["x1", "f1"], default="x1",
                     help="robot model + default pose (x1 = gmr_x1_assets/"
                          "x1.xml; f1 = gmr_f1_assets/f1.xml, F1_29DOF)")
+    ap.add_argument("--pd-preset", choices=["v68", "legacy"], default="v68",
+                    help="v68 = identified kp/kd + per-joint armature "
+                         "(x1_armature_pd.md, default); legacy = pre-ID "
+                         "gains + flat armature 0.01 (old-checkpoint A/B)")
     ap.add_argument("--onnx", action="store_true",
                     help="run the policy through the exported ONNX graph "
                          "(deployment-artifact-in-the-loop parity check)")
@@ -445,6 +508,9 @@ def main():
     CONTROL_DT = float(args.control_dt)
 
     root = Path(args.repo_root).resolve()
+    PD_ACTIVE_PRESET[0] = args.pd_preset
+    PD_TABLE = PD if args.pd_preset == "v68" else {
+        k: (PD_LEGACY[k][0], PD_LEGACY[k][1], PD[k][2]) for k in PD}
     lab_dof = parse_yaml_list(root / "roboparty_train/robolab/scripts/tools/retarget/config/x1.yaml",
                               "lab_dof_names")
     assert len(lab_dof) == 29
@@ -479,9 +545,9 @@ def main():
     vadr = np.array([model.jnt_dofadr[jid[n]] for n in hinge])
     # policy column (lab order) -> mj hinge index
     lab2mj = np.array([hinge.index(n) for n in lab_dof])
-    kp = np.array([PD[n][0] for n in hinge])
-    kd = np.array([PD[n][1] for n in hinge])
-    eff = np.array([PD[n][2] for n in hinge])
+    kp = np.array([PD_TABLE[n][0] for n in hinge])
+    kd = np.array([PD_TABLE[n][1] for n in hinge])
+    eff = np.array([PD_TABLE[n][2] for n in hinge])
     q_default = np.array([_default_q_table[n] for n in hinge])
 
     if Path(args.ckpt).suffix == ".onnx":
