@@ -1153,6 +1153,28 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 self.action_delay_steps = 2
                 print("[ACT-RAND] v58 structural envelope: gains/armature "
                       "0.7-1.3, action delay cap 2 (randomized)")
+            # ------------------------------------------------------
+            # v70d delay co-training knobs (single-variable, default off):
+            # m17000c2 (v70c2 LPF mid-point) FAILED robustness 36/60 with
+            # lat2 0/5 + lag2 0/5 — the LPF consumes the correction
+            # bandwidth the delay variants need. These knobs randomize the
+            # EXACT sweep axes during training so the policy re-learns
+            # balance under filter+delay stacking:
+            #   X1_ACT_DELAY — action delay cap (per-env random 0..N, the
+            #                  _random_action_delay ring; sweep --action-lag)
+            #   X1_OBS_DELAY — observation delay cap (per-env random 0..N,
+            #                  the _obs_delay ring; sweep --latency-steps)
+            # No gain widening (the sweep's gain/mass variants pass 5/5;
+            # lat2/lag2 are the failing axes).
+            # ------------------------------------------------------
+            _act_d = int(_os.environ.get("X1_ACT_DELAY", "0"))
+            if _act_d > 0:
+                self.action_delay_steps = _act_d
+                print(f"[v70d] action delay cap {self.action_delay_steps}")
+            _obs_d = int(_os.environ.get("X1_OBS_DELAY", "0"))
+            if _obs_d > 0:
+                self.obs_delay_steps = _obs_d
+                print(f"[v70d] obs delay cap {self.obs_delay_steps}")
 
         # ------------------------------------------------------
         # v68 sim2real re-identification envelope (x1_armature_pd.md §2,
@@ -1235,6 +1257,7 @@ class X1AmpEnvCfg_PLAY(X1AmpEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         # eval/play must be clean (no delay injection)
         self.action_delay_steps = 0
+        self.obs_delay_steps = 0
 
         self.observations.policy.enable_corruption = False
         self.events.push_robot = None

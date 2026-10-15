@@ -120,6 +120,22 @@ class AmpEnv(AnimationEnv):
     #     amp_obs = self.observation_manager.compute_group("amp", update_history=False)
     #     return amp_obs # (num_envs, history_length, obs_dim)
     
+    def _obs_delay(self, obs_group: torch.Tensor, reset_buf: torch.Tensor | None) -> torch.Tensor:
+        """v70d: per-env random OBSERVATION pipeline delay (X1_OBS_DELAY).
+
+        The training-side twin of sim2sim mujoco_rollout --latency-steps:
+        the policy sees the obs from N steps ago (sensor/comms latency).
+        Applies to the POLICY group only — the disc/amp groups stay clean
+        (delayed style obs would corrupt the demo comparison). The ring
+        lives in amp_obs_delay.py (isaaclab-free; the unit test drives the
+        REAL ring). Ring entries are flushed for envs that just reset.
+        """
+        if not hasattr(self, "_obs_ring_obj"):
+            from .amp_obs_delay import ObsDelayRing
+            self._obs_ring_obj = ObsDelayRing(
+                int(getattr(self.cfg, "obs_delay_steps", 0)))
+        return self._obs_ring_obj(obs_group, reset_buf)
+
     def step(self, action: torch.Tensor) -> VecEnvStepReturn:
         """Execute one time-step of the environment's dynamics and reset terminated environments.
         
@@ -214,7 +230,12 @@ class AmpEnv(AnimationEnv):
         self.obs_buf = self.observation_manager.compute(update_history=True)
         # if len(reset_env_ids) > 0:
         #     self.obs_buf["amp"][reset_env_ids] = amp_obs[reset_env_ids]
-        
+        # v70d: observation pipeline delay on the policy group only
+        # (X1_OBS_DELAY; the --latency-steps twin; disc sees clean obs)
+        if int(getattr(self.cfg, "obs_delay_steps", 0)) > 0:
+            self.obs_buf["policy"] = self._obs_delay(
+                self.obs_buf["policy"], self.reset_buf)
+
         # return observations, rewards, resets and extras
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
 

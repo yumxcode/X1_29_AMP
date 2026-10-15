@@ -488,6 +488,10 @@ class AmpEnvCfg(AnimationEnvCfg):
     # action lag but falls under 2-step (40 ms); randomizing the delay in
     # training covers the deployment comms jitter range.
     action_delay_steps: int = 0
+    # v70d: OBSERVATION pipeline delay cap in control steps (0 = off).
+    # Per-env random delay applied to the policy obs group in AmpEnv.step;
+    # the training-side twin of sim2sim --latency-steps. Disc obs stay clean.
+    obs_delay_steps: int = 0
     # v63: action low-pass cutoff in Hz (0 = off) + cascade order.
     # Applied to the RAW policy action before the delay ring in AmpEnv.step;
     # mirrored flag-for-flag in sim2sim/mujoco_rollout.py (--action-lpf).
