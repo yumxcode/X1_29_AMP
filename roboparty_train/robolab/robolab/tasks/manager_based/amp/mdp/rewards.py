@@ -1306,3 +1306,128 @@ def undesired_contacts(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: Sce
     is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold
     # sum over contacts for each environment
     return torch.sum(is_contact, dim=1)
+
+
+def foot_yaw_neutral(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    band_rad: float = 0.105,
+    min_cmd_speed: float = 0.15,
+    max_cmd_yaw: float = 0.5,
+) -> torch.Tensor:
+    """v69: TOE-OUT guard (user gait defect 1, 2026-10-15).
+
+    Forensics on m11498 (acceptance/v69_eval/diag_gait_v69.py): the feet
+    hold a DC toe-out of L +20.1 / R -10.8 deg (walk10) and L +11.7 /
+    R -14.2 (walk05), while the demo library walks at L ~ +2 / R ~ +6..14
+    deg — the policy AMPLIFIED the mild demo bias into a splayed gait.
+    The discriminator structurally cannot see it: its key-body POSITION
+    obs (knees/ankles/elbows/shoulders/wrists) are nearly invariant under
+    hip-yaw rotation, so nothing ever pushed foot direction back.
+
+    Statistic: per-foot heading of the ankle_roll_link local +z axis (the
+    TOE direction — FK-verified on gmr_x1_assets/x1.xml 2026-10-15:
+    zero-pose local +z -> world +x forward; sole cols[0,1]) expressed in
+    the BASE frame. Penalize relu(|heading| - band) summed over feet —
+    sign-symmetric (toe-in caught too). Turn commands exempt (outer foot
+    must point into the turn; |wz_cmd| > max_cmd_yaw) and near-zero speeds
+    exempt (stand pose is free).
+
+    Calibration at weight -0.6 (env knob X1_TOE_GUARD): m11498 walk10
+    excess (14 + 5) deg = 0.332 rad -> -0.199/step; demo-level feet
+    (~2 deg) pay 0; a 10 deg residual pays -0.063/step.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    quats = asset.data.body_quat_w[:, asset_cfg.body_ids, :]              # (N, M, 4)
+    n, m = quats.shape[0], quats.shape[1]
+    e_z = torch.tensor([0.0, 0.0, 1.0], device=env.device)
+    toe_w = math_utils.quat_apply(
+        quats.reshape(-1, 4), e_z.unsqueeze(0).expand(n * m, 3)
+    ).reshape(n, m, 3)
+    root_q = asset.data.root_quat_w.unsqueeze(1).expand(-1, m, -1).reshape(-1, 4)
+    toe_b = math_utils.quat_apply_inverse(
+        root_q, toe_w.reshape(-1, 3)).reshape(n, m, 3)
+    hdg = torch.atan2(toe_b[:, :, 1], toe_b[:, :, 0])                     # (N, M)
+    excess = (hdg.abs() - band_rad).clamp(min=0.0)
+
+    cmd = env.command_manager.get_command(command_name)
+    speed = torch.norm(cmd[:, :2], dim=1)
+    gate = ((speed > min_cmd_speed) & (torch.abs(cmd[:, 2]) < max_cmd_yaw)).float()
+    return excess.sum(dim=-1) * gate
+
+
+def hip_roll_abduction_guard(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    band_rad: float = 0.07,
+    alpha: float = 0.0025,
+) -> torch.Tensor:
+    """v69: WHOLE-LEG ABDUCTION guard (user clarification 2026-10-15: the
+    外八 is the whole leg splayed via hip_roll, not just foot yaw).
+
+    Forensics on m11498 (acceptance/v69_eval/leg_abduction_v69.py): both
+    legs hold a symmetric outward hip_roll DC of +13.1/+12.3 deg (walk10),
+    stance width 460 mm vs the demo library's 220-260 mm at ~0 deg
+    outward — a pure policy adaptation (wide-stance lateral stability
+    under the v68 identified dynamics + robustness pushes), absent from
+    every demo clip.
+
+    Outward sign (FK-verified on gmr_x1_assets/x1.xml): left ankle y
+    0.114 -> 0.018 m at left hip_roll +0.2 rad, i.e. LEFT outward =
+    -q(left_hip_roll), RIGHT outward = +q(right_hip_roll) (mirror).
+    asset_cfg.joint_ids MUST be ordered [left_hip_roll, right_hip_roll].
+
+    Statistic: slow EMA (tau 8 s, the v34 DC-guard family — AC swing
+    attenuated, no per-episode reseed transient) of the signed outward
+    angle per leg; penalize relu(|EMA| - band) summed over legs. Demos
+    sit at ~0 deg outward and pay 0 at band 4 deg; m11498's 12.6 deg DC
+    pays (0.151 - 0.07)*2 rad = 0.16 rad -> -0.13/step at the -0.8 knob.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]                      # (N, 2) [L, R]
+    out = torch.stack((-q[:, 0], q[:, 1]), dim=1)
+    excess = torch.zeros_like(q[:, 0])
+    for k in range(2):
+        dc = _ema(env, f"hiproll_dc{k}", out[:, k], alpha)
+        excess = excess + (dc.abs() - band_rad).clamp(min=0.0)
+    return excess
+
+
+def lateral_sway_guard(
+    env: ManagerBasedRLEnv,
+    lumbar_cfg: SceneEntityCfg,
+    hip_roll_cfg: SceneEntityCfg,
+    alpha: float = 0.01,
+) -> torch.Tensor:
+    """v69: WAIST-SWAY PUMP guard (user gait defect 2/3, 2026-10-15).
+
+    Forensics on m11498: lumbar_roll AC ptp 27.3 deg @4 Hz zero-crossings,
+    lumbar_yaw AC ptp 52 deg, base lateral sway 619 mm ptp; shoulder_pitch
+    corr(lumbar_roll -> L_shoulder) = +0.96 with the WAIST LEADING 0.1 s —
+    the arms are carried by the waist pump rather than swung by the
+    shoulders. The demo library itself carries retargeted lumbar AC of
+    lr 24-28 / ly 48-102 deg, so the AMP style channel actively rewards
+    waist sway; this guard is the explicit user-spec override (腰部摆动
+    不大, arms swing via shoulders).
+
+    Statistic: high-passed (x - EMA(x), tau 1 s at 50 Hz — passes the
+    ~1 Hz step pump) |x| summed over 4 channels: lumbar_roll, lumbar_yaw
+    (DC free — turning needs yaw DC), L/R hip_roll. m11498 levels: lr rms
+    ~0.12 + ly ~0.23 + hip rolls ~0.13 rad -> sum ~0.38 -> -0.15/step at
+    the -0.4 knob; the demo-level pump pays proportionally less.
+
+    asset_cfg ordering: lumbar_cfg = [lumbar_roll, lumbar_yaw],
+    hip_roll_cfg = [left_hip_roll, right_hip_roll].
+    """
+    asset: Articulation = env.scene[lumbar_cfg.name]
+    lum = asset.data.joint_pos[:, lumbar_cfg.joint_ids]                   # (N, 2)
+    hr = asset.data.joint_pos[:, hip_roll_cfg.joint_ids]                  # (N, 2)
+    total = torch.zeros_like(lum[:, 0])
+    for k in range(2):
+        hp = lum[:, k] - _ema(env, f"sway_lum{k}", lum[:, k], alpha)
+        total = total + hp.abs()
+    for k in range(2):
+        hp = hr[:, k] - _ema(env, f"sway_hr{k}", hr[:, k], alpha)
+        total = total + hp.abs()
+    return total

@@ -379,6 +379,57 @@ class X1AmpRewards():
         weight=0.0,
     )
 
+    # -- v69 gait-posture guards (user defect spec 2026-10-15) -----------
+    # D1 外八 both layers: whole-leg hip_roll abduction + foot toe-out.
+    # The discriminator cannot see either (key-body positions are nearly
+    # invariant under hip yaw; the demo library itself carries a mild
+    # right-foot toe-out bias of +6..14 deg that the policy amplified).
+    foot_yaw_neutral = RewTerm(
+        func=mdp.foot_yaw_neutral,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "band_rad": 0.105,          # 6 deg
+        },
+    )
+    hip_roll_abduction = RewTerm(
+        func=mdp.hip_roll_abduction_guard,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_hip_roll_joint", "right_hip_roll_joint"],
+                preserve_order=True,
+            ),
+            "band_rad": 0.07,           # 4 deg
+            "alpha": 0.0025,
+        },
+    )
+    # D2/D3 腰摆泵动: lumbar roll/yaw AC + hip_roll AC (the lateral pump
+    # that carries the arms — see lateral_sway_guard docstring).
+    lateral_sway = RewTerm(
+        func=mdp.lateral_sway_guard,
+        weight=0,
+        params={
+            "lumbar_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["lumbar_roll_joint", "lumbar_yaw_joint"],
+                preserve_order=True,
+            ),
+            "hip_roll_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_hip_roll_joint", "right_hip_roll_joint"],
+                preserve_order=True,
+            ),
+            "alpha": 0.01,
+        },
+    )
+
     # v63: RHYTHM prior — speed-conditioned human gait-cycle cadence
     # (GOAL_RHYTHM.md). Event reward at each stance rising edge:
     # exp(-|dt_td - T*(v)| / 0.25), T*(v)=clamp(1.46-0.36v, 0.70, 1.75).
@@ -913,6 +964,33 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # net; "-1.0" restores the v56 recipe for A/B isolation).
         import os as _os_y
         self.rewards.yaw_bias.weight = -float(_os_y.environ.get("X1_YAW_GUARD", "2.0"))
+
+        # ------------------------------------------------------
+        # v69 gait-posture guards (user defect spec 2026-10-15):
+        #   X1_TOE_GUARD  — foot heading |hdg| beyond 6 deg (geometric;
+        #                   m11498: L+20/R-11 deg held DC)
+        #   X1_ABD_GUARD  — whole-leg hip_roll outward DC beyond 4 deg
+        #                   (m11498: +13.1/+12.3 deg, stance 460mm vs
+        #                   demo 220-260mm — user: 整条腿往外展)
+        #   X1_SWAY_GUARD — lumbar roll/yaw + hip_roll AC pump (m11498:
+        #                   lr 27deg ptp, ly 52deg, base sway 619mm,
+        #                   waist->shoulder corr +0.96 waist leading)
+        #   X1_STANCE_MAX — feet_distance_y band max (0.5 -> 0.38 m)
+        # Defaults 0 / unchanged = every earlier recipe byte-identical.
+        # These are posture/physical regularization (like yaw_bias /
+        # stance_sole_flat), NOT form guards: X1_FORM_GUARDS does not
+        # touch them.
+        # ------------------------------------------------------
+        import os as _os_v69
+        self.rewards.foot_yaw_neutral.weight = -float(
+            _os_v69.environ.get("X1_TOE_GUARD", "0"))
+        self.rewards.hip_roll_abduction.weight = -float(
+            _os_v69.environ.get("X1_ABD_GUARD", "0"))
+        self.rewards.lateral_sway.weight = -float(
+            _os_v69.environ.get("X1_SWAY_GUARD", "0"))
+        _stance_max = float(_os_v69.environ.get("X1_STANCE_MAX", "0"))
+        if _stance_max > 0:
+            self.rewards.feet_distance_y.params["max"] = _stance_max
         # v35 note: task_style_lerp 0.6->0.7 lives in the AGENT cfg
         # (x1_amp_agent_cfg.py): P3a lin kernel sat at 0.78 since v31d
         # (v27/v28: 0.84, old dataset); style reward now 1.14-2.00 (deep in
