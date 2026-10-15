@@ -81,8 +81,19 @@ class FakeAsset:
     def __init__(self, n):
         self.device = torch.device("cpu")
         self.writes = []
+        # asset joint order: REVERSED lab order (a distinct permutation so
+        # the name-map is actually exercised)
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_dof_order",
+            _P(__file__).resolve().parents[1] /
+            "roboparty_train/robolab/robolab/tasks/manager_based/amp/amp_dof_order.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        self.LAB = _m.LAB_DOF_NAMES
         self.data = types.SimpleNamespace(
-            default_root_state=torch.zeros(n, 13))
+            default_root_state=torch.zeros(n, 13),
+            joint_names=list(reversed(_m.LAB_DOF_NAMES)))
 
     def write_root_state_to_sim(self, root, env_ids=None):
         self.writes.append(("root", root.clone(), env_ids))
@@ -111,8 +122,10 @@ class FakeAnimTerm:
                 [[1.2, 0.0, 0.0]] * len(mids)),
             "root_ang_vel_w": torch.tensor(
                 [[0.0, 0.0, 0.05]] * len(mids)),
+            # column-dependent value so the name-map is verifiable
             "dof_pos": torch.tensor(
-                [[0.1 * float(m) + 0.5] * 29 for m in mids]),
+                [[0.1 * float(m) + 0.5 + 0.001 * c for c in range(29)]
+                 for m in mids]),
             "dof_vel": torch.tensor(
                 [[-0.2 * float(m)] * 29 for m in mids]),
         }
@@ -172,7 +185,17 @@ def test_event():
     assert abs(root[0, 12] - 0.05) < 1e-6            # demo ang vel z
     kind2, jpos, jvel, sel2 = asset.writes[1]
     assert torch.equal(sel2, sel)
-    assert abs(jpos[0, 0] - 0.8) < 1e-6              # demo dof (motion 3)
+    # asset slot 0 = reversed-lab last name; demo value at its LAB column
+    import importlib.util as _ilu2
+    from pathlib import Path as _P2
+    _s2 = _ilu2.spec_from_file_location(
+        "amp_dof_order2",
+        _P2(__file__).resolve().parents[1] /
+        "roboparty_train/robolab/robolab/tasks/manager_based/amp/amp_dof_order.py")
+    _m2 = _ilu2.module_from_spec(_s2); _s2.loader.exec_module(_m2)
+    first_asset_name = list(reversed(_m2.LAB_DOF_NAMES))[0]
+    lab_col = _m2.LAB_DOF_NAMES.index(first_asset_name)
+    assert abs(jpos[0, 0] - (0.8 + 0.001 * lab_col)) < 1e-6  # name-mapped
     assert abs(jvel[0, 0] + 0.6) < 1e-6
     # phase lock: motion ids/times come from the animation manager
     print("[demo-reset] gating + phase-locked state writes PASS")

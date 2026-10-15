@@ -80,12 +80,18 @@ T0 = torch.tensor([0.5, 0.0, 1.0])
 DUR = torch.tensor([2.0, 1.0, 3.0])
 
 
+# motion columns are LAB_DOF_NAMES order; tracked joints [hipL, hipR,
+# kneeL, kneeR] live at lab columns [0, 2, 9, 12]
+LAB_COLS = [0, 2, 9, 12]
+
+
 class FakeDataTerm:
     def get_motion_state(self, mids, mtimes):
-        # demo joint value = 0.1 * motion_id + 0.2 * t (per joint)
+        # demo value per COLUMN c = 0.1*mid + 0.2*t + 0.01*c
         t = mtimes.unsqueeze(-1)
-        dof = 0.1 * mids.unsqueeze(-1).float() + 0.2 * t
-        return {"dof_pos": dof.expand(-1, 29).clone()}
+        c = torch.arange(29, dtype=torch.float32).unsqueeze(0)
+        dof = 0.1 * mids.unsqueeze(-1).float() + 0.2 * t + 0.01 * c
+        return {"dof_pos": dof.clone()}
 
 
 class FakeAnimTerm:
@@ -134,8 +140,10 @@ def run(env, cfg):
 
 
 def main():
-    cfg = _SceneEntityCfg("robot", joint_names=["hipL", "hipR", "kneeL", "kneeR"])
-    cfg.joint_ids = [10, 11, 12, 13]
+    cfg = _SceneEntityCfg("robot", joint_names=[
+        "left_hip_pitch_joint", "right_hip_pitch_joint",
+        "left_knee_pitch_joint", "right_knee_pitch_joint"])
+    cfg.joint_ids = [10, 11, 12, 13]  # asset order (value via asset q)
 
     # 1. no stash -> zeros
     env0 = FakeEnv([[1, 0, 0]] * N, torch.zeros(1, 29))
@@ -147,13 +155,16 @@ def main():
     # 2. in-sync: q at tracked joints == demo(t_k) value
     env = FakeEnv([[1.0, 0, 0], [1.0, 0, 0], [1.0, 0, 0]], torch.zeros(1, 29))
     env.episode_length_buf[:] = 25  # t_k = t0 + 0.5
-    # env0: mid 3, t=1.0 -> demo val 0.3+0.2=0.5
-    # env1: mid 7, t=(0+0.5)%1.0=0.5 -> 0.7+0.1=0.8
+    # env0: mid 3, t=1.0 -> base 0.5 + 0.01*col; env1: mid 7, t=0.5 -> 0.8
+    base0 = 0.1 * 3 + 0.2 * 1.0          # mid 3, t0 0.5 + eplen 25*0.02=0.5
+    base1 = 0.1 * 7 + 0.2 * 0.5          # t=(0+0.5)%1.0=0.5 (loop wrap)
     q = torch.zeros(1, 29)
-    q[0, 10:14] = torch.tensor([0.5, 0.5, 0.5, 0.5])
-    q[0, 14:18] = torch.tensor([0.8, 0.8, 0.8, 0.8])  # not tracked for env2
+    for k, col in enumerate(LAB_COLS):
+        q[0, 10 + k] = base0 + 0.01 * col
+        q[0, 14 + k] = base1 + 0.01 * col
     env.scene["robot"].data.joint_pos = q.expand(N, 29).clone()
-    env.scene["robot"].data.joint_pos[1, 10:14] = 0.8  # env1 in sync
+    for k, col in enumerate(LAB_COLS):
+        env.scene["robot"].data.joint_pos[1, 10 + k] = base1 + 0.01 * col
     out = run(env, cfg)
     assert abs(float(out[0]) - 1.0) < 1e-5, f"env0 in-sync {out[0]}"
     assert abs(float(out[1]) - 1.0) < 1e-5, f"env1 in-sync(loop wrap) {out[1]}"
@@ -169,8 +180,9 @@ def main():
 
     # 4. out-of-sync magnitude: |q-demo| = 0.7 total -> exp(-2) = 0.1353
     q2 = torch.zeros(N, 29)
-    q2[:, 10:14] = 0.5          # all four tracked joints in sync (env0 demo)
-    q2[:, 10] = 0.5 + 0.7       # 0.7 rad off on one joint only
+    for k, col in enumerate(LAB_COLS):   # in sync with env0 demo
+        q2[:, 10 + k] = base0 + 0.01 * col
+    q2[:, 10] += 0.7                     # 0.7 rad off on one joint only
     env.scene["robot"].data.joint_pos = q2
     env.command_manager = FakeCmd(torch.tensor(
         [[1.0, 0, 0]] * N, dtype=torch.float32))

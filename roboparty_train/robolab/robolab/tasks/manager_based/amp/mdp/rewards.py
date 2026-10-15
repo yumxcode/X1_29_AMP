@@ -1578,7 +1578,21 @@ def demo_joint_tracking_exp(
             break
     if st is None:
         return torch.zeros(n, device=env.device)
-    demo = st["dof_pos"][:, asset_cfg.joint_ids]
+    # motion dof array is in LAB_DOF_NAMES order (NOT asset order): map
+    # the tracked asset joints to motion columns by NAME (v70f fix — the
+    # first launch indexed by asset id and paid exactly 0.0).
+    try:
+        from ..amp_dof_order import motion_cols_for
+    except ImportError:  # file-path module load (local unit tests)
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_dof_order",
+            _P(__file__).resolve().parents[1] / "amp_dof_order.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        motion_cols_for = _m.motion_cols_for
+    cols = motion_cols_for(list(asset_cfg.joint_names))
+    demo = st["dof_pos"][:, cols]
     q = asset.data.joint_pos[:, asset_cfg.joint_ids]
     err = (q - demo).abs().sum(dim=-1)
     cmd = env.command_manager.get_command(command_name)
