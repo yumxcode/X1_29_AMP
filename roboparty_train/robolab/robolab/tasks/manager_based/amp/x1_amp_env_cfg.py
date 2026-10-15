@@ -1175,6 +1175,29 @@ class X1AmpEnvCfg(AmpEnvCfg):
             if _obs_d > 0:
                 self.obs_delay_steps = _obs_d
                 print(f"[v70d] obs delay cap {self.obs_delay_steps}")
+            # ------------------------------------------------------
+            # v70e DEMO-STATE phase-locked episode init (rhythm route 2,
+            # audit round-1 directive; 16 falsifications of reward/filter/
+            # data-resampling routes precede it). X1_DEMO_RESET_P > 0
+            # appends a mode="reset" event AFTER the default reset terms:
+            # walking-command envs start ON a retargeted demo frame (same
+            # motion_id + fetch_time the disc compares against — phase
+            # locked by construction). Changes the on-policy state
+            # distribution, not the reward.
+            # ------------------------------------------------------
+            _p_demo = float(_os.environ.get("X1_DEMO_RESET_P", "0"))
+            if _p_demo > 0:
+                from isaaclab.managers import EventTermCfg as _EventTermCfg
+                self.events.reset_from_demo = _EventTermCfg(
+                    func=mdp.reset_robot_from_demo,
+                    mode="reset",
+                    params={
+                        "p_demo": _p_demo,
+                        "min_cmd_speed": 0.3,
+                        "command_name": "base_velocity",
+                    },
+                )
+                print(f"[v70e] demo-state reset ON (p={_p_demo})")
 
         # ------------------------------------------------------
         # v68 sim2real re-identification envelope (x1_armature_pd.md §2,

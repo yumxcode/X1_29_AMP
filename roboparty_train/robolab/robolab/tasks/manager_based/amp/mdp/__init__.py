@@ -33,3 +33,4 @@ from isaaclab_tasks.manager_based.locomotion.velocity.mdp import *
 
 from .observations import *
 from .rewards import *
+from .events import *  # v70e: reset_robot_from_demo (X1_DEMO_RESET_P)
