@@ -410,6 +410,22 @@ class X1AmpRewards():
             "alpha": 0.0025,
         },
     )
+    # -- v70 arm-posture guard (user defect spec 2026-10-15 rev2) ---------
+    # 右臂小臂内折 (right forearm folds inward across the chest via a
+    # held shoulder_yaw DC, penetrating the torso by up to 61 mm at swing
+    # in soup69_drift). Demos hold shoulder_yaw ~0 in every clip.
+    shoulder_yaw_fold = RewTerm(
+        func=mdp.shoulder_yaw_fold_guard,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_shoulder_yaw_joint", "right_shoulder_yaw_joint"],
+                preserve_order=True,
+            ),
+            "band_rad": 0.262,          # 15 deg
+        },
+    )
     # D2/D3 腰摆泵动: lumbar roll/yaw AC + hip_roll AC (the lateral pump
     # that carries the arms — see lateral_sway_guard docstring).
     lateral_sway = RewTerm(
@@ -988,6 +1004,15 @@ class X1AmpEnvCfg(AmpEnvCfg):
             _os_v69.environ.get("X1_ABD_GUARD", "0"))
         self.rewards.lateral_sway.weight = -float(
             _os_v69.environ.get("X1_SWAY_GUARD", "0"))
+        # ------------------------------------------------------
+        # v70 forearm inward-fold guard (user defect spec rev2):
+        #   X1_SY_GUARD — |shoulder_yaw| beyond 15 deg, both arms
+        #                 (soup69_drift: R -64.6 deg DC -> forearm folds
+        #                 inward, -61 mm torso penetration; demos ~0)
+        # Default 0 = every earlier recipe byte-identical.
+        # ------------------------------------------------------
+        self.rewards.shoulder_yaw_fold.weight = -float(
+            _os_v69.environ.get("X1_SY_GUARD", "0"))
         _stance_max = float(_os_v69.environ.get("X1_STANCE_MAX", "0"))
         if _stance_max > 0:
             self.rewards.feet_distance_y.params["max"] = _stance_max

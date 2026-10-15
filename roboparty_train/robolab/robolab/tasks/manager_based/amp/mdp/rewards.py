@@ -1431,3 +1431,51 @@ def lateral_sway_guard(
         hp = hr[:, k] - _ema(env, f"sway_hr{k}", hr[:, k], alpha)
         total = total + hp.abs()
     return total
+
+
+def shoulder_yaw_fold_guard(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    band_rad: float = 0.262,
+) -> torch.Tensor:
+    """v70: FOREARM INWARD-FOLD guard (user defect spec 2026-10-15, rev2:
+    右臂小臂内折，摆动时与躯干碰撞).
+
+    Forensics on soup69_drift (acceptance/v70_eval/arm_fold_v70.py,
+    mesh-level mj_geomDistance FK replay): the RIGHT arm holds a
+    shoulder_yaw DC of -64.6 deg (L -24.6) with the elbow flexed 49 deg —
+    the shoulder yaw rotates the elbow-flexion AXIS, so the forearm folds
+    INWARD (base-frame +y component 0.40) across the chest instead of
+    sagittally forward, penetrating the torso by up to 61.3 mm during the
+    swing (walk10/walkturn -61/-60 mm; L arm stays +18 mm clear). The
+    demo library (x1_lab_v32, all 22 clips incl. mirrors) walks at
+    shoulder_yaw ~0 deg with elbow 20 deg and +22..57 mm clearance.
+
+    Structural cause (same family as v69 toe-out): the discriminator's
+    key-body POSITION observations are nearly invariant under shoulder-yaw
+    rotation of the (upper-arm, elbow, wrist) chain, so nothing in the
+    style channel punishes the fold; Isaac's undesired_contacts URDF
+    capsules evidently do not overlap in this configuration, and the
+    sim2sim MJCF has self-collision disabled entirely.
+
+    Statistic: relu(|q_shoulder_yaw| - band) summed over BOTH arms,
+    sign-symmetric, instantaneous (no EMA: the defect is a held DC, and
+    the residual AC std is ~10 deg, well inside the band). Demos pay 0 at
+    any band >= ~2 deg; no command gating (demos are flat 0 in stand,
+    circle-walk and turn clips alike).
+
+    FK calibration (gmr_x1_assets/x1.xml, elbow 49 deg, arm hanging):
+    clearance 16.6/14.9/14.0/12.9 mm at sy 0/-10/-20/-30 deg, -5.3 mm at
+    -43, -50 mm at -66. Band 15 deg keeps every FK-safe posture free.
+    Calibration at weight -0.5 (env knob X1_SY_GUARD): m13497 resume
+    point pays relu(43.1-15)+relu(25.6-15) deg = 0.675 rad -> -0.34/step;
+    demo-level arms pay 0; a 10 deg residual on both arms pays
+    -0.09/step.
+
+    asset_cfg.joint_ids MUST be ordered [L_shoulder_yaw, R_shoulder_yaw]
+    (order irrelevant — statistic is sign-symmetric and summed).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]                      # (N, 2)
+    excess = (q.abs() - band_rad).clamp(min=0.0)
+    return excess.sum(dim=-1)

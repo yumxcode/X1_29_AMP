@@ -1,0 +1,26 @@
+{
+ "acceptance/v69_eval/soup69_drift_walk1.0.npz": {
+  "min_R_mm": -61.3,
+  "min_L_mm": 18.1,
+  "sy_R_deg": -64.6,
+  "sy_L_deg": -24.6,
+  "elbow_R_deg": 49.3,
+  "inward_R_mean": 0.4
+ },
+ "acceptance/v69_eval/soup69_drift_walkturn.npz": {
+  "min_R_mm": -60.2,
+  "min_L_mm": 18.5,
+  "sy_R_deg": -69.0,
+  "sy_L_deg": -19.2,
+  "elbow_R_deg": 48.7,
+  "inward_R_mean": 0.46
+ },
+ "acceptance/v69_eval/m13497_walk1.0.npz": {
+  "min_R_mm": 16.0,
+  "min_L_mm": 16.2,
+  "sy_R_deg": -43.0,
+  "sy_L_deg": -25.5,
+  "elbow_R_deg": 37.1,
+  "inward_R_mean": 0.21
+ }
+}
