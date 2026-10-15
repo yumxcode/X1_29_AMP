@@ -1,0 +1,34 @@
+{
+ "acceptance/v70_eval/m17000c2_stand.npz": {
+  "min_R_mm": 12.2,
+  "min_L_mm": 12.4,
+  "sy_R_deg": -2.2,
+  "sy_L_deg": 0.7,
+  "elbow_R_deg": 27.7,
+  "inward_R_mean": -0.29
+ },
+ "acceptance/v70_eval/m17000c2_back05.npz": {
+  "min_R_mm": 12.1,
+  "min_L_mm": 12.4,
+  "sy_R_deg": -1.5,
+  "sy_L_deg": 5.4,
+  "elbow_R_deg": 21.0,
+  "inward_R_mean": -0.27
+ },
+ "acceptance/v70_eval/m17000c2_walkturn.npz": {
+  "min_R_mm": 12.2,
+  "min_L_mm": 12.3,
+  "sy_R_deg": -5.2,
+  "sy_L_deg": 0.4,
+  "elbow_R_deg": 27.1,
+  "inward_R_mean": -0.23
+ },
+ "acceptance/v70_eval/m17000c2_walk0.5.npz": {
+  "min_R_mm": 12.2,
+  "min_L_mm": 12.5,
+  "sy_R_deg": -2.9,
+  "sy_L_deg": -1.6,
+  "elbow_R_deg": 31.1,
+  "inward_R_mean": -0.24
+ }
+}

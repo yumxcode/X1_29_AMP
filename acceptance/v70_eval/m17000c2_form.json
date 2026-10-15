@@ -1,0 +1,44 @@
+{
+ "note": "recomputed from rollout npz; p95-p5 shoulder pitch; world-y drift",
+ "rows": [
+  {
+   "file": "m17000c2_walk1.0.npz",
+   "cmd": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 27.5481314698723,
+    "R": 29.965980593227666
+   },
+   "arm_antiphase_corr": -0.9771910395873891,
+   "world_y_drift_m": 0.9985431982735856,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": 22.57783509662507,
+    "k2_range_deg": 17.489406110032437,
+    "land_heel_first_frac": 0.0,
+    "land_toe_first_frac": 0.0,
+    "launch_toe_off_frac": 1.0,
+    "n_events": 13
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": 19.749755346735746,
+    "k2_range_deg": 14.771672487166708,
+    "land_heel_first_frac": 0.0,
+    "land_toe_first_frac": 1.0,
+    "launch_toe_off_frac": 1.0,
+    "n_events": 16
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": true
+   }
+  }
+ ]
+}
