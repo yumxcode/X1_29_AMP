@@ -1,0 +1,122 @@
+{
+ "note": "recomputed from rollout npz; p95-p5 shoulder pitch; world-y drift",
+ "rows": [
+  {
+   "file": "m13497_walk1.0.npz",
+   "cmd": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 26.275041049960443,
+    "R": 25.039178918378084
+   },
+   "arm_antiphase_corr": -0.9960003223013382,
+   "world_y_drift_m": 1.1145618143899743,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  },
+  {
+   "file": "m13497_walk0.5.npz",
+   "cmd": [
+    0.5,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 15.994384051998043,
+    "R": 13.006182264270508
+   },
+   "arm_antiphase_corr": -0.9813601662672518,
+   "world_y_drift_m": 1.1206230603001757,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  },
+  {
+   "file": "m13497_back05.npz",
+   "cmd": [
+    -0.5,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 12.851493026454133,
+    "R": 10.566647583004993
+   },
+   "arm_antiphase_corr": -0.9516781881475611,
+   "world_y_drift_m": -0.36546108134530486,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  }
+ ]
+}

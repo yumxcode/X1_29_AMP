@@ -1,0 +1,239 @@
+{
+ "note": "recomputed from rollout npz; p95-p5 shoulder pitch; world-y drift",
+ "rows": [
+  {
+   "file": "m12000_walk1.0.npz",
+   "cmd": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 28.300243369851536,
+    "R": 28.790503081797397
+   },
+   "arm_antiphase_corr": -0.9926470979040757,
+   "world_y_drift_m": -1.3504107846027587,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  },
+  {
+   "file": "m12500_walk1.0.npz",
+   "cmd": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 29.889964218561545,
+    "R": 29.816566452956945
+   },
+   "arm_antiphase_corr": -0.9884777077190763,
+   "world_y_drift_m": 1.2696963747919199,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  },
+  {
+   "file": "m13000_walk1.0.npz",
+   "cmd": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 30.859145016686252,
+    "R": 27.914161783024042
+   },
+   "arm_antiphase_corr": -0.9945512808723378,
+   "world_y_drift_m": 1.5261459688333059,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  },
+  {
+   "file": "m12000_walk0.5.npz",
+   "cmd": [
+    0.5,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 13.524993658752122,
+    "R": 11.51226288572118
+   },
+   "arm_antiphase_corr": -0.9305538320056691,
+   "world_y_drift_m": -0.5161537628267949,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  },
+  {
+   "file": "m12500_walk0.5.npz",
+   "cmd": [
+    0.5,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 16.61961866942483,
+    "R": 15.029142647310971
+   },
+   "arm_antiphase_corr": -0.9648264517491395,
+   "world_y_drift_m": 0.6482822842650586,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  },
+  {
+   "file": "m13000_walk0.5.npz",
+   "cmd": [
+    0.5,
+    0.0,
+    0.0
+   ],
+   "n_steps": 575,
+   "arm_swing_amp_deg": {
+    "L": 17.842943760458983,
+    "R": 13.426517488048113
+   },
+   "arm_antiphase_corr": -0.9778613154545369,
+   "world_y_drift_m": 0.7125290858917214,
+   "duration_s": 11.5,
+   "left_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "right_ankle_roll_link": {
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_events": 0
+   },
+   "gates": {
+    "K1_PASS": false,
+    "K2_PASS": false,
+    "H3_PASS": false,
+    "H1_PASS": false,
+    "H2_PASS": false
+   }
+  }
+ ]
+}

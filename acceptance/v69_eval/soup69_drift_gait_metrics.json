@@ -1,0 +1,532 @@
+[
+ {
+  "file": "acceptance/v69_eval/soup69_drift_walk1.0.npz",
+  "cmd": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "fell": false,
+  "n": 600,
+  "G1": {
+   "fell": false,
+   "base_z_mean": 0.6192937478549211,
+   "base_z_min": 0.5900301163636538,
+   "base_z_cv": 0.006419909323110285,
+   "PASS": true
+  },
+  "G2": {
+   "amp": {
+    "hip_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    },
+    "knee_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    }
+   },
+   "step_len": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "step_len_ratio": NaN,
+   "phase_lag_s": 0.0,
+   "xcorr": 545.901526425208,
+   "phase_anti": false,
+   "phase_frac": NaN,
+   "stride_period_s": NaN,
+   "stride_cv": NaN,
+   "n_strides": 0,
+   "duty": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "duty_ratio": NaN,
+   "exempt_turn": false,
+   "PASS": false
+  },
+  "G3": {
+   "events": [],
+   "PASS": false
+  },
+  "KH": {
+   "left_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "right_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "exempt_turn": false,
+   "cmd_speed": 1.0,
+   "K1_PASS": false,
+   "K2_PASS": false,
+   "H3_PASS": false,
+   "H1_PASS": false,
+   "H2_PASS": false,
+   "PASS": false
+  },
+  "R": {
+   "cycle_s": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "cycle_s_med": NaN,
+   "cad_spm": NaN,
+   "stride_m": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "stride_m_med": NaN,
+   "n_events": {
+    "left_ankle_roll_link": 0,
+    "right_ankle_roll_link": 0
+   },
+   "scenario": "walk10",
+   "R1_PASS": false,
+   "R2_PASS": false,
+   "R3_PASS": false,
+   "R4_PASS": false,
+   "PASS": false
+  },
+  "PASS": false
+ },
+ {
+  "file": "acceptance/v69_eval/soup69_drift_walk0.5.npz",
+  "cmd": [
+   0.5,
+   0.0,
+   0.0
+  ],
+  "fell": false,
+  "n": 600,
+  "G1": {
+   "fell": false,
+   "base_z_mean": 0.6220865121056388,
+   "base_z_min": 0.5926683237737589,
+   "base_z_cv": 0.004435866276175064,
+   "PASS": true
+  },
+  "G2": {
+   "amp": {
+    "hip_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    },
+    "knee_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    }
+   },
+   "step_len": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "step_len_ratio": NaN,
+   "phase_lag_s": 0.0,
+   "xcorr": 502.95206161918037,
+   "phase_anti": false,
+   "phase_frac": NaN,
+   "stride_period_s": NaN,
+   "stride_cv": NaN,
+   "n_strides": 0,
+   "duty": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "duty_ratio": NaN,
+   "exempt_turn": false,
+   "PASS": false
+  },
+  "G3": {
+   "events": [],
+   "PASS": false
+  },
+  "KH": {
+   "left_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "right_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "exempt_turn": false,
+   "cmd_speed": 0.5,
+   "K1_PASS": false,
+   "K2_PASS": false,
+   "H3_PASS": false,
+   "H1_PASS": false,
+   "H2_PASS": false,
+   "PASS": false
+  },
+  "R": {
+   "cycle_s": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "cycle_s_med": NaN,
+   "cad_spm": NaN,
+   "stride_m": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "stride_m_med": NaN,
+   "n_events": {
+    "left_ankle_roll_link": 0,
+    "right_ankle_roll_link": 0
+   },
+   "scenario": "walk05",
+   "R1_PASS": false,
+   "R2_PASS": false,
+   "R3_PASS": false,
+   "R4_PASS": false,
+   "PASS": false
+  },
+  "PASS": false
+ },
+ {
+  "file": "acceptance/v69_eval/soup69_drift_back05.npz",
+  "cmd": [
+   -0.5,
+   0.0,
+   0.0
+  ],
+  "fell": false,
+  "n": 600,
+  "G1": {
+   "fell": false,
+   "base_z_mean": 0.6193186390305166,
+   "base_z_min": 0.5971851083911822,
+   "base_z_cv": 0.003024936191458583,
+   "PASS": true
+  },
+  "G2": {
+   "amp": {
+    "hip_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    },
+    "knee_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    }
+   },
+   "step_len": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "step_len_ratio": NaN,
+   "phase_lag_s": -0.12,
+   "xcorr": -496.49609512498347,
+   "phase_anti": true,
+   "phase_frac": NaN,
+   "stride_period_s": NaN,
+   "stride_cv": NaN,
+   "n_strides": 0,
+   "duty": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "duty_ratio": NaN,
+   "exempt_turn": false,
+   "PASS": false
+  },
+  "G3": {
+   "events": [],
+   "PASS": false
+  },
+  "KH": {
+   "left_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "right_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "exempt_turn": false,
+   "cmd_speed": 0.5,
+   "K1_PASS": false,
+   "K2_PASS": false,
+   "H3_PASS": false,
+   "H1_PASS": false,
+   "H2_PASS": false,
+   "PASS": false
+  },
+  "R": {
+   "cycle_s": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "cycle_s_med": NaN,
+   "cad_spm": NaN,
+   "stride_m": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "stride_m_med": NaN,
+   "n_events": {
+    "left_ankle_roll_link": 0,
+    "right_ankle_roll_link": 0
+   },
+   "scenario": "walk05",
+   "R1_PASS": false,
+   "R2_PASS": false,
+   "R3_PASS": false,
+   "R4_PASS": false,
+   "PASS": false
+  },
+  "PASS": false
+ },
+ {
+  "file": "acceptance/v69_eval/soup69_drift_stand.npz",
+  "cmd": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "fell": false,
+  "n": 600,
+  "G1": {
+   "fell": false,
+   "base_z_mean": 0.624091957042222,
+   "base_z_min": 0.5953327805396037,
+   "base_z_cv": 0.0034244993689491036,
+   "PASS": true
+  },
+  "G2": {
+   "amp": {
+    "hip_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    },
+    "knee_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    }
+   },
+   "step_len": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "step_len_ratio": NaN,
+   "phase_lag_s": 0.0,
+   "xcorr": -539.8670540011153,
+   "phase_anti": true,
+   "phase_frac": NaN,
+   "stride_period_s": NaN,
+   "stride_cv": NaN,
+   "n_strides": 0,
+   "duty": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "duty_ratio": NaN,
+   "exempt_turn": false,
+   "PASS": false
+  },
+  "G3": {
+   "events": [],
+   "PASS": false
+  },
+  "KH": {
+   "left_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "right_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "exempt_turn": false,
+   "cmd_speed": 0.0,
+   "K1_PASS": false,
+   "K2_PASS": false,
+   "H3_PASS": false,
+   "H1_PASS": false,
+   "H2_PASS": false,
+   "PASS": false
+  },
+  "R": {
+   "cycle_s": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "cycle_s_med": NaN,
+   "cad_spm": NaN,
+   "stride_m": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "stride_m_med": NaN,
+   "n_events": {
+    "left_ankle_roll_link": 0,
+    "right_ankle_roll_link": 0
+   },
+   "scenario": "other",
+   "R1_PASS": null,
+   "R2_PASS": null,
+   "R3_PASS": null,
+   "R4_PASS": null,
+   "PASS": null
+  },
+  "PASS": false
+ },
+ {
+  "file": "acceptance/v69_eval/soup69_drift_walkturn.npz",
+  "cmd": [
+   0.6,
+   0.0,
+   0.6
+  ],
+  "fell": false,
+  "n": 600,
+  "G1": {
+   "fell": false,
+   "base_z_mean": 0.622054491208168,
+   "base_z_min": 0.5916944301754679,
+   "base_z_cv": 0.00482183485534365,
+   "PASS": true
+  },
+  "G2": {
+   "amp": {
+    "hip_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    },
+    "knee_pitch": {
+     "left_deg": NaN,
+     "right_deg": NaN,
+     "ratio": NaN
+    }
+   },
+   "step_len": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "step_len_ratio": NaN,
+   "phase_lag_s": -0.22,
+   "xcorr": -542.8011027237671,
+   "phase_anti": true,
+   "phase_frac": NaN,
+   "stride_period_s": NaN,
+   "stride_cv": NaN,
+   "n_strides": 0,
+   "duty": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "duty_ratio": NaN,
+   "exempt_turn": true,
+   "PASS": true
+  },
+  "G3": {
+   "events": [],
+   "PASS": false
+  },
+  "KH": {
+   "left_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "right_ankle_roll_link": {
+    "n_events": 0,
+    "k1_mid_deg": NaN,
+    "k2_range_deg": NaN,
+    "land_heel_first_frac": NaN,
+    "land_toe_first_frac": NaN,
+    "launch_toe_off_frac": NaN,
+    "n_land": 0
+   },
+   "exempt_turn": true,
+   "cmd_speed": 0.6,
+   "K1_PASS": false,
+   "K2_PASS": false,
+   "H3_PASS": false,
+   "H1_PASS": false,
+   "H2_PASS": false,
+   "PASS": false
+  },
+  "R": {
+   "cycle_s": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "cycle_s_med": NaN,
+   "cad_spm": NaN,
+   "stride_m": {
+    "left_ankle_roll_link": NaN,
+    "right_ankle_roll_link": NaN
+   },
+   "stride_m_med": NaN,
+   "n_events": {
+    "left_ankle_roll_link": 0,
+    "right_ankle_roll_link": 0
+   },
+   "scenario": "turn",
+   "R1_PASS": null,
+   "R2_PASS": null,
+   "R3_PASS": null,
+   "R4_PASS": null,
+   "PASS": null
+  },
+  "PASS": false
+ }
+]
