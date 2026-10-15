@@ -1479,3 +1479,52 @@ def shoulder_yaw_fold_guard(
     q = asset.data.joint_pos[:, asset_cfg.joint_ids]                      # (N, 2)
     excess = (q.abs() - band_rad).clamp(min=0.0)
     return excess.sum(dim=-1)
+
+def arm_shared_lean_guard(
+    env: ManagerBasedRLEnv,
+    shoulder_cfg: SceneEntityCfg,
+    elbow_cfg: SceneEntityCfg,
+    band_rad: float = 0.105,
+) -> torch.Tensor:
+    """v70b: SHARED ARM-LEAN guard (both arms carried forward/backward).
+
+    P7h regression on the v70 sy-guard ladder: once shoulder_yaw was banded
+    to ~0 (forearm sagittal again, torso collision fixed), the policy
+    re-solved the shoulder/elbow redundancy by ADDUCTING the right shoulder
+    (shoulder_roll -16 -> -33 deg) while keeping wrist positions — the disc
+    key-body channel is blind to the swap — leaving both upper arms leaned
+    forward ~19-20 deg (P7h shared lean <= 12 gate; m13497 7.1 deg PASS ->
+    m14000+ 18-20 deg FAIL, stable across +1500 iters = equilibrium, not a
+    transient). arm_asym_lean only guards the ANTIsymmetric DC (P7g passes
+    5-11 deg); nothing guards the shared component.
+
+    Statistic: per-arm upper-arm forward angle phi (EXACTLY the P7g/P7h
+    metric of acceptance/check_policy_gait.py): u = elbow_pitch_link -
+    shoulder_pitch_link in world, decomposed on the BASE frame axes
+    (fwd = root-quat-rotated +x, up = +z); phi = atan2(u.fwd, -u.up).
+    Guard relu(|(phiL + phiR)/2| - band) — sign-symmetric (backward lean
+    caught too), instantaneous (both arms swing ANTIphase so the shared
+    sum is quasi-DC already; no EMA needed).
+
+    Calibration (FK, gmr_x1_assets/x1.xml, walk10 means): demo library
+    walking clips lean_shared 0.1-3.7 deg (36_xx 8.0-8.8; jog clips 31-34
+    are 2/11 of the AMP mix), m13497 7.1, v70 m15496 19.9. Band 6 deg:
+    every walking demo pays ~0; m15496 pays relu(19.9-6) = 0.243 rad ->
+    -0.12/step at the -0.5 knob (X1_LEAN_GUARD).
+
+    asset_cfg ordering: shoulder_cfg = [L,R]_shoulder_pitch_link,
+    elbow_cfg = [L,R]_elbow_pitch_link (body positions; order defines the
+    L/R pairing).
+    """
+    asset: Articulation = env.scene[shoulder_cfg.name]
+    n = asset.data.root_quat_w.shape[0]
+    u = (asset.data.body_pos_w[:, elbow_cfg.body_ids]
+         - asset.data.body_pos_w[:, shoulder_cfg.body_ids])             # (N,2,3)
+    e_x = torch.tensor([1.0, 0.0, 0.0], device=env.device)
+    e_z = torch.tensor([0.0, 0.0, 1.0], device=env.device)
+    root_q = env.scene[shoulder_cfg.name].data.root_quat_w
+    fwd = math_utils.quat_apply(root_q, e_x.unsqueeze(0).expand(n, 3)).unsqueeze(1)
+    up = math_utils.quat_apply(root_q, e_z.unsqueeze(0).expand(n, 3)).unsqueeze(1)
+    phi = torch.atan2((u * fwd).sum(-1), -(u * up).sum(-1))             # (N,2)
+    shared = (phi[:, 0] + phi[:, 1]) / 2.0
+    return (shared.abs() - band_rad).clamp(min=0.0)

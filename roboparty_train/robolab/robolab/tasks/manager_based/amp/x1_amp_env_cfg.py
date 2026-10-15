@@ -426,6 +426,27 @@ class X1AmpRewards():
             "band_rad": 0.262,          # 15 deg
         },
     )
+    # -- v70b shared arm-lean guard (P7h regression on the v70 ladder) ---
+    # Once sy was banded the policy re-solved the arm redundancy via
+    # shoulder adduction: shared forward lean 7 -> 19-20 deg (P7h <= 12).
+    # arm_asym_lean guards the antisymmetric DC only (P7g passes).
+    arm_shared_lean = RewTerm(
+        func=mdp.arm_shared_lean_guard,
+        weight=0,
+        params={
+            "shoulder_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_shoulder_pitch_link", "right_shoulder_pitch_link"],
+                preserve_order=True,
+            ),
+            "elbow_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_elbow_pitch_link", "right_elbow_pitch_link"],
+                preserve_order=True,
+            ),
+            "band_rad": 0.105,         # 6 deg (walking demos 0.1-3.7)
+        },
+    )
     # D2/D3 腰摆泵动: lumbar roll/yaw AC + hip_roll AC (the lateral pump
     # that carries the arms — see lateral_sway_guard docstring).
     lateral_sway = RewTerm(
@@ -1013,6 +1034,16 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # ------------------------------------------------------
         self.rewards.shoulder_yaw_fold.weight = -float(
             _os_v69.environ.get("X1_SY_GUARD", "0"))
+        # ------------------------------------------------------
+        # v70b shared arm-lean guard (P7h regression): v70's sy band
+        # pushed the policy to re-solve arm redundancy via shoulder
+        # adduction -> shared forward lean 19-20 deg (gate 12).
+        #   X1_LEAN_GUARD — |mean(phiL,phiR)| beyond 6 deg (the exact
+        #                   P7h statistic, FK on body positions)
+        # Default 0 = every earlier recipe byte-identical.
+        # ------------------------------------------------------
+        self.rewards.arm_shared_lean.weight = -float(
+            _os_v69.environ.get("X1_LEAN_GUARD", "0"))
         _stance_max = float(_os_v69.environ.get("X1_STANCE_MAX", "0"))
         if _stance_max > 0:
             self.rewards.feet_distance_y.params["max"] = _stance_max

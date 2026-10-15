@@ -1,0 +1,82 @@
+{
+ "acceptance/v70_eval/m13500_walk1.0.npz": {
+  "min_R_mm": 15.8,
+  "min_L_mm": 16.1,
+  "sy_R_deg": -33.9,
+  "sy_L_deg": -17.5,
+  "elbow_R_deg": 36.7,
+  "inward_R_mean": 0.14
+ },
+ "acceptance/v70_eval/m14000_walk1.0.npz": {
+  "min_R_mm": 17.9,
+  "min_L_mm": 18.0,
+  "sy_R_deg": -2.5,
+  "sy_L_deg": 1.4,
+  "elbow_R_deg": 49.7,
+  "inward_R_mean": -0.21
+ },
+ "acceptance/v70_eval/m14500_walk1.0.npz": {
+  "min_R_mm": 16.5,
+  "min_L_mm": 17.8,
+  "sy_R_deg": 0.7,
+  "sy_L_deg": 0.1,
+  "elbow_R_deg": 57.1,
+  "inward_R_mean": -0.24
+ },
+ "acceptance/v70_eval/m15000_walk1.0.npz": {
+  "min_R_mm": 18.0,
+  "min_L_mm": 17.9,
+  "sy_R_deg": -0.4,
+  "sy_L_deg": -0.2,
+  "elbow_R_deg": 39.0,
+  "inward_R_mean": -0.31
+ },
+ "acceptance/v70_eval/m15496_walk1.0.npz": {
+  "min_R_mm": 16.0,
+  "min_L_mm": 18.2,
+  "sy_R_deg": -0.6,
+  "sy_L_deg": -0.4,
+  "elbow_R_deg": 48.9,
+  "inward_R_mean": -0.37
+ },
+ "acceptance/v70_eval/m13500_walk0.5.npz": {
+  "min_R_mm": 15.6,
+  "min_L_mm": 17.2,
+  "sy_R_deg": -20.7,
+  "sy_L_deg": -9.7,
+  "elbow_R_deg": 21.3,
+  "inward_R_mean": -0.02
+ },
+ "acceptance/v70_eval/m14000_walk0.5.npz": {
+  "min_R_mm": 18.1,
+  "min_L_mm": 18.1,
+  "sy_R_deg": -3.2,
+  "sy_L_deg": 3.3,
+  "elbow_R_deg": 23.2,
+  "inward_R_mean": -0.21
+ },
+ "acceptance/v70_eval/m14500_walk0.5.npz": {
+  "min_R_mm": 17.2,
+  "min_L_mm": 17.7,
+  "sy_R_deg": 0.4,
+  "sy_L_deg": 0.5,
+  "elbow_R_deg": 35.9,
+  "inward_R_mean": -0.25
+ },
+ "acceptance/v70_eval/m15000_walk0.5.npz": {
+  "min_R_mm": 17.9,
+  "min_L_mm": 18.0,
+  "sy_R_deg": 0.0,
+  "sy_L_deg": 1.1,
+  "elbow_R_deg": 17.0,
+  "inward_R_mean": -0.26
+ },
+ "acceptance/v70_eval/m15496_walk0.5.npz": {
+  "min_R_mm": 16.1,
+  "min_L_mm": 18.4,
+  "sy_R_deg": -1.9,
+  "sy_L_deg": 1.5,
+  "elbow_R_deg": 19.8,
+  "inward_R_mean": -0.22
+ }
+}
