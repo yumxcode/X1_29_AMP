@@ -87,5 +87,18 @@ def reset_robot_from_demo(
     root[:, 10:13] = st["root_ang_vel_w"]
     asset.write_root_state_to_sim(root, env_ids=sel)
     asset.write_joint_state_to_sim(st["dof_pos"], st["dof_vel"], env_ids=sel)
+    # v70f: stash the phase-locked tracking reference for reward-side
+    # frame-synced joint tracking (demo_joint_tracking_exp in rewards.py):
+    # (motion_id, t0, duration) per env; t_k = t0 + episode_length_buf*dt.
+    n = env.num_envs
+    if not hasattr(env, "_demo_track_mid"):
+        env._demo_track_mid = torch.zeros(n, dtype=torch.long, device=asset.device)
+        env._demo_track_t0 = torch.zeros(n, device=asset.device)
+        env._demo_track_dur = torch.ones(n, device=asset.device)
+        env._demo_track_ok = torch.zeros(n, dtype=torch.bool, device=asset.device)
+    env._demo_track_mid[sel] = mids
+    env._demo_track_t0[sel] = mtimes
+    env._demo_track_dur[sel] = term.motion_data_term.get_motion_durations(mids)
+    env._demo_track_ok[sel] = True
     print(f"[v70e] demo-state reset applied to {sel.numel()}/{len(env_ids)} envs "
           f"(p={p_demo:.2f}, cmd>{min_cmd_speed} m/s)")

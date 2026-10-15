@@ -1528,3 +1528,61 @@ def arm_shared_lean_guard(
     phi = torch.atan2((u * fwd).sum(-1), -(u * up).sum(-1))             # (N,2)
     shared = (phi[:, 0] + phi[:, 1]) / 2.0
     return (shared.abs() - band_rad).clamp(min=0.0)
+
+
+def demo_joint_tracking_exp(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    std_rad: float = 0.35,
+    command_name: str = "base_velocity",
+    min_cmd_speed: float = 0.3,
+    max_cmd_yaw: float = 0.5,
+) -> torch.Tensor:
+    """v70f: FRAME-SYNCED per-step demo joint tracking (PW-IL style anchor).
+
+    The 17-round rhythm arc verdict: reward shaping, data resampling, LPF
+    governors, delay co-training and t=0 state resets all fail to move the
+    2.2Hz attractor — only a PERSISTENT full-episode anchor can (paradigm
+    change; this is its reward-side bridge inside the AMP env).
+
+    Mechanism: reset_robot_from_demo (X1_DEMO_RESET_P=1.0) starts walking
+    envs ON a demo frame and stashes (motion_id, t0, duration); this term
+    reads the demo's per-frame joint targets at t_k = t0 +
+    episode_length_buf * step_dt (loop-wrapped) and pays
+    exp(-sum_j |q_j - demo_j| / std) over the tracked joints. The demo
+    hip/knee swing IS the human cadence (0.48-0.94 Hz/foot in the walking
+    clips) — tracking it in joint space, from in-sync resets, anchors the
+    rhythm THROUGH the episode (the piece v70e2's t=0-only reset lacked).
+
+    The discriminator is untouched (random_fetch windows stay random);
+    speed-matched clip assignment (X1_DISC_VMATCH=1) keeps the tracked
+    clip's speed compatible with the env's velocity command. Turn/stand
+    commands exempt (straight-walking gate, same predicate as
+    foot_yaw_neutral).
+
+    asset_cfg.joint_ids order == demo dof order (both are the asset/lab
+    joint order — the AnimationManager visualization writes motion dof_pos
+    to the robot directly, same convention).
+    """
+    ok = getattr(env, "_demo_track_ok", None)
+    if ok is None or not bool(ok.any()):
+        return torch.zeros(env.num_envs, device=env.device)
+    asset: Articulation = env.scene[asset_cfg.name]
+    n = env.num_envs
+    t_k = env._demo_track_t0 + env.episode_length_buf * env.step_dt
+    t_k = torch.remainder(t_k, env._demo_track_dur.clamp(min=0.1))
+    st = None
+    for term in getattr(env.animation_manager, "_terms", {}).values():
+        if hasattr(term, "motion_ids") and hasattr(term, "motion_data_term"):
+            st = term.motion_data_term.get_motion_state(env._demo_track_mid, t_k)
+            break
+    if st is None:
+        return torch.zeros(n, device=env.device)
+    demo = st["dof_pos"][:, asset_cfg.joint_ids]
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]
+    err = (q - demo).abs().sum(dim=-1)
+    cmd = env.command_manager.get_command(command_name)
+    speed = torch.linalg.vector_norm(cmd[:, :2], dim=1)
+    gate = (env._demo_track_ok
+            & (speed > min_cmd_speed) & (torch.abs(cmd[:, 2]) < max_cmd_yaw))
+    return torch.exp(-err / std_rad) * gate.float()

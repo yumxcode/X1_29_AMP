@@ -447,6 +447,24 @@ class X1AmpRewards():
             "band_rad": 0.105,         # 6 deg (walking demos 0.1-3.7)
         },
     )
+    # v70f: frame-synced demo joint tracking (the persistent rhythm
+    # anchor; needs X1_DEMO_RESET_P=1.0 stashing + X1_DISC_VMATCH=1).
+    demo_joint_track = RewTerm(
+        func=mdp.demo_joint_tracking_exp,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_hip_pitch_joint", "right_hip_pitch_joint",
+                             "left_knee_pitch_joint", "right_knee_pitch_joint"],
+                preserve_order=True,
+            ),
+            "std_rad": 0.35,
+            "command_name": "base_velocity",
+            "min_cmd_speed": 0.3,
+            "max_cmd_yaw": 0.5,
+        },
+    )
     # D2/D3 腰摆泵动: lumbar roll/yaw AC + hip_roll AC (the lateral pump
     # that carries the arms — see lateral_sway_guard docstring).
     lateral_sway = RewTerm(
@@ -1198,6 +1216,19 @@ class X1AmpEnvCfg(AmpEnvCfg):
                     },
                 )
                 print(f"[v70e] demo-state reset ON (p={_p_demo})")
+            # ------------------------------------------------------
+            # v70f frame-synced demo joint tracking (rhythm route 3, the
+            # persistent full-episode anchor the 17-round arc verdict
+            # demands; pairs with X1_DEMO_RESET_P=1.0 + X1_DISC_VMATCH=1).
+            #   X1_TRACK_HIP — exp kernel on |q - demo_q(t)| summed over
+            #                  [L,R] hip_pitch + [L,R] knee_pitch at
+            #                  t0 + episode_length_buf*dt (loop-wrapped).
+            # Default 0 = off = byte-identical recipes.
+            # ------------------------------------------------------
+            _track_w = float(_os.environ.get("X1_TRACK_HIP", "0"))
+            if _track_w > 0:
+                self.rewards.demo_joint_track.weight = _track_w
+                print(f"[v70f] demo joint tracking ON (w={_track_w})")
 
         # ------------------------------------------------------
         # v68 sim2real re-identification envelope (x1_armature_pd.md §2,

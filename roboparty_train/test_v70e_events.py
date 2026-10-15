@@ -97,6 +97,9 @@ class FakeAnimTerm:
         self.motion_fetch_time = torch.tensor([[0.5], [1.2], [2.0]])
         self.motion_data_term = self
 
+    def get_motion_durations(self, mids):
+        return torch.tensor([5.0 + float(m) for m in mids])
+
     def get_motion_state(self, mids, mtimes):
         return {
             "root_pos_w": torch.stack([
@@ -145,6 +148,7 @@ class FakeEnv:
     def __init__(self, cmds):
         n = len(cmds)
         self.device = torch.device("cpu")
+        self.num_envs = n
         self.scene = FakeScene(n)
         self.animation_manager = FakeAnim()
         self.command_manager = FakeCmd(torch.tensor(cmds, dtype=torch.float32))
