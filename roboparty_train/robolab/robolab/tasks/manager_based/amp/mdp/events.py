@@ -61,10 +61,20 @@ def reset_robot_from_demo(
     if sel.numel() == 0:
         return
 
+    # the motion ids/times live on the AnimationManager's TERM (the
+    # AnimationTerm owning motion_ids/motion_fetch_time/motion_data_term),
+    # not on the manager itself (v70e first-launch AttributeError)
     anim = env.animation_manager
-    mids = anim.motion_ids[sel]
-    mtimes = anim.motion_fetch_time[sel, 0]
-    st = anim.motion_data_term.get_motion_state(mids, mtimes)
+    term = None
+    for t in getattr(anim, "_terms", {}).values():
+        if hasattr(t, "motion_ids") and hasattr(t, "motion_fetch_time"):
+            term = t
+            break
+    if term is None:
+        return
+    mids = term.motion_ids[sel]
+    mtimes = term.motion_fetch_time[sel, 0]
+    st = term.motion_data_term.get_motion_state(mids, mtimes)
 
     # root state: demo height/orientation/velocities, xy at the env origin
     # (pure translation of the demo frame — dynamics- and phase-preserving)

@@ -91,7 +91,7 @@ class FakeAsset:
         self.writes.append(("joint", pos.clone(), vel.clone(), env_ids))
 
 
-class FakeAnim:
+class FakeAnimTerm:
     def __init__(self):
         self.motion_ids = torch.tensor([3, 7, 11])
         self.motion_fetch_time = torch.tensor([[0.5], [1.2], [2.0]])
@@ -113,6 +113,13 @@ class FakeAnim:
             "dof_vel": torch.tensor(
                 [[-0.2 * float(m)] * 29 for m in mids]),
         }
+
+
+class FakeAnim:
+    """Mirrors the real structure: motion ids live on the manager's TERM."""
+
+    def __init__(self):
+        self._terms = {"anim": FakeAnimTerm()}
 
 
 class FakeCmd:
