@@ -5,10 +5,17 @@ This is the hardware-side counterpart of sim2sim/mujoco_rollout.py. It
 implements EXACTLY the observation/action contract the policy was trained
 and sim2sim-verified with:
 
-  OBS (288, float32, term-major history x3, oldest first):
+  OBS (288 legacy / 300 gait-clock, float32, term-major history x3, oldest
+  first):
     per frame (96): [base_ang_vel(3), projected_gravity(3), cmd(3),
                      joint_pos_rel(29), joint_vel_rel(29), last_action(29)]
-    flattened as:   ang(9) grav(9) cmd(9) jpos(87) jvel(87) act(87)
+    v71 clock policies append 4: [sin(2pi phiL), sin(2pi phiR),
+                     cos(2pi phiL), cos(2pi phiR)] with
+                     phiL = (t/T*(v)) % 1, phiR = (phiL+0.5) % 1,
+                     T*(v) = clamp(1.46-0.36 v, 0.70, 1.75), t = CONTROL_DT
+                     x step counter since loop start (the clock MUST keep
+                     running through settle — see gait_clock.py).
+    flattened as:   ang(9) grav(9) cmd(9) jpos(87) jvel(87) act(87) [ck(12)]
     history:        each term's 3 frames concatenated, oldest first
                     (v26 root-cause: IsaacLab term-major flatten)
   ACTION (29): q_target = default_q + 0.25 * action   [lab joint order]
@@ -42,7 +49,7 @@ import numpy as np
 CONTROL_DT = 0.02
 ACTION_SCALE = 0.25
 HIST = 3
-IN_DIM = 288
+IN_DIM = 288          # updated to 300 by Policy() when the graph says so
 
 # lab joint order (policy column i == this order) — from retarget config x1.yaml
 LAB_DOF_ORDER = [
@@ -94,18 +101,35 @@ PD = {
 SLICES = [(0, 3), (3, 6), (6, 9), (9, 38), (38, 67), (67, 96)]  # term-major
 
 
+def gait_clock_channels(t: float, vx: float, vy: float):
+    """v71: the deploy twin of mdp/gait_clock.py (exact formulas)."""
+    _v = float(np.hypot(vx, vy))
+    _T = min(max(1.46 - 0.36 * _v, 0.70), 1.75)
+    _pl = (t / _T) % 1.0
+    _pr = (_pl + 0.5) % 1.0
+    return np.array([np.sin(2 * np.pi * _pl), np.sin(2 * np.pi * _pr),
+                     np.cos(2 * np.pi * _pl), np.cos(2 * np.pi * _pr)],
+                    dtype=np.float32)
+
+
 class ObsBuffer:
-    """3-frame per-term history, term-major flatten. Feed full 96-d frames."""
+    """3-frame per-term history, term-major flatten. Feed full 96-d frames
+    (legacy) or 100-d (v71 gait-clock policies — Policy() sets clock mode)."""
 
-    def __init__(self):
-        self.hist = np.zeros((HIST, 96), dtype=np.float32)
+    def __init__(self, clock: bool = False):
+        self.clock = clock
+        self.frame_dim = 100 if clock else 96
+        self.hist = np.zeros((HIST, self.frame_dim), dtype=np.float32)
+        self.slices = SLICES + ([(96, 100)] if clock else [])
 
-    def push(self, frame96: np.ndarray) -> np.ndarray:
-        frame96 = np.asarray(frame96, dtype=np.float32)
-        assert frame96.shape == (96,), "frame must be 96-d"
+    def push(self, frame: np.ndarray) -> np.ndarray:
+        frame = np.asarray(frame, dtype=np.float32)
+        assert frame.shape == (self.frame_dim,), \
+            f"frame must be {self.frame_dim}-d"
         self.hist[:-1] = self.hist[1:]
-        self.hist[-1] = frame96
-        return np.concatenate([self.hist[:, a:b].reshape(-1) for a, b in SLICES])
+        self.hist[-1] = frame
+        return np.concatenate([self.hist[:, a:b].reshape(-1)
+                               for a, b in self.slices])
 
 
 class Policy:
@@ -115,7 +139,9 @@ class Policy:
         import onnxruntime as ort
         self.sess = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
         self.name = self.sess.get_inputs()[0].name
-        assert self.sess.get_inputs()[0].shape[-1] == IN_DIM
+        dim = self.sess.get_inputs()[0].shape[-1]
+        assert dim in (288, 300), f"unexpected onnx obs dim {dim}"
+        self.clock = (dim == 300)
 
     def __call__(self, obs288: np.ndarray) -> np.ndarray:
         a = self.sess.run(["action"], {self.name: obs288.reshape(1, -1)})[0].reshape(-1)
@@ -148,7 +174,7 @@ class RobotInterface:
 
 def run_hardware(policy_path, robot: RobotInterface, settle_s=1.0):
     pol = Policy(policy_path)
-    buf = ObsBuffer()
+    buf = ObsBuffer(clock=pol.clock)
     q_def = np.array([DEFAULT_Q[n] for n in LAB_DOF_ORDER], dtype=np.float64)
     kp = np.array([PD[n][0] for n in LAB_DOF_ORDER], dtype=np.float64)
     kd = np.array([PD[n][1] for n in LAB_DOF_ORDER], dtype=np.float64)
@@ -165,6 +191,9 @@ def run_hardware(policy_path, robot: RobotInterface, settle_s=1.0):
             st["ang_b"], st["grav_b"], np.asarray(cmd, dtype=np.float32),
             (st["joint_pos"] - q_def).astype(np.float32),
             st["joint_vel"].astype(np.float32), last_act])
+        if pol.clock:
+            frame = np.concatenate([frame, gait_clock_channels(
+                age, cmd[0], cmd[1])])
         obs = buf.push(frame)
         if age < settle_s:
             act = np.zeros(29, dtype=np.float32)
@@ -188,7 +217,8 @@ def self_test(onnx_path, npz_log):
     pol = Policy(onnx_path)
     q_def = np.array([DEFAULT_Q[n] for n in hinge])
     import numpy as _np
-    hist = np.zeros((HIST, 96), dtype=np.float32)
+    slices = SLICES + ([(96, 100)] if pol.clock else [])
+    hist = np.zeros((HIST, 96 + (4 if pol.clock else 0)), dtype=np.float32)
     last_act = np.zeros(29, dtype=np.float32)
     cmd = _np.asarray(meta["cmd"], dtype=_np.float32)
     _cdt = float(meta.get("control_dt", 0.02))
@@ -211,9 +241,12 @@ def self_test(onnx_path, npz_log):
         else:
             ang_b = _np.zeros(3)
         frame = _np.concatenate([ang_b, grav, cmd, (q[t] - q_def), dq[t], last_act]).astype(_np.float32)
+        if pol.clock:
+            frame = _np.concatenate([frame, gait_clock_channels(
+                t * _cdt, float(cmd[0]), float(cmd[1]))])
         hist[:-1] = hist[1:]
         hist[-1] = frame
-        obs = _np.concatenate([hist[:, a:b].reshape(-1) for a, b in SLICES])
+        obs = _np.concatenate([hist[:, a:b].reshape(-1) for a, b in slices])
         a = pol(obs)
         assert _np.isfinite(a).all(), f"NaN/Inf action at t={t}"
         if prev is not None:

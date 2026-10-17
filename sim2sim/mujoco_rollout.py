@@ -566,8 +566,16 @@ def main():
         layers, mean, std, meta = load_policy(Path(args.ckpt))
         in_dim = layers[0][0].shape[1]
         policy_fn = run_policy
-    print(f"[INFO] policy input dim = {in_dim} (expect {3*96}); feet colliders = {n_feet}")
-    assert in_dim == 3 * 96, f"unexpected obs dim {in_dim}"
+    # v71: gait-clock obs support — 3*96 = legacy, 3*100 = clock policy
+    # ([sinL,sinR,cosL,cosR] appended per frame by the training env when
+    # X1_GAIT_CLOCK=1; see roboparty .../amp/mdp/gait_clock.py).
+    global GAIT_CLOCK_OBS
+    GAIT_CLOCK_OBS = (in_dim == 3 * 100)
+    print(f"[INFO] policy input dim = {in_dim} "
+          f"(legacy 288 / clock 300; clock={'ON' if GAIT_CLOCK_OBS else 'OFF'}); "
+          f"feet colliders = {n_feet}")
+    assert in_dim in (3 * 96, 3 * 100), f"unexpected obs dim {in_dim}"
+    FRAME_DIM = 96 + (4 if GAIT_CLOCK_OBS else 0)
 
     # initial state: keyframe standing. v25: start LOW so the sole spheres
     # penetrate, measure the worst contact distance, then lift by exactly
@@ -591,7 +599,7 @@ def main():
     n_steps = int(args.duration / CONTROL_DT)
     settle_steps = int(args.settle / CONTROL_DT)
 
-    hist = np.zeros((HIST, 96), dtype=np.float32)
+    hist = np.zeros((HIST, FRAME_DIM), dtype=np.float32)
     last_act = np.zeros(29, dtype=np.float64)
     frames = []
     vxy_err, yaw_err, alive_steps = [], [], 0
@@ -643,6 +651,23 @@ def main():
             qn, dqn = q, dq
         obs = np.concatenate([ang_b, grav_b, cmd,
                               (qn - q_default)[lab2mj], dqn[lab2mj], last_act]).astype(np.float32)
+        if GAIT_CLOCK_OBS:
+            # v71 deploy twin of mdp/gait_clock.py — the EXACT training
+            # formulas/constants: phi from episode-time/step-counter and
+            # the FIXED rollout cmd (T*(v)=clamp(1.46-0.36v,0.70,1.75));
+            # layout [sinL,sinR,cosL,cosR]. Training advances the clock by
+            # episode_length_buf (1-indexed); the 20 ms offset is a
+            # constant phase shift — absorbed by the absolute-phase
+            # arbitrariness at episode start.
+            _t = step * CONTROL_DT
+            _v = float(np.linalg.norm(cmd[:2]))
+            _T = min(max(1.46 - 0.36 * _v, 0.70), 1.75)
+            _pl = (_t / _T) % 1.0
+            _pr = (_pl + 0.5) % 1.0
+            _ck = np.array([np.sin(2 * np.pi * _pl), np.sin(2 * np.pi * _pr),
+                            np.cos(2 * np.pi * _pl), np.cos(2 * np.pi * _pr)],
+                           dtype=np.float32)
+            obs = np.concatenate([obs, _ck])
         hist[:-1] = hist[1:]
         hist[-1] = obs
 
@@ -657,6 +682,8 @@ def main():
         # the policy a scrambled vector — every sim2sim attempt (v23-v26 pod
         # + local) fell within 1 s.
         slices = [(0, 3), (3, 6), (6, 9), (9, 38), (38, 67), (67, 96)]
+        if GAIT_CLOCK_OBS:
+            slices += [(96, 100)]
         ob = np.concatenate([hist[:, a:b].reshape(-1) for a, b in slices])
         ob_buf.appendleft(ob.copy())
         ob_eff = ob_buf[min(args.latency_steps, len(ob_buf) - 1)]

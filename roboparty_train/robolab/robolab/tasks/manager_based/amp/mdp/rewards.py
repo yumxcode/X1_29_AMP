@@ -1600,3 +1600,114 @@ def demo_joint_tracking_exp(
     gate = (env._demo_track_ok
             & (speed > min_cmd_speed) & (torch.abs(cmd[:, 2]) < max_cmd_yaw))
     return torch.exp(-err / std_rad) * gate.float()
+
+
+# ---------------------------------------------------------------------------
+# v71: EXOGENOUS GAIT CLOCK rewards (acceptance/X1_GAIT_SPEC_V71.md).
+# The 18-round falsification chain (v64-v70) established that reward-side
+# priors on EMERGENT cadence never flip the fast-step attractor; these terms
+# score the policy against an OBSERVED clock (mdp/gait_clock.py) instead —
+# "when to touch down / how high to lift" becomes an exogenous command the
+# policy can phase-lock to (the one untried information structure in this
+# stack). Weights default 0 (byte-identical recipes unless X1_GAIT_CLOCK=1).
+# ---------------------------------------------------------------------------
+
+def _gait_clock_common(env, command_name, min_cmd_speed, max_cmd_speed):
+    """Shared clock state for the v71 terms: (phi (N,2), v (N,), gate (N,))."""
+    try:
+        from .gait_clock import phases
+    except ImportError:  # file-path module load (local unit tests)
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_gait_clock", _P(__file__).resolve().parent / "gait_clock.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        phases = _m.phases
+    cmd = env.command_manager.get_command(command_name)
+    v = torch.norm(cmd[:, :2], dim=1)
+    t = env.episode_length_buf * env.step_dt
+    phi = phases(t, v)
+    gate = ((v > min_cmd_speed) & (v < max_cmd_speed)).float()
+    return phi, v, gate
+
+
+def foot_clock_height(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    sigma_z: float = 0.03,
+    min_cmd_speed: float = 0.15,
+    max_cmd_speed: float = 2.6,
+) -> torch.Tensor:
+    """v71: per-foot swing-height tracking of the clock target z*(phi).
+
+    The 抬腿/触地时序 anchor: rewards exp(-((h_i - z*(phi_i))/sigma)^2) per
+    foot, where h_i is the LOWEST sole point (min(heel, toe) world bottom-z,
+    the same G3/P8 axis) and z* is the C0 bell (0 in stance, apex h*(v)
+    mid-swing; 50 mm @1.0 m/s — inside the demo clearance band 22-63 mm,
+    2x the 25 mm drag gate).
+
+    Differential vs the falsified equilibria (sigma=0.03):
+      drag (h=0.01 mid-swing, z*=0.05): exp(-(0.04/0.03)^2)=0.17
+      micro-tap (h=0.02, half the bell): ~0.19 mean over swing
+      on-clock (h~z*): ~1.0   -> ~5x income differential, DENSE every frame
+    Stance frames pin h=0 (airborne stance pays exp(-(h/sigma)^2) < 1).
+    """
+    try:
+        from .gait_clock import target_height
+    except ImportError:
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_gait_clock", _P(__file__).resolve().parent / "gait_clock.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        target_height = _m.target_height
+
+    asset: Articulation = env.scene[asset_cfg.name]
+    heel_z = _foot_end_z(env, asset_cfg, _HEEL_OFF)
+    toe_z = _foot_end_z(env, asset_cfg, _TOE_OFF)
+    h_min = torch.minimum(heel_z, toe_z)                       # (N, 2)
+
+    phi, v, gate = _gait_clock_common(env, command_name, min_cmd_speed, max_cmd_speed)
+    z_star = target_height(phi, v)
+    score = torch.exp(-torch.square((h_min - z_star) / sigma_z))
+    return score.sum(dim=-1) * gate
+
+
+def contact_clock_timing(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    command_name: str = "base_velocity",
+    min_cmd_speed: float = 0.15,
+    max_cmd_speed: float = 2.6,
+) -> torch.Tensor:
+    """v71: contact-schedule hinge penalty against the clock.
+
+    Anti-drag + anti-tap complement to foot_clock_height:
+      - contact while the clock says MID-SWING (drag / micro-tap touchdown)
+        -> -1 per foot-frame
+      - airborne while the clock says MID-STANCE (hop / late load transfer)
+        -> -1 per foot-frame
+    Hinge windows cover the middle 60%/70% of each desired phase span, so
+    the transitions (touchdown 15% of stance, liftoff last 20% of swing) are
+    free — the policy may land/leave slightly early/late without penalty,
+    but cannot RESIDE on the wrong side.
+    """
+    try:
+        from .gait_clock import swing_mid_mask, stance_mid_mask
+    except ImportError:
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_gait_clock", _P(__file__).resolve().parent / "gait_clock.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        swing_mid_mask, stance_mid_mask = _m.swing_mid_mask, _m.stance_mid_mask
+
+    contact_sensor: ContactSensor = env.scene[sensor_cfg.name]
+    in_contact = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+
+    phi, v, gate = _gait_clock_common(env, command_name, min_cmd_speed, max_cmd_speed)
+    wrong_contact = swing_mid_mask(phi, v) & in_contact
+    wrong_air = stance_mid_mask(phi, v) & (~in_contact)
+    return -(wrong_contact.float() + wrong_air.float()).sum(dim=-1) * gate

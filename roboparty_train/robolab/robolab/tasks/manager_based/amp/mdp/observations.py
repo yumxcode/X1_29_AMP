@@ -370,3 +370,31 @@ def ref_key_body_vel_b(
         num_steps = ref_key_body_vel_b.shape[1]
         return ref_key_body_vel_b.reshape(num_envs, num_steps, -1)
 
+
+
+def gait_clock_obs(
+    env: ManagerBasedEnv,
+    command_name: str = "base_velocity",
+) -> torch.Tensor:
+    """v71: exogenous gait-clock phase channels (N, 4):
+    [sin(2pi phi_L), sin(2pi phi_R), cos(2pi phi_L), cos(2pi phi_R)].
+
+    Pure function of episode time + command speed (mdp/gait_clock.py) — no
+    state, so the sim2sim/deploy twin reproduces it exactly from its own
+    step counter (mujoco_rollout.py auto-detects the 300-d obs). Appended
+    LAST to the policy/critic groups (obs prefix keeps the champion
+    ordering; disc groups untouched — demo windows carry no clock).
+    """
+    try:
+        from .gait_clock import clock_obs
+    except ImportError:  # file-path module load (local unit tests)
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_gait_clock", _P(__file__).resolve().parent / "gait_clock.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        clock_obs = _m.clock_obs
+    cmd = env.command_manager.get_command(command_name)
+    v = torch.norm(cmd[:, :2], dim=1)
+    t = env.episode_length_buf * env.step_dt
+    return clock_obs(t, v)

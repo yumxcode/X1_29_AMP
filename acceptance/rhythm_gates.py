@@ -56,6 +56,14 @@ GATES = {
     "R4_step_len_m": (0.45, 1.05),
 }
 
+# v71 L-gate (user directive 2026-10-17: 新增抬腿步幅要求; spec
+# acceptance/X1_GAIT_SPEC_V71.md §5): per-swing APEX (max lift-above-min of
+# the foot-center z within each detected swing). p95 >= 25 mm is structurally
+# implied by the swing detector (lift > LIFT_M = 25 mm); the binding check
+# is the MEDIAN apex >= 35 mm on BOTH feet (drag family reads 12-17 mm,
+# healthy refs 22-63 mm).
+L_GATE = {"L1_apex_med_m": (0.035, None), "L1_min_swings": (4, None)}
+
 
 def swing_segments(z, dt):
     lift = z - z.min()
@@ -87,12 +95,16 @@ def measure_foot(z, dt, xy=None):
     sw = np.array([(b - a) * dt for a, b in segs])
     tds = np.array([a for a, b in segs])
     cyc = np.diff(tds) * dt
+    lift = z - z.min()
+    apex = np.array([float(lift[a:b].max()) for a, b in segs])
     out = {
         "n_swings": int(len(segs)),
         "swing_s_med": float(np.median(sw)),
         "stride_s_med": float(np.median(cyc)),
         "cadence_hz": float(1.0 / np.median(cyc)),
         "duty": float(1.0 - sw.sum() / (len(z) * dt)),
+        "apex_med_m": float(np.median(apex)),
+        "apex_p95_m": float(np.percentile(apex, 95)),
     }
     if xy is not None:
         sl = np.linalg.norm(xy[tds[1:]] - xy[tds[:-1]], axis=1)
@@ -144,6 +156,19 @@ def main():
         if not ok:
             fails.append(gate)
         checks.append((gate, val, (lo, hi), ok, ""))
+    # v71 L-gate (per-foot, both must pass; median aggregated per foot first)
+    for gate, (lo, hi) in L_GATE.items():
+        vals = [results[f] for f in ("L", "R") if results[f] is not None]
+        if gate == "L1_min_swings":
+            ok = all(v["n_swings"] >= lo for v in vals) and len(vals) == 2
+            val = min((v["n_swings"] for v in vals), default=None)
+            checks.append((gate, val, (lo, None), ok, "per-foot min"))
+        else:
+            ok = all(v["apex_med_m"] >= lo for v in vals) and len(vals) == 2
+            val = min((v["apex_med_m"] for v in vals), default=None)
+            checks.append((gate, val, (lo, None), ok, "per-foot min"))
+        if not ok:
+            fails.append(gate)
 
     print("=" * 72)
     print(f"RHYTHM GATES (P8)  {args.npz.split('/')[-1]}  dt={dt:.3f} "
@@ -156,10 +181,13 @@ def main():
         extra = f" step {m.get('step_len_m_med', float('nan')):.2f}m" \
             if "step_len_m_med" in m else ""
         print(f"  {f}: cadence {m['cadence_hz']:.2f} Hz  swing "
-              f"{m['swing_s_med']:.2f} s  duty {m['duty']:.2f}{extra}")
+              f"{m['swing_s_med']:.2f} s  duty {m['duty']:.2f}  "
+              f"apex med/p95 {m['apex_med_m']*1000:.0f}/"
+              f"{m['apex_p95_m']*1000:.0f} mm{extra}")
     for gate, val, band, ok, note in checks:
         v = f"{val:.3f}" if val is not None else "—"
-        b = f"[{band[0]:.2f}, {band[1]:.2f}]" if band else ""
+        b = (f"[{band[0]:.2f}, {band[1]:.2f}]" if band[1] is not None
+             else f">= {band[0]:.3f}") if band else ""
         print(f"  {'ok  ' if ok else 'FAIL'} {gate:16s} {v:>8s} in {b} {note}")
     verdict = "PASS" if not fails else "FAIL"
     print(f"VERDICT: {verdict}  fails={fails}")

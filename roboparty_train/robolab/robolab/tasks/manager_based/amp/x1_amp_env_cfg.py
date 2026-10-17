@@ -484,6 +484,43 @@ class X1AmpRewards():
             "alpha": 0.01,
         },
     )
+    # v71: EXOGENOUS GAIT CLOCK rewards (acceptance/X1_GAIT_SPEC_V71.md).
+    # foot_clock = per-foot swing-height tracking of the clock bell z*(phi)
+    #              (dense; the 抬腿 + touchdown-timing anchor);
+    # contact_clock = hinge penalty on contact during desired mid-swing /
+    #                 airborne during desired mid-stance (anti-drag/anti-tap).
+    # Weights default 0 — every earlier recipe byte-identical unless
+    # X1_GAIT_CLOCK=1 (weights then read from X1_FOOT_CLOCK_W/-X1_CONTACT_CLOCK_W).
+    foot_clock = RewTerm(
+        func=mdp.foot_clock_height,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+            "sigma_z": 0.03,
+        },
+    )
+    contact_clock = RewTerm(
+        func=mdp.contact_clock_timing,
+        weight=0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "command_name": "base_velocity",
+        },
+    )
 
     # v63: RHYTHM prior — speed-conditioned human gait-cycle cadence
     # (GOAL_RHYTHM.md). Event reward at each stance rising edge:
@@ -1065,6 +1102,34 @@ class X1AmpEnvCfg(AmpEnvCfg):
         _stance_max = float(_os_v69.environ.get("X1_STANCE_MAX", "0"))
         if _stance_max > 0:
             self.rewards.feet_distance_y.params["max"] = _stance_max
+        # ------------------------------------------------------
+        # v71: EXOGENOUS GAIT CLOCK package (single-mechanism arc;
+        # acceptance/X1_GAIT_SPEC_V71.md). The 18-round falsification
+        # chain (v64-v70) exhausted reward-side anchoring of EMERGENT
+        # cadence; this package makes the rhythm exogenous — the policy
+        # OBSERVES the clock phase (obs terms below) and the task scores
+        # foot height/contact against it. Default OFF = byte-identical.
+        #   X1_GAIT_CLOCK=1     enable (rewards + policy/critic obs)
+        #   X1_FOOT_CLOCK_W     foot_clock weight  (default 1.0)
+        #   X1_CONTACT_CLOCK_W  contact_clock weight (default -0.5; pass
+        #                        the MAGNITUDE, sign applied here)
+        # ------------------------------------------------------
+        import os as _os_v71
+        if _os_v71.environ.get("X1_GAIT_CLOCK", "0") == "1":
+            self.rewards.foot_clock.weight = float(
+                _os_v71.environ.get("X1_FOOT_CLOCK_W", "1.0"))
+            self.rewards.contact_clock.weight = -float(
+                _os_v71.environ.get("X1_CONTACT_CLOCK_W", "0.5"))
+            from isaaclab.managers import ObservationTermCfg as ObsTermV71
+            _clock_obs_params = {"command_name": "base_velocity"}
+            self.observations.policy.gait_clock = ObsTermV71(
+                func=mdp.gait_clock_obs, params=_clock_obs_params)
+            self.observations.critic.gait_clock = ObsTermV71(
+                func=mdp.gait_clock_obs, params=_clock_obs_params)
+            print("[GAIT-CLOCK] v71 exogenous gait clock ON: foot_clock "
+                  f"w={self.rewards.foot_clock.weight}, contact_clock "
+                  f"w={self.rewards.contact_clock.weight}, "
+                  "policy+critic obs +[sinL,sinR,cosL,cosR] (96->100/frame)")
         # v35 note: task_style_lerp 0.6->0.7 lives in the AGENT cfg
         # (x1_amp_agent_cfg.py): P3a lin kernel sat at 0.78 since v31d
         # (v27/v28: 0.84, old dataset); style reward now 1.14-2.00 (deep in
