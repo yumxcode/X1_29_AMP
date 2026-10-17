@@ -66,8 +66,15 @@ os.environ["X1_HIP_PHASE"] = "0.4"
 os.environ["X1_CADENCE_PRIOR"] = "0"
 os.environ["X1_SWING_PRIOR"] = "0"
 
-# --- continuation: +2000 iters from the platform-mounted m4500 -------------
-os.environ.pop("X1_RESUME_CKPT", None)
+# --- continuation: +2000 iters from the EMBEDDED m4500 ---------------------
+# (cross-account resume: the pool account 47 cannot mount account-46's OSS
+#  uploads; the checkpoint is committed at roboparty_train/checkpoints/ and
+#  pinned explicitly — the v60/v68 embedded-launcher pattern)
+_EMBEDDED = _here / "checkpoints" / "model_4500_v71.pt"
+if _EMBEDDED.is_file():
+    os.environ["X1_RESUME_CKPT"] = str(_EMBEDDED)
+else:
+    raise FileNotFoundError(f"v71c embedded base not found: {_EMBEDDED}")
 os.environ["X1_FINE_TUNE_ITERS"] = "2000"
 os.environ.setdefault("X1_CONTROL_HZ", "50")
 
