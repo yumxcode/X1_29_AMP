@@ -506,7 +506,10 @@ class X1AmpRewards():
                 preserve_order=True,
             ),
             "command_name": "base_velocity",
-            "sigma_z": 0.03,
+            # v71d knob: sharpening targets the brief-apex-pass defect
+            # (swing 0.145s vs 0.28 gate — partial credit at 0.03 lets the
+            #  foot touch the apex then land early; 0.02 prices the flanks)
+            "sigma_z": float(__import__("os").environ.get("X1_FOOT_SIGMA_Z", "0.03")),
         },
     )
     contact_clock = RewTerm(
