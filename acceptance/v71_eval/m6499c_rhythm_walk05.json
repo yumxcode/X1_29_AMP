@@ -1,0 +1,95 @@
+{
+ "file": "acceptance/v71_eval/m6499c_walk05.npz",
+ "cmd_vel": 0.5,
+ "feet": {
+  "L": {
+   "n_swings": 9,
+   "swing_s_med": 0.2,
+   "stride_s_med": 1.28,
+   "cadence_hz": 0.78125,
+   "duty": 0.8394415357766143,
+   "apex_med_m": 0.044783025036884284,
+   "apex_p95_m": 0.05520684053400537,
+   "step_len_m_med": 0.2153646725649147
+  },
+  "R": {
+   "n_swings": 15,
+   "swing_s_med": 0.18,
+   "stride_s_med": 0.64,
+   "cadence_hz": 1.5625,
+   "duty": 0.7643979057591623,
+   "apex_med_m": 0.03228073071509186,
+   "apex_p95_m": 0.04434568929360799,
+   "step_len_m_med": 0.08737488764655166
+  }
+ },
+ "median": {
+  "cadence_hz": 1.171875,
+  "swing_s_med": 0.19,
+  "duty": 0.8019197207678883,
+  "step_len_m_med": 0.15136978010573318
+ },
+ "checks": [
+  {
+   "gate": "R1_cadence_hz",
+   "value": 1.171875,
+   "band": [
+    0.55,
+    1.2
+   ],
+   "pass": true
+  },
+  {
+   "gate": "R2_swing_s",
+   "value": 0.19,
+   "band": [
+    0.28,
+    0.6
+   ],
+   "pass": false
+  },
+  {
+   "gate": "R3_duty",
+   "value": 0.8019197207678883,
+   "band": [
+    0.45,
+    0.75
+   ],
+   "pass": false
+  },
+  {
+   "gate": "R4_step_len_m",
+   "value": 0.15136978010573318,
+   "band": [
+    0.45,
+    1.05
+   ],
+   "pass": false
+  },
+  {
+   "gate": "L1_apex_med_m",
+   "value": 0.03228073071509186,
+   "band": [
+    0.035,
+    null
+   ],
+   "pass": false
+  },
+  {
+   "gate": "L1_min_swings",
+   "value": 9,
+   "band": [
+    4,
+    null
+   ],
+   "pass": true
+  }
+ ],
+ "verdict": "FAIL",
+ "fails": [
+  "R2_swing_s",
+  "R3_duty",
+  "R4_step_len_m",
+  "L1_apex_med_m"
+ ]
+}
