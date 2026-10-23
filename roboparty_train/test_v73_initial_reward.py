@@ -91,7 +91,8 @@ class SceneEntityCfg:  # stub
 mdp = types.SimpleNamespace(action_rate_l2=lambda env: None)
 env = {"X1_INITIAL_REWARD": "1", "X1_GAIT_CLOCK": "0"}
 
-g = {"self": self_obj, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp, "_os_v73": types.SimpleNamespace(environ=env)}
+g = {"self": self_obj, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp,
+     "_os_v73": types.SimpleNamespace(environ=env)}
 import os as _os_mod
 class _FakeOs:
     environ = env
@@ -109,17 +110,21 @@ assert self_obj.rewards.feet_distance_y.params["max"] == 0.50
 print(f"[2] PASS — real block produces EXACTLY the initial 15-term table; "
       f"whole-robot acc/rate params, feet max 0.50")
 
-# ---- 3. mutual exclusion --------------------------------------------------
+# ---- 3. v74 mode: clock terms SURVIVE the reset when GAIT_CLOCK=1 ---------
 env["X1_GAIT_CLOCK"] = "1"
-try:
-    exec(compile(block_src, "<block>", "exec"),
-         {"self": types.SimpleNamespace(rewards=FakeRewards()),
-          "SceneEntityCfg": SceneEntityCfg, "mdp": mdp, "__builtins__": __builtins__,
-          "_os_v73": types.SimpleNamespace(environ=env)})
-    raise AssertionError("mutual-exclusion guard did not raise")
-except ValueError as e:
-    assert "mutually" in str(e)
-print("[3] PASS — X1_GAIT_CLOCK + X1_INITIAL_REWARD raises ValueError")
+self74 = types.SimpleNamespace(rewards=FakeRewards())
+# simulate the v71 clock block having already set clock weights:
+self74.rewards.foot_clock.weight = 1.0
+self74.rewards.contact_clock.weight = -0.5
+exec(compile(block_src, "<block>", "exec"),
+     {"self": self74, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp,
+      "__builtins__": __builtins__,
+      "_os_v73": types.SimpleNamespace(environ=env)})
+final74 = {t: getattr(self74.rewards, t).weight.real
+           for t in real_terms if getattr(self74.rewards, t).weight != 0}
+exp74 = dict(KEEP); exp74["foot_clock"] = 1.0; exp74["contact_clock"] = -0.5
+assert final74 == exp74, f"v74 table mismatch: {sorted(final74.items())}"
+print("[3] PASS — v74 mode: initial 15 + foot_clock 1.0 + contact_clock -0.5; clock survives, all other additions still zeroed")
 
 # ---- 4. launcher parity: v73 env knobs vs the v72 infra list --------------
 launcher = (REPO / "roboparty_train/run_v73_initial_reward.py").read_text()

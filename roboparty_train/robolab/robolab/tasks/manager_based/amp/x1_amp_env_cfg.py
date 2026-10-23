@@ -1447,12 +1447,13 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # ------------------------------------------------------
         import os as _os_v73
         if _os_v73.environ.get("X1_INITIAL_REWARD", "0") == "1":
-            if _os_v73.environ.get("X1_GAIT_CLOCK", "0") == "1":
-                raise ValueError(
-                    "X1_INITIAL_REWARD and X1_GAIT_CLOCK are mutually "
-                    "exclusive: the initial design predates the clock; a "
-                    "clock-obs policy with clock rewards zeroed would be a "
-                    "silent mixed state (RECORD_BOOK §6)")
+            # v74 (RECORD_BOOK §9): X1_INITIAL_REWARD=1 + X1_GAIT_CLOCK=1 is
+            # the LEGITIMATE "initial reward + clock ONLY" single-variable
+            # re-add — the v71 block above has already applied the clock
+            # obs (policy/critic +4) and the foot_clock/contact_clock
+            # weights, so those two terms are EXEMPT from the reset below.
+            # Everything else v27-v72 stays OFF. (v73 = clock absent.)
+            _v74_clock = _os_v73.environ.get("X1_GAIT_CLOCK", "0") == "1"
             self.rewards.track_lin_vel_xy_exp.weight = 1.25
             self.rewards.track_ang_vel_z_exp.weight = 1.25
             self.rewards.alive.weight = 0.15
@@ -1473,8 +1474,9 @@ class X1AmpEnvCfg(AmpEnvCfg):
             self.rewards.feet_distance_y.weight = 0.05
             self.rewards.feet_distance_y.params["max"] = 0.50
             self.rewards.undesired_contacts.weight = -10.0
-            # zero every accumulated term (v27-v72), explicit:
-            for _t in (
+            # zero every accumulated term (v27-v72), explicit; the v74
+            # clock package (foot_clock/contact_clock) is exempt above:
+            _zero = [
                 "lin_vel_z_l2", "joint_acc_l2_arms", "action_rate_l2_arms",
                 "smoothness_1", "joint_regularization",
                 "arm_pitch_sync", "arm_asym_lean", "arm_leg_coupling",
@@ -1483,16 +1485,19 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 "heel_down_ready", "swing_clearance", "ankle_flick",
                 "foot_yaw_neutral", "hip_roll_abduction", "shoulder_yaw_fold",
                 "arm_shared_lean", "demo_joint_track", "lateral_sway",
-                "foot_clock", "contact_clock", "gait_period", "swing_airtime",
+                "gait_period", "swing_airtime",
                 "stance_sole_flat", "yaw_bias",
-            ):
+            ]
+            if not _v74_clock:
+                _zero += ["foot_clock", "contact_clock"]
+            for _t in _zero:
                 getattr(self.rewards, _t).weight = 0.0
-            print("[INITIAL-REWARD] v73: reward table RESET to the initial "
+            print("[INITIAL-REWARD] v73/v74: reward table RESET to the initial "
                   "15-term design (6ea0655; the 16th, arm_pitch_mean_offset, "
                   "deliberately not resurrected — v28b FK-disproven); all "
-                  "v27-v72 additions OFF "
-                  "(clock, guards, priors); feet_distance_y max=0.50; "
-                  "whole-robot smoothing terms")
+                  "v27-v72 additions OFF (guards, priors); "
+                  f"clock package {'ON (v74: foot_clock/contact_clock kept)' if _v74_clock else 'OFF (v73)'}; "
+                  "feet_distance_y max=0.50; whole-robot smoothing terms")
 
         # ------------------------------------------------------
         # v73 audit discipline (RECORD_BOOK §6): every run prints its
