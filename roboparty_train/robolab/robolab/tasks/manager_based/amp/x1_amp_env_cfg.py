@@ -706,7 +706,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
             self.motion_data.motion_dataset.motion_data_weights = {
                 # PRIME band
                 "07_01": 1.2, "08_03": 1.2, "38_02": 1.2, "103_07": 1.2,
-                # MID band (35-family low cadence + legacy anchored walks) "38_01": 0.7,
+                # MID band (35-family low cadence + legacy anchored walks)
+                "38_01": 0.7,
                 "35_01": 0.7, "35_02": 0.7, "35_03": 0.7, "35_04": 0.7,
                 "35_05": 0.7, "35_06": 0.7, "35_07": 0.7, "35_08": 0.7,
                 "35_09": 0.7, "35_10": 0.7, "35_11": 0.7, "35_12": 0.7,
@@ -1414,6 +1415,96 @@ class X1AmpEnvCfg(AmpEnvCfg):
             ".*_elbow_.*_link",        # 手肘着地
             ".*_wrist_.*_link",        # 手腕着地
         ]
+
+        # ------------------------------------------------------
+        # v73: X1_INITIAL_REWARD=1 — reset the reward table to the
+        # INITIAL X1 AMP design (commit 6ea0655, 2026-08-06; archaeology
+        # 2026-10-24, RECORD_BOOK §8) before any term is dropped. This is
+        # the user directive of 2026-10-24: re-derive the reward from the
+        # original design instead of stacking on v27-v72 additions, keeping
+        # the reward stack the SINGLE experimental variable vs the v72
+        # recipe (infra kept: v68 dynamics, 600 ms disc window + linvel,
+        # VMATCH, ROBUST regime, 50 Hz).
+        #
+        # Initial 15+1-term table (weight-for-weight with 6ea0655):
+        #   task: lin/ang vel tracking 1.25 x2, alive 0.15
+        #   base: ang_vel_xy -0.1, flat_orientation -1.2
+        #   joint (WHOLE robot, no legs/arms split): joint_vel -2e-4,
+        #         joint_acc -2.5e-7, action_rate -0.01 (func reverted to
+        #         mdp.action_rate_l2), pos_limits -1.0, energy -1e-4,
+        #         torques -1e-5
+        #   feet: feet_slide -0.1, sound -5e-5, feet_distance_y 0.05
+        #         (max restored 0.50 — no X1_STANCE_MAX tightening)
+        #   safety: undesired_contacts -10
+        #   + AMP style (agent side, untouched)
+        # DELIBERATE deviation (recorded): the initial 17th term
+        # arm_pitch_mean_offset (-0.1) is NOT resurrected — its MEAN
+        # statistic was FK-disproven in v28b (blind to the one-fwd-one-back
+        # defect, penalized natural swing) and the disc now sees the arms
+        # (v38 10-body obs), superseding its intent.
+        # Everything accumulated v27-v72 is zeroed here (the full list is
+        # explicit below so the diff against intent is reviewable).
+        # ------------------------------------------------------
+        import os as _os_v73
+        if _os_v73.environ.get("X1_INITIAL_REWARD", "0") == "1":
+            if _os_v73.environ.get("X1_GAIT_CLOCK", "0") == "1":
+                raise ValueError(
+                    "X1_INITIAL_REWARD and X1_GAIT_CLOCK are mutually "
+                    "exclusive: the initial design predates the clock; a "
+                    "clock-obs policy with clock rewards zeroed would be a "
+                    "silent mixed state (RECORD_BOOK §6)")
+            self.rewards.track_lin_vel_xy_exp.weight = 1.25
+            self.rewards.track_ang_vel_z_exp.weight = 1.25
+            self.rewards.alive.weight = 0.15
+            self.rewards.ang_vel_xy_l2.weight = -0.1
+            self.rewards.flat_orientation_l2.weight = -1.2
+            self.rewards.joint_vel_l2.weight = -2e-4
+            self.rewards.joint_acc_l2.weight = -2.5e-7
+            self.rewards.joint_acc_l2.params = {
+                "asset_cfg": SceneEntityCfg("robot")}  # whole 29 joints
+            self.rewards.action_rate_l2.weight = -0.01
+            self.rewards.action_rate_l2.func = mdp.action_rate_l2  # whole robot
+            self.rewards.action_rate_l2.params = {}
+            self.rewards.joint_pos_limits.weight = -1.0
+            self.rewards.joint_energy.weight = -1e-4
+            self.rewards.joint_torques_l2.weight = -1e-5
+            self.rewards.feet_slide.weight = -0.1
+            self.rewards.sound_suppression.weight = -5e-5
+            self.rewards.feet_distance_y.weight = 0.05
+            self.rewards.feet_distance_y.params["max"] = 0.50
+            self.rewards.undesired_contacts.weight = -10.0
+            # zero every accumulated term (v27-v72), explicit:
+            for _t in (
+                "lin_vel_z_l2", "joint_acc_l2_arms", "action_rate_l2_arms",
+                "smoothness_1", "joint_regularization",
+                "arm_pitch_sync", "arm_asym_lean", "arm_leg_coupling",
+                "lumbar_posture", "arm_amp_prior", "arm_amp_phase",
+                "knee_extension", "heel_first", "leg_amp_asym", "hip_phase",
+                "heel_down_ready", "swing_clearance", "ankle_flick",
+                "foot_yaw_neutral", "hip_roll_abduction", "shoulder_yaw_fold",
+                "arm_shared_lean", "demo_joint_track", "lateral_sway",
+                "foot_clock", "contact_clock", "gait_period", "swing_airtime",
+                "stance_sole_flat", "yaw_bias",
+            ):
+                getattr(self.rewards, _t).weight = 0.0
+            print("[INITIAL-REWARD] v73: reward table RESET to the initial "
+                  "15-term design (6ea0655; the 16th, arm_pitch_mean_offset, "
+                  "deliberately not resurrected — v28b FK-disproven); all "
+                  "v27-v72 additions OFF "
+                  "(clock, guards, priors); feet_distance_y max=0.50; "
+                  "whole-robot smoothing terms")
+
+        # ------------------------------------------------------
+        # v73 audit discipline (RECORD_BOOK §6): every run prints its
+        # FINAL active reward table, so 'code changed but run did not'
+        # becomes detectable from the task log alone.
+        # ------------------------------------------------------
+        _active = sorted(
+            (name, float(term.weight)) for name, term in self.rewards.__dict__.items()
+            if getattr(term, "weight", 0) != 0)
+        print(f"[REWARD-TABLE] active terms ({len(_active)}): "
+              + ", ".join(f"{n}={w:g}" for n, w in _active))
+
         if self.__class__.__name__ == "X1AmpEnvCfg":
             self.disable_zero_weight_rewards()
 

@@ -1,0 +1,713 @@
+{
+ "verdict": "PASS",
+ "fails": [],
+ "warns": [
+  "[B2] 0000_treadmill_norm:left_elbow_pitch_joint beyond soft limit in 25.9% frames (range [1.408,2.000])",
+  "[B2] 0000_treadmill_norm:left_wrist_roll_joint beyond soft limit in 5.8% frames (range [-0.400,0.135])",
+  "[B2] 0000_treadmill_norm:right_elbow_pitch_joint beyond soft limit in 59.8% frames (range [1.809,2.000])",
+  "[B2] 0000_treadmill_norm:left_knee_pitch_joint beyond soft limit in 34.2% frames (range [-0.000,0.928])",
+  "[B2] 0000_treadmill_norm:left_ankle_pitch_joint beyond soft limit in 13.2% frames (range [-0.410,0.350])",
+  "[B2] 0000_treadmill_norm:right_knee_pitch_joint beyond soft limit in 16.7% frames (range [0.001,1.058])",
+  "[E3] 0000_treadmill_norm: stored FK mismatch mean err 0.1778 m (convention forensics only)",
+  "[B2] 0002_treadmill_slow:left_elbow_pitch_joint beyond soft limit in 5.8% frames (range [1.679,1.994])",
+  "[B2] 0002_treadmill_slow:right_elbow_pitch_joint beyond soft limit in 80.4% frames (range [1.790,2.000])",
+  "[B2] 0002_treadmill_slow:left_knee_pitch_joint beyond soft limit in 33.6% frames (range [-0.000,0.669])",
+  "[B2] 0002_treadmill_slow:left_ankle_pitch_joint beyond soft limit in 9.6% frames (range [-0.410,0.350])",
+  "[B2] 0002_treadmill_slow:right_knee_pitch_joint beyond soft limit in 8.4% frames (range [0.008,1.057])",
+  "[E3] 0002_treadmill_slow: stored FK mismatch mean err 0.1751 m (convention forensics only)",
+  "[B2] 0005_normal_walk1:left_elbow_pitch_joint beyond soft limit in 21.1% frames (range [1.673,2.000])",
+  "[B2] 0005_normal_walk1:left_wrist_roll_joint beyond soft limit in 39.1% frames (range [-0.400,0.064])",
+  "[B2] 0005_normal_walk1:right_elbow_pitch_joint beyond soft limit in 61.2% frames (range [1.800,2.000])",
+  "[B2] 0005_normal_walk1:right_wrist_pitch_joint beyond soft limit in 12.8% frames (range [-0.400,-0.024])",
+  "[B2] 0005_normal_walk1:left_hip_roll_joint beyond soft limit in 9.7% frames (range [-0.164,0.200])",
+  "[B2] 0005_normal_walk1:left_knee_pitch_joint beyond soft limit in 38.1% frames (range [0.001,0.697])",
+  "[B2] 0005_normal_walk1:left_ankle_pitch_joint beyond soft limit in 19.7% frames (range [-0.410,0.350])",
+  "[B2] 0005_normal_walk1:right_knee_pitch_joint beyond soft limit in 21.5% frames (range [0.000,1.106])",
+  "[B2] 0005_normal_walk1:right_ankle_pitch_joint beyond soft limit in 17.0% frames (range [-0.296,0.350])",
+  "[E3] 0005_normal_walk1: stored FK mismatch mean err 0.1706 m (convention forensics only)",
+  "[B2] 0007_normal_walk3:left_elbow_pitch_joint beyond soft limit in 36.4% frames (range [1.657,2.000])",
+  "[B2] 0007_normal_walk3:left_wrist_roll_joint beyond soft limit in 17.9% frames (range [-0.400,0.256])",
+  "[B2] 0007_normal_walk3:right_elbow_pitch_joint beyond soft limit in 60.8% frames (range [1.828,2.000])",
+  "[B2] 0007_normal_walk3:right_wrist_pitch_joint beyond soft limit in 22.3% frames (range [-0.400,-0.021])",
+  "[B2] 0007_normal_walk3:left_knee_pitch_joint beyond soft limit in 35.1% frames (range [0.004,0.645])",
+  "[B2] 0007_normal_walk3:left_ankle_pitch_joint beyond soft limit in 18.9% frames (range [-0.410,0.350])",
+  "[B2] 0007_normal_walk3:right_knee_pitch_joint beyond soft limit in 19.9% frames (range [-0.000,0.910])",
+  "[B2] 0007_normal_walk3:right_ankle_pitch_joint beyond soft limit in 15.1% frames (range [-0.311,0.350])",
+  "[E3] 0007_normal_walk3: stored FK mismatch mean err 0.1776 m (convention forensics only)",
+  "[B2] 0008_normal_walk4:left_elbow_pitch_joint beyond soft limit in 26.3% frames (range [1.652,2.000])",
+  "[B2] 0008_normal_walk4:left_wrist_roll_joint beyond soft limit in 10.2% frames (range [-0.400,0.087])",
+  "[B2] 0008_normal_walk4:right_elbow_pitch_joint beyond soft limit in 38.4% frames (range [1.813,2.000])",
+  "[B2] 0008_normal_walk4:right_wrist_pitch_joint beyond soft limit in 10.2% frames (range [-0.400,-0.033])",
+  "[B2] 0008_normal_walk4:left_hip_roll_joint beyond soft limit in 8.9% frames (range [-0.196,0.200])",
+  "[B2] 0008_normal_walk4:left_knee_pitch_joint beyond soft limit in 39.4% frames (range [-0.000,0.772])",
+  "[B2] 0008_normal_walk4:left_ankle_pitch_joint beyond soft limit in 21.6% frames (range [-0.410,0.350])",
+  "[B2] 0008_normal_walk4:right_knee_pitch_joint beyond soft limit in 19.4% frames (range [0.000,1.056])",
+  "[B2] 0008_normal_walk4:right_ankle_pitch_joint beyond soft limit in 20.3% frames (range [-0.328,0.350])",
+  "[E3] 0008_normal_walk4: stored FK mismatch mean err 0.1832 m (convention forensics only)",
+  "[B2] 0026_circle_walk:left_elbow_pitch_joint beyond soft limit in 27.3% frames (range [1.608,2.000])",
+  "[B2] 0026_circle_walk:left_wrist_roll_joint beyond soft limit in 12.2% frames (range [-0.400,0.400])",
+  "[B2] 0026_circle_walk:right_elbow_pitch_joint beyond soft limit in 80.6% frames (range [1.782,2.000])",
+  "[B2] 0026_circle_walk:left_hip_roll_joint beyond soft limit in 11.8% frames (range [-0.226,0.200])",
+  "[B2] 0026_circle_walk:left_knee_pitch_joint beyond soft limit in 39.6% frames (range [-0.000,0.904])",
+  "[B2] 0026_circle_walk:left_ankle_pitch_joint beyond soft limit in 13.8% frames (range [-0.410,0.350])",
+  "[B2] 0026_circle_walk:right_knee_pitch_joint beyond soft limit in 13.4% frames (range [0.000,1.138])",
+  "[B2] 0026_circle_walk:right_ankle_pitch_joint beyond soft limit in 19.7% frames (range [-0.296,0.350])",
+  "[E3] 0026_circle_walk: stored FK mismatch mean err 1.0568 m (convention forensics only)",
+  "[B2] 07_01:lumbar_roll_joint beyond soft limit in 11.4% frames (range [-0.059,0.250])",
+  "[B2] 07_01:left_shoulder_roll_joint beyond soft limit in 100.0% frames (range [-0.000,0.000])",
+  "[B2] 07_01:left_elbow_pitch_joint beyond soft limit in 15.5% frames (range [0.002,1.579])",
+  "[B2] 07_01:left_elbow_yaw_joint beyond soft limit in 99.7% frames (range [0.749,1.800])",
+  "[B2] 07_01:left_wrist_pitch_joint beyond soft limit in 100.0% frames (range [-0.400,-0.400])",
+  "[B2] 07_01:left_wrist_roll_joint beyond soft limit in 100.0% frames (range [0.400,0.400])",
+  "[B2] 07_01:right_shoulder_roll_joint beyond soft limit in 57.9% frames (range [-0.259,0.000])",
+  "[B2] 07_01:right_elbow_pitch_joint beyond soft limit in 91.8% frames (range [1.070,2.000])",
+  "[B2] 07_01:right_wrist_pitch_joint beyond soft limit in 45.3% frames (range [-0.400,-0.241])",
+  "[B2] 07_01:left_knee_pitch_joint beyond soft limit in 17.7% frames (range [-0.000,1.009])",
+  "[B2] 07_01:left_ankle_pitch_joint beyond soft limit in 7.3% frames (range [-0.410,0.273])",
+  "[B2] 07_01:right_knee_pitch_joint beyond soft limit in 9.2% frames (range [-0.000,0.929])",
+  "[B2] 07_01:right_ankle_pitch_joint beyond soft limit in 7.9% frames (range [-0.306,0.350])",
+  "[D1] 07_01: sporadic joint spike 1.051 rad at frame 0 joint left_elbow_yaw_joint (single-frame)",
+  "[E3] 07_01: stored FK mismatch mean err 0.2543 m (convention forensics only)",
+  "[B2] 08_01:lumbar_roll_joint beyond soft limit in 5.1% frames (range [-0.250,0.250])",
+  "[B2] 08_01:left_shoulder_roll_joint beyond soft limit in 11.6% frames (range [-0.170,-0.005])",
+  "[B2] 08_01:left_elbow_pitch_joint beyond soft limit in 100.0% frames (range [1.967,2.000])",
+  "[B2] 08_01:left_wrist_pitch_joint beyond soft limit in 59.2% frames (range [0.303,0.400])",
+  "[B2] 08_01:left_wrist_roll_joint beyond soft limit in 78.0% frames (range [0.275,0.400])",
+  "[B2] 08_01:right_shoulder_roll_joint beyond soft limit in 14.4% frames (range [-0.246,-0.008])",
+  "[B2] 08_01:right_elbow_pitch_joint beyond soft limit in 52.3% frames (range [1.729,2.000])",
+  "[B2] 08_01:right_wrist_pitch_joint beyond soft limit in 16.6% frames (range [-0.400,-0.080])",
+  "[B2] 08_01:left_hip_roll_joint beyond soft limit in 7.2% frames (range [-0.264,0.200])",
+  "[B2] 08_01:left_knee_pitch_joint beyond soft limit in 9.0% frames (range [0.006,0.849])",
+  "[B2] 08_01:left_ankle_pitch_joint beyond soft limit in 15.9% frames (range [-0.410,0.350])",
+  "[B2] 08_01:right_ankle_pitch_joint beyond soft limit in 11.2% frames (range [-0.337,0.350])",
+  "[E3] 08_01: stored FK mismatch mean err 0.2434 m (convention forensics only)",
+  "[B2] 08_03:left_shoulder_roll_joint beyond soft limit in 12.7% frames (range [-0.175,-0.008])",
+  "[B2] 08_03:left_elbow_pitch_joint beyond soft limit in 100.0% frames (range [1.971,2.000])",
+  "[B2] 08_03:left_wrist_pitch_joint beyond soft limit in 58.6% frames (range [0.307,0.400])",
+  "[B2] 08_03:left_wrist_roll_joint beyond soft limit in 75.1% frames (range [0.303,0.400])",
+  "[B2] 08_03:right_shoulder_roll_joint beyond soft limit in 9.9% frames (range [-0.241,-0.002])",
+  "[B2] 08_03:right_elbow_pitch_joint beyond soft limit in 60.6% frames (range [1.831,2.000])",
+  "[B2] 08_03:right_wrist_pitch_joint beyond soft limit in 18.4% frames (range [-0.400,-0.072])",
+  "[B2] 08_03:left_hip_roll_joint beyond soft limit in 8.8% frames (range [-0.207,0.200])",
+  "[B2] 08_03:left_knee_pitch_joint beyond soft limit in 10.8% frames (range [0.001,0.731])",
+  "[B2] 08_03:left_ankle_pitch_joint beyond soft limit in 19.0% frames (range [-0.410,0.350])",
+  "[B2] 08_03:right_ankle_pitch_joint beyond soft limit in 15.0% frames (range [-0.388,0.350])",
+  "[E3] 08_03: stored FK mismatch mean err 0.2387 m (convention forensics only)",
+  "[B2] 08_06:lumbar_roll_joint beyond soft limit in 7.4% frames (range [-0.250,0.250])",
+  "[B2] 08_06:left_shoulder_roll_joint beyond soft limit in 9.5% frames (range [-0.167,-0.027])",
+  "[B2] 08_06:left_elbow_pitch_joint beyond soft limit in 100.0% frames (range [1.972,2.000])",
+  "[B2] 08_06:left_wrist_pitch_joint beyond soft limit in 76.7% frames (range [0.307,0.400])",
+  "[B2] 08_06:left_wrist_roll_joint beyond soft limit in 62.2% frames (range [0.160,0.400])",
+  "[B2] 08_06:right_elbow_pitch_joint beyond soft limit in 60.1% frames (range [1.808,2.000])",
+  "[B2] 08_06:right_wrist_pitch_joint beyond soft limit in 34.1% frames (range [-0.400,-0.098])",
+  "[B2] 08_06:left_hip_roll_joint beyond soft limit in 5.4% frames (range [-0.344,0.200])",
+  "[B2] 08_06:left_knee_pitch_joint beyond soft limit in 25.3% frames (range [0.001,1.034])",
+  "[B2] 08_06:left_ankle_pitch_joint beyond soft limit in 29.4% frames (range [-0.410,0.350])",
+  "[B2] 08_06:right_hip_roll_joint beyond soft limit in 5.1% frames (range [-0.200,0.305])",
+  "[B2] 08_06:right_knee_pitch_joint beyond soft limit in 7.1% frames (range [0.011,1.020])",
+  "[B2] 08_06:right_ankle_pitch_joint beyond soft limit in 8.8% frames (range [-0.360,0.350])",
+  "[E3] 08_06: stored FK mismatch mean err 0.2407 m (convention forensics only)",
+  "[B2] 08_08:lumbar_roll_joint beyond soft limit in 7.4% frames (range [-0.250,0.250])",
+  "[B2] 08_08:left_elbow_pitch_joint beyond soft limit in 100.0% frames (range [1.966,2.000])",
+  "[B2] 08_08:left_wrist_pitch_joint beyond soft limit in 70.0% frames (range [0.280,0.400])",
+  "[B2] 08_08:left_wrist_roll_joint beyond soft limit in 53.7% frames (range [0.029,0.400])",
+  "[B2] 08_08:right_elbow_pitch_joint beyond soft limit in 62.2% frames (range [1.796,2.000])",
+  "[B2] 08_08:right_wrist_pitch_joint beyond soft limit in 39.6% frames (range [-0.400,-0.061])",
+  "[B2] 08_08:left_hip_roll_joint beyond soft limit in 12.0% frames (range [-0.306,0.200])",
+  "[B2] 08_08:left_knee_pitch_joint beyond soft limit in 12.0% frames (range [0.012,0.984])",
+  "[B2] 08_08:left_ankle_pitch_joint beyond soft limit in 11.3% frames (range [-0.406,0.350])",
+  "[B2] 08_08:right_ankle_pitch_joint beyond soft limit in 18.4% frames (range [-0.343,0.350])",
+  "[E3] 08_08: stored FK mismatch mean err 0.2357 m (convention forensics only)",
+  "[B2] 103_07:lumbar_roll_joint beyond soft limit in 8.1% frames (range [-0.250,0.230])",
+  "[B2] 103_07:lumbar_pitch_joint beyond soft limit in 11.0% frames (range [0.236,0.450])",
+  "[B2] 103_07:left_elbow_pitch_joint beyond soft limit in 55.1% frames (range [1.500,2.000])",
+  "[B2] 103_07:left_wrist_pitch_joint beyond soft limit in 28.0% frames (range [0.075,0.400])",
+  "[B2] 103_07:right_elbow_pitch_joint beyond soft limit in 39.0% frames (range [1.556,2.000])",
+  "[B2] 103_07:right_wrist_roll_joint beyond soft limit in 13.1% frames (range [-0.400,0.001])",
+  "[B2] 103_07:left_hip_roll_joint beyond soft limit in 13.6% frames (range [-0.216,0.200])",
+  "[B2] 103_07:left_knee_pitch_joint beyond soft limit in 13.1% frames (range [0.003,0.995])",
+  "[B2] 103_07:left_ankle_pitch_joint beyond soft limit in 23.7% frames (range [-0.410,0.350])",
+  "[B2] 103_07:right_hip_roll_joint beyond soft limit in 9.3% frames (range [-0.200,0.270])",
+  "[B2] 103_07:right_ankle_pitch_joint beyond soft limit in 15.3% frames (range [-0.347,0.350])",
+  "[E3] 103_07: stored FK mismatch mean err 1.0855 m (convention forensics only)",
+  "[B2] 35_01:left_elbow_pitch_joint beyond soft limit in 83.5% frames (range [1.825,2.000])",
+  "[B2] 35_01:right_elbow_pitch_joint beyond soft limit in 40.8% frames (range [1.795,1.984])",
+  "[B2] 35_01:left_hip_roll_joint beyond soft limit in 36.3% frames (range [-0.121,0.200])",
+  "[B2] 35_01:left_knee_pitch_joint beyond soft limit in 10.1% frames (range [-0.000,1.075])",
+  "[B2] 35_01:left_ankle_pitch_joint beyond soft limit in 25.7% frames (range [-0.410,0.350])",
+  "[B2] 35_01:right_hip_roll_joint beyond soft limit in 14.0% frames (range [-0.200,0.278])",
+  "[B2] 35_01:right_knee_pitch_joint beyond soft limit in 8.4% frames (range [-0.000,1.198])",
+  "[B2] 35_01:right_ankle_pitch_joint beyond soft limit in 26.5% frames (range [-0.410,0.350])",
+  "[E3] 35_01: stored FK mismatch mean err 0.2630 m (convention forensics only)",
+  "[B2] 35_02:lumbar_pitch_joint beyond soft limit in 6.2% frames (range [0.216,0.450])",
+  "[B2] 35_02:left_elbow_pitch_joint beyond soft limit in 79.8% frames (range [1.821,2.000])",
+  "[B2] 35_02:right_elbow_pitch_joint beyond soft limit in 30.0% frames (range [1.706,1.984])",
+  "[B2] 35_02:left_hip_roll_joint beyond soft limit in 32.3% frames (range [-0.169,0.200])",
+  "[B2] 35_02:left_knee_pitch_joint beyond soft limit in 8.9% frames (range [-0.000,1.125])",
+  "[B2] 35_02:left_ankle_pitch_joint beyond soft limit in 22.2% frames (range [-0.410,0.350])",
+  "[B2] 35_02:right_hip_roll_joint beyond soft limit in 19.5% frames (range [-0.200,0.302])",
+  "[B2] 35_02:right_knee_pitch_joint beyond soft limit in 7.4% frames (range [-0.000,1.206])",
+  "[B2] 35_02:right_ankle_pitch_joint beyond soft limit in 21.9% frames (range [-0.410,0.350])",
+  "[E3] 35_02: stored FK mismatch mean err 0.2643 m (convention forensics only)",
+  "[B2] 35_03:lumbar_pitch_joint beyond soft limit in 7.7% frames (range [0.210,0.448])",
+  "[B2] 35_03:left_elbow_pitch_joint beyond soft limit in 75.6% frames (range [1.794,2.000])",
+  "[B2] 35_03:right_elbow_pitch_joint beyond soft limit in 28.3% frames (range [1.684,1.995])",
+  "[B2] 35_03:left_hip_roll_joint beyond soft limit in 32.3% frames (range [-0.139,0.200])",
+  "[B2] 35_03:left_knee_pitch_joint beyond soft limit in 8.4% frames (range [-0.000,1.137])",
+  "[B2] 35_03:left_ankle_pitch_joint beyond soft limit in 17.8% frames (range [-0.410,0.350])",
+  "[B2] 35_03:right_hip_roll_joint beyond soft limit in 21.1% frames (range [-0.200,0.280])",
+  "[B2] 35_03:right_knee_pitch_joint beyond soft limit in 6.6% frames (range [-0.000,1.183])",
+  "[B2] 35_03:right_ankle_pitch_joint beyond soft limit in 23.7% frames (range [-0.410,0.350])",
+  "[E3] 35_03: stored FK mismatch mean err 0.2639 m (convention forensics only)",
+  "[B2] 35_04:left_elbow_pitch_joint beyond soft limit in 64.2% frames (range [1.781,2.000])",
+  "[B2] 35_04:right_elbow_pitch_joint beyond soft limit in 37.2% frames (range [1.713,1.983])",
+  "[B2] 35_04:left_hip_roll_joint beyond soft limit in 29.3% frames (range [-0.150,0.200])",
+  "[B2] 35_04:left_knee_pitch_joint beyond soft limit in 6.7% frames (range [-0.000,1.120])",
+  "[B2] 35_04:left_ankle_pitch_joint beyond soft limit in 23.8% frames (range [-0.410,0.350])",
+  "[B2] 35_04:right_hip_roll_joint beyond soft limit in 17.1% frames (range [-0.200,0.342])",
+  "[B2] 35_04:right_knee_pitch_joint beyond soft limit in 8.5% frames (range [-0.000,1.192])",
+  "[B2] 35_04:right_ankle_pitch_joint beyond soft limit in 22.6% frames (range [-0.410,0.350])",
+  "[E3] 35_04: stored FK mismatch mean err 0.2610 m (convention forensics only)",
+  "[B2] 35_05:left_elbow_pitch_joint beyond soft limit in 70.7% frames (range [1.790,2.000])",
+  "[B2] 35_05:right_elbow_pitch_joint beyond soft limit in 26.2% frames (range [1.780,1.977])",
+  "[B2] 35_05:left_hip_roll_joint beyond soft limit in 30.7% frames (range [-0.134,0.200])",
+  "[B2] 35_05:left_knee_pitch_joint beyond soft limit in 12.4% frames (range [-0.000,1.098])",
+  "[B2] 35_05:left_ankle_pitch_joint beyond soft limit in 16.9% frames (range [-0.410,0.350])",
+  "[B2] 35_05:right_hip_roll_joint beyond soft limit in 17.6% frames (range [-0.200,0.296])",
+  "[B2] 35_05:right_knee_pitch_joint beyond soft limit in 7.5% frames (range [-0.000,1.151])",
+  "[B2] 35_05:right_ankle_pitch_joint beyond soft limit in 22.7% frames (range [-0.410,0.350])",
+  "[E3] 35_05: stored FK mismatch mean err 0.2644 m (convention forensics only)",
+  "[B2] 35_06:left_elbow_pitch_joint beyond soft limit in 61.4% frames (range [1.748,2.000])",
+  "[B2] 35_06:right_elbow_pitch_joint beyond soft limit in 25.8% frames (range [1.686,1.984])",
+  "[B2] 35_06:left_hip_roll_joint beyond soft limit in 32.9% frames (range [-0.156,0.200])",
+  "[B2] 35_06:left_knee_pitch_joint beyond soft limit in 8.7% frames (range [-0.000,1.110])",
+  "[B2] 35_06:left_ankle_pitch_joint beyond soft limit in 22.8% frames (range [-0.410,0.350])",
+  "[B2] 35_06:right_hip_roll_joint beyond soft limit in 16.7% frames (range [-0.200,0.285])",
+  "[B2] 35_06:right_knee_pitch_joint beyond soft limit in 7.3% frames (range [-0.000,1.093])",
+  "[B2] 35_06:right_ankle_pitch_joint beyond soft limit in 21.2% frames (range [-0.410,0.350])",
+  "[E3] 35_06: stored FK mismatch mean err 0.2663 m (convention forensics only)",
+  "[B2] 35_07:left_elbow_pitch_joint beyond soft limit in 63.9% frames (range [1.830,2.000])",
+  "[B2] 35_07:right_elbow_pitch_joint beyond soft limit in 41.9% frames (range [1.749,1.992])",
+  "[B2] 35_07:left_hip_roll_joint beyond soft limit in 37.5% frames (range [-0.159,0.200])",
+  "[B2] 35_07:left_knee_pitch_joint beyond soft limit in 9.4% frames (range [-0.000,1.071])",
+  "[B2] 35_07:left_ankle_pitch_joint beyond soft limit in 19.4% frames (range [-0.410,0.350])",
+  "[B2] 35_07:right_hip_roll_joint beyond soft limit in 13.1% frames (range [-0.200,0.315])",
+  "[B2] 35_07:right_knee_pitch_joint beyond soft limit in 8.1% frames (range [-0.000,1.157])",
+  "[B2] 35_07:right_ankle_pitch_joint beyond soft limit in 23.3% frames (range [-0.410,0.350])",
+  "[E3] 35_07: stored FK mismatch mean err 0.2646 m (convention forensics only)",
+  "[B2] 35_08:left_elbow_pitch_joint beyond soft limit in 78.0% frames (range [1.774,2.000])",
+  "[B2] 35_08:right_elbow_pitch_joint beyond soft limit in 43.1% frames (range [1.761,1.997])",
+  "[B2] 35_08:left_hip_roll_joint beyond soft limit in 31.9% frames (range [-0.156,0.200])",
+  "[B2] 35_08:left_knee_pitch_joint beyond soft limit in 8.8% frames (range [-0.000,1.111])",
+  "[B2] 35_08:left_ankle_pitch_joint beyond soft limit in 19.6% frames (range [-0.410,0.350])",
+  "[B2] 35_08:right_hip_roll_joint beyond soft limit in 14.7% frames (range [-0.200,0.294])",
+  "[B2] 35_08:right_knee_pitch_joint beyond soft limit in 7.7% frames (range [-0.000,1.060])",
+  "[B2] 35_08:right_ankle_pitch_joint beyond soft limit in 20.4% frames (range [-0.410,0.350])",
+  "[E3] 35_08: stored FK mismatch mean err 0.2635 m (convention forensics only)",
+  "[B2] 35_09:left_elbow_pitch_joint beyond soft limit in 80.2% frames (range [1.810,2.000])",
+  "[B2] 35_09:right_elbow_pitch_joint beyond soft limit in 50.0% frames (range [1.780,1.985])",
+  "[B2] 35_09:left_hip_roll_joint beyond soft limit in 33.9% frames (range [-0.231,0.200])",
+  "[B2] 35_09:left_knee_pitch_joint beyond soft limit in 7.3% frames (range [-0.000,1.107])",
+  "[B2] 35_09:left_ankle_pitch_joint beyond soft limit in 16.7% frames (range [-0.410,0.350])",
+  "[B2] 35_09:right_hip_roll_joint beyond soft limit in 18.8% frames (range [-0.200,0.260])",
+  "[B2] 35_09:right_knee_pitch_joint beyond soft limit in 7.6% frames (range [-0.000,1.077])",
+  "[B2] 35_09:right_ankle_pitch_joint beyond soft limit in 14.3% frames (range [-0.410,0.350])",
+  "[E3] 35_09: stored FK mismatch mean err 0.2649 m (convention forensics only)",
+  "[B2] 35_10:left_elbow_pitch_joint beyond soft limit in 75.9% frames (range [1.799,2.000])",
+  "[B2] 35_10:right_elbow_pitch_joint beyond soft limit in 31.2% frames (range [1.696,1.984])",
+  "[B2] 35_10:left_hip_roll_joint beyond soft limit in 28.2% frames (range [-0.190,0.200])",
+  "[B2] 35_10:left_knee_pitch_joint beyond soft limit in 9.0% frames (range [-0.000,1.140])",
+  "[B2] 35_10:left_ankle_pitch_joint beyond soft limit in 19.2% frames (range [-0.410,0.350])",
+  "[B2] 35_10:right_hip_roll_joint beyond soft limit in 21.5% frames (range [-0.200,0.295])",
+  "[B2] 35_10:right_knee_pitch_joint beyond soft limit in 6.7% frames (range [-0.000,1.084])",
+  "[B2] 35_10:right_ankle_pitch_joint beyond soft limit in 18.3% frames (range [-0.410,0.350])",
+  "[E3] 35_10: stored FK mismatch mean err 0.2646 m (convention forensics only)",
+  "[B2] 35_11:left_elbow_pitch_joint beyond soft limit in 86.2% frames (range [1.859,2.000])",
+  "[B2] 35_11:right_elbow_pitch_joint beyond soft limit in 36.4% frames (range [1.745,1.992])",
+  "[B2] 35_11:left_hip_roll_joint beyond soft limit in 26.2% frames (range [-0.148,0.200])",
+  "[B2] 35_11:left_knee_pitch_joint beyond soft limit in 9.9% frames (range [-0.000,1.099])",
+  "[B2] 35_11:left_ankle_pitch_joint beyond soft limit in 17.7% frames (range [-0.410,0.350])",
+  "[B2] 35_11:right_hip_roll_joint beyond soft limit in 16.6% frames (range [-0.200,0.328])",
+  "[B2] 35_11:right_knee_pitch_joint beyond soft limit in 7.3% frames (range [-0.000,1.102])",
+  "[B2] 35_11:right_ankle_pitch_joint beyond soft limit in 20.0% frames (range [-0.410,0.143])",
+  "[E3] 35_11: stored FK mismatch mean err 0.2670 m (convention forensics only)",
+  "[B2] 35_12:left_elbow_pitch_joint beyond soft limit in 83.4% frames (range [1.813,2.000])",
+  "[B2] 35_12:right_elbow_pitch_joint beyond soft limit in 29.7% frames (range [1.736,1.992])",
+  "[B2] 35_12:left_hip_roll_joint beyond soft limit in 29.5% frames (range [-0.144,0.200])",
+  "[B2] 35_12:left_knee_pitch_joint beyond soft limit in 8.8% frames (range [-0.000,1.135])",
+  "[B2] 35_12:left_ankle_pitch_joint beyond soft limit in 16.4% frames (range [-0.410,0.350])",
+  "[B2] 35_12:right_hip_roll_joint beyond soft limit in 15.9% frames (range [-0.200,0.282])",
+  "[B2] 35_12:right_knee_pitch_joint beyond soft limit in 8.1% frames (range [-0.000,1.049])",
+  "[B2] 35_12:right_ankle_pitch_joint beyond soft limit in 17.1% frames (range [-0.410,0.348])",
+  "[E3] 35_12: stored FK mismatch mean err 0.2665 m (convention forensics only)",
+  "[B2] 35_13:left_elbow_pitch_joint beyond soft limit in 74.2% frames (range [1.797,2.000])",
+  "[B2] 35_13:right_elbow_pitch_joint beyond soft limit in 27.3% frames (range [1.770,1.995])",
+  "[B2] 35_13:left_hip_roll_joint beyond soft limit in 28.2% frames (range [-0.151,0.200])",
+  "[B2] 35_13:left_knee_pitch_joint beyond soft limit in 8.1% frames (range [-0.000,1.106])",
+  "[B2] 35_13:left_ankle_pitch_joint beyond soft limit in 17.2% frames (range [-0.410,0.350])",
+  "[B2] 35_13:right_hip_roll_joint beyond soft limit in 22.0% frames (range [-0.200,0.278])",
+  "[B2] 35_13:right_knee_pitch_joint beyond soft limit in 8.4% frames (range [-0.000,1.095])",
+  "[B2] 35_13:right_ankle_pitch_joint beyond soft limit in 18.3% frames (range [-0.410,0.350])",
+  "[E3] 35_13: stored FK mismatch mean err 0.2632 m (convention forensics only)",
+  "[B2] 35_14:left_elbow_pitch_joint beyond soft limit in 63.3% frames (range [1.820,2.000])",
+  "[B2] 35_14:right_elbow_pitch_joint beyond soft limit in 27.7% frames (range [1.714,1.995])",
+  "[B2] 35_14:left_hip_roll_joint beyond soft limit in 34.3% frames (range [-0.138,0.200])",
+  "[B2] 35_14:left_knee_pitch_joint beyond soft limit in 10.2% frames (range [-0.000,1.088])",
+  "[B2] 35_14:left_ankle_pitch_joint beyond soft limit in 17.3% frames (range [-0.410,0.350])",
+  "[B2] 35_14:right_hip_roll_joint beyond soft limit in 14.1% frames (range [-0.200,0.282])",
+  "[B2] 35_14:right_knee_pitch_joint beyond soft limit in 7.8% frames (range [-0.000,1.165])",
+  "[B2] 35_14:right_ankle_pitch_joint beyond soft limit in 22.1% frames (range [-0.410,0.350])",
+  "[E3] 35_14: stored FK mismatch mean err 0.2608 m (convention forensics only)",
+  "[B2] 35_15:left_elbow_pitch_joint beyond soft limit in 61.8% frames (range [1.762,1.999])",
+  "[B2] 35_15:right_elbow_pitch_joint beyond soft limit in 25.4% frames (range [1.704,1.991])",
+  "[B2] 35_15:left_hip_roll_joint beyond soft limit in 30.3% frames (range [-0.156,0.200])",
+  "[B2] 35_15:left_knee_pitch_joint beyond soft limit in 9.6% frames (range [-0.000,1.113])",
+  "[B2] 35_15:left_ankle_pitch_joint beyond soft limit in 18.2% frames (range [-0.410,0.350])",
+  "[B2] 35_15:right_hip_roll_joint beyond soft limit in 17.7% frames (range [-0.200,0.281])",
+  "[B2] 35_15:right_knee_pitch_joint beyond soft limit in 6.7% frames (range [-0.000,1.083])",
+  "[B2] 35_15:right_ankle_pitch_joint beyond soft limit in 21.9% frames (range [-0.410,0.350])",
+  "[E3] 35_15: stored FK mismatch mean err 0.2677 m (convention forensics only)",
+  "[B2] 35_16:left_elbow_pitch_joint beyond soft limit in 62.5% frames (range [1.821,2.000])",
+  "[B2] 35_16:right_elbow_pitch_joint beyond soft limit in 29.1% frames (range [1.749,1.999])",
+  "[B2] 35_16:left_hip_roll_joint beyond soft limit in 35.7% frames (range [-0.152,0.200])",
+  "[B2] 35_16:left_knee_pitch_joint beyond soft limit in 8.6% frames (range [-0.000,1.109])",
+  "[B2] 35_16:left_ankle_pitch_joint beyond soft limit in 18.3% frames (range [-0.410,0.350])",
+  "[B2] 35_16:right_hip_roll_joint beyond soft limit in 16.5% frames (range [-0.200,0.278])",
+  "[B2] 35_16:right_knee_pitch_joint beyond soft limit in 7.0% frames (range [-0.000,1.059])",
+  "[B2] 35_16:right_ankle_pitch_joint beyond soft limit in 14.0% frames (range [-0.410,0.273])",
+  "[E3] 35_16: stored FK mismatch mean err 0.2636 m (convention forensics only)",
+  "[B2] 35_28:lumbar_pitch_joint beyond soft limit in 21.6% frames (range [0.268,0.450])",
+  "[B2] 35_28:left_elbow_pitch_joint beyond soft limit in 90.2% frames (range [1.883,2.000])",
+  "[B2] 35_28:right_elbow_pitch_joint beyond soft limit in 60.0% frames (range [1.813,1.989])",
+  "[B2] 35_28:left_hip_roll_joint beyond soft limit in 28.5% frames (range [-0.140,0.200])",
+  "[B2] 35_28:left_knee_pitch_joint beyond soft limit in 5.0% frames (range [-0.000,1.220])",
+  "[B2] 35_28:left_ankle_pitch_joint beyond soft limit in 32.1% frames (range [-0.410,0.350])",
+  "[B2] 35_28:right_hip_roll_joint beyond soft limit in 16.8% frames (range [-0.200,0.278])",
+  "[B2] 35_28:right_knee_pitch_joint beyond soft limit in 6.2% frames (range [-0.000,1.141])",
+  "[B2] 35_28:right_ankle_pitch_joint beyond soft limit in 24.0% frames (range [-0.410,0.350])",
+  "[E3] 35_28: stored FK mismatch mean err 0.2675 m (convention forensics only)",
+  "[B2] 35_30:left_elbow_pitch_joint beyond soft limit in 97.6% frames (range [1.859,2.000])",
+  "[B2] 35_30:right_elbow_pitch_joint beyond soft limit in 60.2% frames (range [1.881,1.987])",
+  "[B2] 35_30:left_hip_roll_joint beyond soft limit in 31.3% frames (range [-0.109,0.200])",
+  "[B2] 35_30:left_knee_pitch_joint beyond soft limit in 8.7% frames (range [-0.000,1.088])",
+  "[B2] 35_30:left_ankle_pitch_joint beyond soft limit in 22.6% frames (range [-0.410,0.350])",
+  "[B2] 35_30:right_hip_roll_joint beyond soft limit in 18.7% frames (range [-0.200,0.251])",
+  "[B2] 35_30:right_knee_pitch_joint beyond soft limit in 8.3% frames (range [-0.000,1.105])",
+  "[B2] 35_30:right_ankle_pitch_joint beyond soft limit in 21.8% frames (range [-0.410,0.350])",
+  "[E3] 35_30: stored FK mismatch mean err 0.2645 m (convention forensics only)",
+  "[B2] 35_31:left_elbow_pitch_joint beyond soft limit in 89.3% frames (range [1.866,2.000])",
+  "[B2] 35_31:right_elbow_pitch_joint beyond soft limit in 29.7% frames (range [1.768,1.982])",
+  "[B2] 35_31:left_hip_roll_joint beyond soft limit in 28.7% frames (range [-0.152,0.200])",
+  "[B2] 35_31:left_knee_pitch_joint beyond soft limit in 10.9% frames (range [-0.000,1.108])",
+  "[B2] 35_31:left_ankle_pitch_joint beyond soft limit in 21.4% frames (range [-0.410,0.350])",
+  "[B2] 35_31:right_hip_roll_joint beyond soft limit in 17.6% frames (range [-0.200,0.368])",
+  "[B2] 35_31:right_knee_pitch_joint beyond soft limit in 7.8% frames (range [-0.000,1.135])",
+  "[B2] 35_31:right_ankle_pitch_joint beyond soft limit in 22.8% frames (range [-0.410,0.350])",
+  "[E3] 35_31: stored FK mismatch mean err 0.2668 m (convention forensics only)",
+  "[B2] 35_32:left_elbow_pitch_joint beyond soft limit in 83.4% frames (range [1.766,2.000])",
+  "[B2] 35_32:right_elbow_pitch_joint beyond soft limit in 28.1% frames (range [1.728,1.987])",
+  "[B2] 35_32:left_hip_roll_joint beyond soft limit in 25.0% frames (range [-0.178,0.200])",
+  "[B2] 35_32:left_knee_pitch_joint beyond soft limit in 9.2% frames (range [-0.000,1.083])",
+  "[B2] 35_32:left_ankle_pitch_joint beyond soft limit in 23.5% frames (range [-0.410,0.350])",
+  "[B2] 35_32:right_hip_roll_joint beyond soft limit in 19.4% frames (range [-0.200,0.295])",
+  "[B2] 35_32:right_knee_pitch_joint beyond soft limit in 7.9% frames (range [-0.000,1.123])",
+  "[B2] 35_32:right_ankle_pitch_joint beyond soft limit in 22.2% frames (range [-0.410,0.350])",
+  "[E3] 35_32: stored FK mismatch mean err 0.2639 m (convention forensics only)",
+  "[B2] 35_33:left_elbow_pitch_joint beyond soft limit in 79.3% frames (range [1.782,2.000])",
+  "[B2] 35_33:right_elbow_pitch_joint beyond soft limit in 35.9% frames (range [1.746,1.989])",
+  "[B2] 35_33:left_hip_roll_joint beyond soft limit in 32.1% frames (range [-0.124,0.200])",
+  "[B2] 35_33:left_knee_pitch_joint beyond soft limit in 9.0% frames (range [-0.000,1.055])",
+  "[B2] 35_33:left_ankle_pitch_joint beyond soft limit in 18.8% frames (range [-0.410,0.350])",
+  "[B2] 35_33:right_hip_roll_joint beyond soft limit in 19.0% frames (range [-0.200,0.291])",
+  "[B2] 35_33:right_knee_pitch_joint beyond soft limit in 7.1% frames (range [-0.000,1.163])",
+  "[B2] 35_33:right_ankle_pitch_joint beyond soft limit in 24.5% frames (range [-0.410,0.350])",
+  "[E3] 35_33: stored FK mismatch mean err 0.2628 m (convention forensics only)",
+  "[B2] 35_34:left_elbow_pitch_joint beyond soft limit in 82.2% frames (range [1.779,2.000])",
+  "[B2] 35_34:right_elbow_pitch_joint beyond soft limit in 33.5% frames (range [1.758,1.987])",
+  "[B2] 35_34:left_hip_roll_joint beyond soft limit in 33.5% frames (range [-0.153,0.200])",
+  "[B2] 35_34:left_knee_pitch_joint beyond soft limit in 9.2% frames (range [-0.000,1.069])",
+  "[B2] 35_34:left_ankle_pitch_joint beyond soft limit in 21.9% frames (range [-0.410,0.350])",
+  "[B2] 35_34:right_hip_roll_joint beyond soft limit in 17.1% frames (range [-0.200,0.278])",
+  "[B2] 35_34:right_knee_pitch_joint beyond soft limit in 8.0% frames (range [-0.000,1.139])",
+  "[B2] 35_34:right_ankle_pitch_joint beyond soft limit in 26.0% frames (range [-0.410,0.350])",
+  "[E3] 35_34: stored FK mismatch mean err 0.2649 m (convention forensics only)",
+  "[B2] 38_01:left_elbow_pitch_joint beyond soft limit in 99.7% frames (range [1.924,2.000])",
+  "[B2] 38_01:left_wrist_pitch_joint beyond soft limit in 13.9% frames (range [0.266,0.400])",
+  "[B2] 38_01:right_elbow_pitch_joint beyond soft limit in 99.7% frames (range [1.896,2.000])",
+  "[B2] 38_01:left_hip_roll_joint beyond soft limit in 23.0% frames (range [-0.161,0.200])",
+  "[B2] 38_01:left_knee_pitch_joint beyond soft limit in 24.1% frames (range [0.003,1.032])",
+  "[B2] 38_01:left_ankle_pitch_joint beyond soft limit in 52.3% frames (range [-0.410,0.108])",
+  "[B2] 38_01:right_ankle_pitch_joint beyond soft limit in 14.2% frames (range [-0.342,0.350])",
+  "[E3] 38_01: stored FK mismatch mean err 0.2605 m (convention forensics only)",
+  "[B2] 38_02:left_elbow_pitch_joint beyond soft limit in 100.0% frames (range [1.997,2.000])",
+  "[B2] 38_02:left_wrist_pitch_joint beyond soft limit in 15.7% frames (range [0.235,0.400])",
+  "[B2] 38_02:right_elbow_pitch_joint beyond soft limit in 100.0% frames (range [1.962,2.000])",
+  "[B2] 38_02:left_knee_pitch_joint beyond soft limit in 19.0% frames (range [-0.000,0.999])",
+  "[B2] 38_02:left_ankle_pitch_joint beyond soft limit in 6.2% frames (range [-0.353,0.350])",
+  "[B2] 38_02:right_knee_pitch_joint beyond soft limit in 9.3% frames (range [-0.000,1.026])",
+  "[B2] 38_02:right_ankle_pitch_joint beyond soft limit in 11.2% frames (range [-0.375,0.350])",
+  "[E3] 38_02: stored FK mismatch mean err 0.2598 m (convention forensics only)"
+ ],
+ "files": [
+  {
+   "name": "0000_treadmill_norm",
+   "frames": 2840,
+   "fps": 120.0,
+   "root_z": [
+    0.6107973405104059,
+    0.642088100794774,
+    0.6695236734937027
+   ]
+  },
+  {
+   "name": "0002_treadmill_slow",
+   "frames": 2827,
+   "fps": 120.0,
+   "root_z": [
+    0.6090344026128505,
+    0.6379302083344144,
+    0.6599259616783242
+   ]
+  },
+  {
+   "name": "0005_normal_walk1",
+   "frames": 289,
+   "fps": 120.0,
+   "root_z": [
+    0.5877810991618346,
+    0.6419527512438485,
+    0.6907956982039325
+   ]
+  },
+  {
+   "name": "0007_normal_walk3",
+   "frames": 291,
+   "fps": 120.0,
+   "root_z": [
+    0.6023710603229515,
+    0.6454415615478772,
+    0.6925463387147512
+   ]
+  },
+  {
+   "name": "0008_normal_walk4",
+   "frames": 315,
+   "fps": 120.0,
+   "root_z": [
+    0.5986600780393347,
+    0.6432565358091862,
+    0.6890437268292058
+   ]
+  },
+  {
+   "name": "0026_circle_walk",
+   "frames": 1995,
+   "fps": 120.0,
+   "root_z": [
+    0.5963529636415725,
+    0.641175125269491,
+    0.6911836645263529
+   ]
+  },
+  {
+   "name": "07_01",
+   "frames": 316,
+   "fps": 120.0,
+   "root_z": [
+    0.5937992007795065,
+    0.6595208054761155,
+    0.7157183290110201
+   ]
+  },
+  {
+   "name": "08_01",
+   "frames": 277,
+   "fps": 120.0,
+   "root_z": [
+    0.5859129428876435,
+    0.6520394091466065,
+    0.7190225740965688
+   ]
+  },
+  {
+   "name": "08_03",
+   "frames": 353,
+   "fps": 120.0,
+   "root_z": [
+    0.5809819283459787,
+    0.6701459431932735,
+    0.7423756222010083
+   ]
+  },
+  {
+   "name": "08_06",
+   "frames": 296,
+   "fps": 120.0,
+   "root_z": [
+    0.5914085920368131,
+    0.6659971934627341,
+    0.7431036452730928
+   ]
+  },
+  {
+   "name": "08_08",
+   "frames": 283,
+   "fps": 120.0,
+   "root_z": [
+    0.5783474374252846,
+    0.6733871866489122,
+    0.7526865130890099
+   ]
+  },
+  {
+   "name": "103_07",
+   "frames": 236,
+   "fps": 60.0,
+   "root_z": [
+    0.5877871905937151,
+    0.6357067725077801,
+    0.6746085913672419
+   ]
+  },
+  {
+   "name": "35_01",
+   "frames": 358,
+   "fps": 120.0,
+   "root_z": [
+    0.5741556343758885,
+    0.6142723265497326,
+    0.6416760810315796
+   ]
+  },
+  {
+   "name": "35_02",
+   "frames": 406,
+   "fps": 120.0,
+   "root_z": [
+    0.5762173112839228,
+    0.617881726794273,
+    0.6439873463090697
+   ]
+  },
+  {
+   "name": "35_03",
+   "frames": 427,
+   "fps": 120.0,
+   "root_z": [
+    0.5712539973928021,
+    0.6128092300391051,
+    0.6407486801765347
+   ]
+  },
+  {
+   "name": "35_04",
+   "frames": 433,
+   "fps": 120.0,
+   "root_z": [
+    0.5785903343366612,
+    0.6249835301195875,
+    0.6521643604152376
+   ]
+  },
+  {
+   "name": "35_05",
+   "frames": 427,
+   "fps": 120.0,
+   "root_z": [
+    0.5790769306773222,
+    0.6159119605165665,
+    0.6416866113202011
+   ]
+  },
+  {
+   "name": "35_06",
+   "frames": 438,
+   "fps": 120.0,
+   "root_z": [
+    0.5822840857703837,
+    0.613690013715474,
+    0.6367649801996615
+   ]
+  },
+  {
+   "name": "35_07",
+   "frames": 360,
+   "fps": 120.0,
+   "root_z": [
+    0.5842363891724465,
+    0.6197116806496166,
+    0.6445814566173227
+   ]
+  },
+  {
+   "name": "35_08",
+   "frames": 455,
+   "fps": 120.0,
+   "root_z": [
+    0.5936512861182226,
+    0.623057172711197,
+    0.6461017324989538
+   ]
+  },
+  {
+   "name": "35_09",
+   "frames": 384,
+   "fps": 120.0,
+   "root_z": [
+    0.5859118817446811,
+    0.6199219664359155,
+    0.6420267368843069
+   ]
+  },
+  {
+   "name": "35_10",
+   "frames": 432,
+   "fps": 120.0,
+   "root_z": [
+    0.5789764323865403,
+    0.6164135771086768,
+    0.6438542430735061
+   ]
+  },
+  {
+   "name": "35_11",
+   "frames": 385,
+   "fps": 120.0,
+   "root_z": [
+    0.5862196202853529,
+    0.6144460079292206,
+    0.6351988677778548
+   ]
+  },
+  {
+   "name": "35_12",
+   "frames": 397,
+   "fps": 120.0,
+   "root_z": [
+    0.5840896946083527,
+    0.6149502494629514,
+    0.6369598829505354
+   ]
+  },
+  {
+   "name": "35_13",
+   "frames": 454,
+   "fps": 120.0,
+   "root_z": [
+    0.5893722107846582,
+    0.6213582152954619,
+    0.6458166246807691
+   ]
+  },
+  {
+   "name": "35_14",
+   "frames": 411,
+   "fps": 120.0,
+   "root_z": [
+    0.587333737892958,
+    0.625084569501896,
+    0.6522234526483917
+   ]
+  },
+  {
+   "name": "35_15",
+   "frames": 406,
+   "fps": 120.0,
+   "root_z": [
+    0.5793107093573728,
+    0.6116791689980413,
+    0.6357207069051469
+   ]
+  },
+  {
+   "name": "35_16",
+   "frames": 443,
+   "fps": 120.0,
+   "root_z": [
+    0.5942621865058892,
+    0.6233708052021866,
+    0.6455999279902132
+   ]
+  },
+  {
+   "name": "35_28",
+   "frames": 417,
+   "fps": 120.0,
+   "root_z": [
+    0.565887947673108,
+    0.6083642538720987,
+    0.6301611113404295
+   ]
+  },
+  {
+   "name": "35_30",
+   "frames": 412,
+   "fps": 120.0,
+   "root_z": [
+    0.5857024698946947,
+    0.6135760068217466,
+    0.6391413086665019
+   ]
+  },
+  {
+   "name": "35_31",
+   "frames": 421,
+   "fps": 120.0,
+   "root_z": [
+    0.5734297380554794,
+    0.6155396653425261,
+    0.643012015599685
+   ]
+  },
+  {
+   "name": "35_32",
+   "frames": 392,
+   "fps": 120.0,
+   "root_z": [
+    0.5791430750433484,
+    0.6206202896018973,
+    0.6450169699564885
+   ]
+  },
+  {
+   "name": "35_33",
+   "frames": 421,
+   "fps": 120.0,
+   "root_z": [
+    0.5627623319945894,
+    0.6167162791655584,
+    0.651165209347262
+   ]
+  },
+  {
+   "name": "35_34",
+   "frames": 415,
+   "fps": 120.0,
+   "root_z": [
+    0.5763654590313969,
+    0.618036129053771,
+    0.6452759812586195
+   ]
+  },
+  {
+   "name": "38_01",
+   "frames": 352,
+   "fps": 120.0,
+   "root_z": [
+    0.6024582055256222,
+    0.6390400630079633,
+    0.6707677381683785
+   ]
+  },
+  {
+   "name": "38_02",
+   "frames": 420,
+   "fps": 120.0,
+   "root_z": [
+    0.5941480026756158,
+    0.6313566868758753,
+    0.6743332891799005
+   ]
+  }
+ ]
+}
