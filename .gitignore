@@ -77,7 +77,9 @@ roboparty_train/checkpoints/*.policy.npz
 
 # 2026-09 slim-down: AMASS sources relocated to data/amass (off-repo archives);
 # eval .pt stay local-only (platform OSS has every checkpoint)
-data/
+/data/          # root data/ only (amass download cache) — NOT roboparty_train/robolab/data
+/_gmr_local/    # local GMR venv+clone (tooling)
+/.tools/        # uv + standalone python
 acceptance/**/*.pt
 
 # 2026-10: local macOS pip -t pylibs/ dev installs (torch/sympy/numpy2.5.2/
