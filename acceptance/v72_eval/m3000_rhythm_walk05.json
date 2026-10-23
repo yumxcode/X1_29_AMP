@@ -1,0 +1,64 @@
+{
+ "file": "acceptance/v72_eval/m3000_walk05.npz",
+ "cmd_vel": 0.5,
+ "feet": {
+  "L": null,
+  "R": null
+ },
+ "median": {},
+ "checks": [
+  {
+   "gate": "R1_cadence_hz",
+   "value": null,
+   "band": null,
+   "pass": false
+  },
+  {
+   "gate": "R2_swing_s",
+   "value": null,
+   "band": null,
+   "pass": false
+  },
+  {
+   "gate": "R3_duty",
+   "value": null,
+   "band": null,
+   "pass": false
+  },
+  {
+   "gate": "R4_step_len_m",
+   "value": null,
+   "band": null,
+   "pass": false
+  },
+  {
+   "gate": "L1_apex_med_m",
+   "value": null,
+   "band": [
+    0.035,
+    null
+   ],
+   "pass": false
+  },
+  {
+   "gate": "L1_min_swings",
+   "value": null,
+   "band": [
+    4,
+    null
+   ],
+   "pass": false
+  }
+ ],
+ "verdict": "FAIL",
+ "fails": [
+  "L:insufficient_swings",
+  "R:insufficient_swings",
+  "R1_cadence_hz",
+  "R2_swing_s",
+  "R3_duty",
+  "R4_step_len_m",
+  "L1_apex_med_m",
+  "L1_min_swings"
+ ]
+}
