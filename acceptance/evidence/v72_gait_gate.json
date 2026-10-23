@@ -1,0 +1,2783 @@
+{
+  "dir": "roboparty_train/robolab/data/motions/x1_lab_v72",
+  "clips": {
+    "0000_treadmill_norm": {
+      "class": "PRIMARY",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.0 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 20.6 deg <= 32.0 [PRIMARY]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.4 deg <= 3.5 (L -2.1 R -1.7)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 2.1 deg <= 15.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.97 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.09 in [0.7, 1.4] [PRIMARY]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.3 mm <= 20"
+        }
+      ]
+    },
+    "0002_treadmill_slow": {
+      "class": "PRIMARY",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.0 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.97 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 18.9 deg <= 32.0 [PRIMARY]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.1 deg <= 3.5 (L -1.5 R -1.4)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 1.5 deg <= 15.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.05 in [0.7, 1.4] [PRIMARY]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.3 mm <= 20"
+        }
+      ]
+    },
+    "0005_normal_walk1": {
+      "class": "PRIMARY",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 24.5 deg <= 32.0 [PRIMARY]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.5 deg <= 3.5 (L +5.6 R +5.1)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 5.6 deg <= 15.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.10 in [0.7, 1.4] [PRIMARY]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.2 mm <= 20"
+        }
+      ]
+    },
+    "0007_normal_walk3": {
+      "class": "PRIMARY",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.0 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.99 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 25.0 deg <= 32.0 [PRIMARY]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 1.7 deg <= 3.5 (L -0.8 R +0.9)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 0.9 deg <= 15.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.99 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.11 in [0.7, 1.4] [PRIMARY]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.2 mm <= 20"
+        }
+      ]
+    },
+    "0008_normal_walk4": {
+      "class": "PRIMARY",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.99 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 24.1 deg <= 32.0 [PRIMARY]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.4 deg <= 3.5 (L -3.4 R -3.0)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 3.4 deg <= 15.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.09 in [0.7, 1.4] [PRIMARY]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.2 mm <= 20"
+        }
+      ]
+    },
+    "0026_circle_walk": {
+      "class": "CIRCLE",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.0 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.97 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 22.1 deg <= 32.0 [CIRCLE]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.1 deg <= 3.5 (L -3.6 R -3.5)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 3.6 deg <= 15.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.97 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.44 in [0.6, 1.6] [CIRCLE]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.3 mm <= 20"
+        }
+      ]
+    },
+    "07_01": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.1 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.91 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 41.2 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 2.3 deg <= 6.0 (L -1.5 R +0.8)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 1.5 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.02 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.3 mm <= 20"
+        }
+      ]
+    },
+    "08_01": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.1 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.99 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 47.1 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.0 deg <= 6.0 (L -0.8 R -0.8)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 0.8 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.94 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.0 mm <= 20"
+        }
+      ]
+    },
+    "08_03": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.1 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.99 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 44.7 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.5 deg <= 6.0 (L +4.5 R +4.1)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 4.5 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.99 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.0 mm <= 20"
+        }
+      ]
+    },
+    "08_06": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.1 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.99 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 47.5 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.4 deg <= 6.0 (L +0.0 R -0.4)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 0.4 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.97 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.9 mm <= 20"
+        }
+      ]
+    },
+    "08_08": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.1 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 47.7 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 3.9 deg <= 6.0 (L +2.0 R -1.9)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 2.0 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.97 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.93 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.9 mm <= 20"
+        }
+      ]
+    },
+    "103_07": {
+      "class": "CMU_NEW",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.0 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.96 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 62.3 deg <= 75.0 [CMU_NEW]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.8 deg <= 6.0 (L -6.4 R -7.2)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 7.2 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.90 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.95 in [0.6, 1.5] [CMU_NEW]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.9 mm <= 20"
+        }
+      ]
+    },
+    "35_01": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 14.1 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.4 deg <= 6.0 (L -14.0 R -14.3)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 14.3 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.96 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.96 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_02": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.8 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.2 deg <= 6.0 (L -12.0 R -12.2)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 12.2 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.98 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_03": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 14.8 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.5 deg <= 6.0 (L -13.5 R -13.0)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 13.5 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.94 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.02 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_04": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.4 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.9 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.8 deg <= 6.0 (L -11.5 R -10.7)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 11.5 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.96 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.98 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_05": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.97 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.6 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.8 deg <= 6.0 (L -11.4 R -10.6)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 11.4 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.02 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_06": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.3 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.8 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 1.7 deg <= 6.0 (L -9.0 R -10.7)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 10.7 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.01 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_07": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 14.5 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 2.8 deg <= 6.0 (L -11.5 R -8.7)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 11.5 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.96 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.99 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_08": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.4 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.7 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 1.4 deg <= 6.0 (L -10.0 R -11.4)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 11.4 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.93 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.01 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_09": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.99 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.0 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 1.5 deg <= 6.0 (L -11.9 R -13.4)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 13.4 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.91 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.08 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_10": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 12.6 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.1 deg <= 6.0 (L -13.7 R -13.6)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 13.7 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.93 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.99 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_11": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 12.2 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 4.5 deg <= 6.0 (L -7.3 R -11.8)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 11.8 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.94 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.01 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_12": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 40.9 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 11.5 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 1.9 deg <= 6.0 (L -8.5 R -10.4)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 10.4 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.96 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.98 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_13": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.97 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 12.3 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.4 deg <= 6.0 (L -10.5 R -10.9)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 10.9 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.04 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_14": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.3 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 1.6 deg <= 6.0 (L -7.9 R -9.5)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 9.5 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.96 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.11 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_15": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 11.6 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.9 deg <= 6.0 (L -10.4 R -11.3)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 11.3 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.96 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.03 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.4 mm <= 20"
+        }
+      ]
+    },
+    "35_16": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 12.5 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 5.1 deg <= 6.0 (L -7.1 R -12.2)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 12.2 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.97 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.07 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_28": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.1 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.1 deg <= 6.0 (L -12.2 R -12.0)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 12.2 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.96 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_30": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.2 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.96 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 15.7 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 2.1 deg <= 6.0 (L -6.1 R -8.3)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 8.3 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.97 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.01 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_31": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 13.6 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 1.6 deg <= 6.0 (L -12.5 R -10.9)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 12.5 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.97 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_32": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.3 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 14.7 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 5.6 deg <= 6.0 (L -8.4 R -14.1)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 14.1 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.94 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 0.96 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "35_33": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.3 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.97 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 16.9 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.3 deg <= 6.0 (L -12.4 R -12.1)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 12.4 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.92 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.01 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.6 mm <= 20"
+        }
+      ]
+    },
+    "35_34": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 41.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.97 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 14.7 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 4.6 deg <= 6.0 (L -14.8 R -10.3)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 14.8 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.98 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.05 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 0.5 mm <= 20"
+        }
+      ]
+    },
+    "38_01": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 23.3 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 3.1 deg <= 6.0 (L -3.0 R -6.1)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 6.1 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.97 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.98 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.14 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.5 mm <= 20"
+        }
+      ]
+    },
+    "38_02": {
+      "class": "CMU_LOWCAD",
+      "fails": 0,
+      "warns": 0,
+      "rows": [
+        {
+          "id": "A1",
+          "verdict": "PASS",
+          "detail": "elbP p95 20.0 deg <= 65 (healthy 20)"
+        },
+        {
+          "id": "A2",
+          "verdict": "PASS",
+          "detail": "|shoY| mean 0.0 deg <= 15 (twist comp cleared)"
+        },
+        {
+          "id": "A3",
+          "verdict": "PASS",
+          "detail": "|elbY| mean 0.0 deg <= 20"
+        },
+        {
+          "id": "A4",
+          "verdict": "PASS",
+          "detail": "geom elbow bend p95 42.1 deg <= 45"
+        },
+        {
+          "id": "A5",
+          "verdict": "PASS",
+          "detail": "shoulder L/R antiphase -0.98 (<= -0.45; walk refs -0.63..-0.99)"
+        },
+        {
+          "id": "T1",
+          "verdict": "PASS",
+          "detail": "lumY swing 25.7 deg <= 75.0 [CMU_LOWCAD]"
+        },
+        {
+          "id": "G1",
+          "verdict": "PASS",
+          "detail": "sole penetration min -0.0 mm >= -3"
+        },
+        {
+          "id": "G2",
+          "verdict": "PASS",
+          "detail": "stance pitch |L-R| 0.9 deg <= 6.0 (L -9.4 R -8.5)"
+        },
+        {
+          "id": "G3",
+          "verdict": "PASS",
+          "detail": "stance |pitch| med max 9.4 deg <= 25.0"
+        },
+        {
+          "id": "C1",
+          "verdict": "PASS",
+          "detail": "hip L/R corr +0.99 >= +0.3 (anti-aligned axes; symmetric gait)"
+        },
+        {
+          "id": "C2",
+          "verdict": "PASS",
+          "detail": "arm-vs-opposite-leg coupling +0.95 (>= +0.45; refs 0.8-0.98)"
+        },
+        {
+          "id": "C3",
+          "verdict": "PASS",
+          "detail": "hip swing ratio L/R 1.00 in [0.6, 1.5] [CMU_LOWCAD]"
+        },
+        {
+          "id": "F1",
+          "verdict": "PASS",
+          "detail": "FK vs stored key_body p95 0.0 mm <= 15"
+        },
+        {
+          "id": "M1",
+          "verdict": "PASS",
+          "detail": "mirror key_body y-flip+swap p95 1.2 mm <= 20"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "verdict": "PASS",
+    "fails": 0,
+    "warns": 0,
+    "strict": false
+  }
+}

@@ -179,7 +179,7 @@ def process_clip(job):
     _, _, pitch_p, _ = fk_all(rp[t_probe:t_probe+1], rr[t_probe:t_probe+1], q_probe[None, :])
     s_sign = (pitch_p[0, 0] - p0) / 0.1
 
-    for _ in range(2):
+    for _ in range(4):
         prof_rows = {0: [[] for _ in range(NB)], 1: [[] for _ in range(NB)]}
         for f in range(2):
             idxs = np.where(stance[f])[0]
@@ -249,6 +249,12 @@ def process_clip(job):
     lr_diff = abs(st_pitch_med[0] - st_pitch_med[1])
 
     lr_lim = 6.0 if path.stem in JOGS else 3.5
+    # v72: CMU low-cadence clips use the J-group CMU tier (check_retarget_gait
+    # LR_PITCH_DIFF CMU_OLD=5.0/CMU_NEW=6.0) — the internal 3.5 gate was
+    # stricter than the dataset standard for CMU-class sources
+    import re as _re
+    if _re.match(r'^(0[78]|35|38|82)_', path.stem):
+        lr_lim = 6.0
 
     elbp95 = float(np.percentile(np.degrees(np.maximum(
         q[:, idx["left_elbow_pitch_joint"]], q[:, idx["right_elbow_pitch_joint"]])), 95))

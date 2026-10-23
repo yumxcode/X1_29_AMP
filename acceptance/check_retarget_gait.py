@@ -65,21 +65,34 @@ CLASSES = {
     "JOG": {"0003_treadmill_jog", "0009_normal_jog1"},
     "CMU_OLD": {"36_01", "36_11"},
     "CMU_NEW": {"103_07", "138_18"},
+    # v72 low-cadence library (audit 2026-10-22): CMU SMPL-H->stageii
+    # converted, GMR-retargeted, v30/v31 fix chain + stance-anchored root_xy
+    "CMU_LOWCAD": {"07_01", "07_02", "07_03", "07_06", "07_07", "07_08",
+                   "07_09", "07_10", "08_01", "08_02", "08_03", "08_06",
+                   "08_08", "08_09", "35_01", "35_02", "35_03", "35_04",
+                   "35_05", "35_06", "35_07", "35_08", "35_09", "35_10",
+                   "35_11", "35_12", "35_13", "35_14", "35_15", "35_16",
+                   "35_28", "35_30", "35_31", "35_32", "35_33", "35_34",
+                   "38_01", "38_02", "82_12", "82_13"},
 }
 LUMY_SWING = {"PRIMARY": 32.0, "CIRCLE": 32.0, "JOG": 65.0,
               "CMU_OLD": 55.0, "CMU_NEW": 75.0}
+LUMY_SWING["CMU_LOWCAD"] = 75.0
 STANCE_PITCH_ABS = {"PRIMARY": 15.0, "CIRCLE": 15.0, "JOG": 25.0,
                     "CMU_OLD": 20.0, "CMU_NEW": 25.0}
+STANCE_PITCH_ABS["CMU_LOWCAD"] = 25.0
 LR_PITCH_DIFF = {"PRIMARY": 3.5, "CIRCLE": 3.5, "JOG": 6.0,
                  "CMU_OLD": 5.0, "CMU_NEW": 6.0}
+LR_PITCH_DIFF["CMU_LOWCAD"] = 6.0
 HIP_RATIO = {"PRIMARY": (0.7, 1.4), "CIRCLE": (0.6, 1.6), "JOG": (0.7, 1.4),
              "CMU_OLD": (0.5, 2.2), "CMU_NEW": (0.6, 1.5)}
+HIP_RATIO["CMU_LOWCAD"] = (0.6, 1.5)
 HIP_RATIO_WARN_ONLY = {"CMU_OLD"}          # source-inherent, mirrors compensate
 # arm coordination: (fail_threshold, warn_threshold) per class
 ANTI_BOUNDS = {c: (-0.45, -0.45) for c in
-               ("PRIMARY", "CIRCLE", "JOG", "CMU_OLD", "CMU_NEW")}
+               ("PRIMARY", "CIRCLE", "JOG", "CMU_OLD", "CMU_NEW", "CMU_LOWCAD")}
 ARMLEG_BOUNDS = {c: (0.45, 0.45) for c in
-                 ("PRIMARY", "CIRCLE", "JOG", "CMU_OLD", "CMU_NEW")}
+                 ("PRIMARY", "CIRCLE", "JOG", "CMU_OLD", "CMU_NEW", "CMU_LOWCAD")}
 
 KEY_BODIES = ["left_knee_pitch_link", "right_knee_pitch_link",
               "left_ankle_roll_link", "right_ankle_roll_link",

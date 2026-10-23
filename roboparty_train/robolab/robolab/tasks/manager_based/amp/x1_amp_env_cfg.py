@@ -691,7 +691,56 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # (+mirrors) = 69% of weight mass; the in-place treadmill family
         # stays at token weights to serve stand/near-zero commands under
         # VMATCH; 103_07 (2x playback) excluded entirely.
-        if os.environ.get("X1_MOTION_DIR", "x1_lab_v32") == "x1_lab_v67":
+        _motion_dir = os.environ.get("X1_MOTION_DIR", "x1_lab_v32")
+        if _motion_dir == "x1_lab_v72":
+            # v72 low-cadence library (audit 2026-10-22 fix order):
+            # 40 CMU low-cadence normal-amplitude clips (07/08/35/38/82,
+            # 96-130 spm -> 0.80-1.09 Hz/foot, step 0.38-0.59 m at robot
+            # scale) + 7 stance-anchor-rebuilt legacy walk clips. Jogs and
+            # the 36_xx stepping-platform clips REMOVED. Weights bucketed
+            # by (robot speed, cadence) for 2D-balanced sampling:
+            #   PRIME 0.85-1.25 m/s @<=135 spm  w=1.2 (the 1.0 m/s target
+            #   neighborhood incl. 82_12/13 at 0.99 m/s / 0.94 Hz / 0.53 m)
+            #   MID   0.35-0.85 m/s @<=110 spm  w=0.7 (walk05-08 domain)
+            #   FAST  >1.25 m/s                  w=0.5
+            self.motion_data.motion_dataset.motion_data_weights = {
+                # PRIME band
+                "07_01": 1.2, "08_03": 1.2, "38_02": 1.2, "103_07": 1.2,
+                # MID band (35-family low cadence + legacy anchored walks) "38_01": 0.7,
+                "35_01": 0.7, "35_02": 0.7, "35_03": 0.7, "35_04": 0.7,
+                "35_05": 0.7, "35_06": 0.7, "35_07": 0.7, "35_08": 0.7,
+                "35_09": 0.7, "35_10": 0.7, "35_11": 0.7, "35_12": 0.7,
+                "35_13": 0.7, "35_14": 0.7, "35_15": 0.7, "35_16": 0.7,
+                "35_28": 0.7, "35_30": 0.7, "35_31": 0.7, "35_32": 0.7,
+                "35_33": 0.7, "35_34": 0.7,
+                "0000_treadmill_norm": 0.7, "0002_treadmill_slow": 0.7,
+                "0005_normal_walk1": 0.7, "0007_normal_walk3": 0.7,
+                "0008_normal_walk4": 0.7,
+                # FAST band + turning
+                "08_01": 0.5, "08_06": 0.5, "08_08": 0.5,
+                "0026_circle_walk": 0.6,
+                # mirrors
+                "07_01_mirror": 1.2, "08_03_mirror": 1.2,
+                "38_02_mirror": 1.2,
+                "103_07_mirror": 1.2, "38_01_mirror": 0.7,
+                "35_01_mirror": 0.7, "35_02_mirror": 0.7, "35_03_mirror": 0.7,
+                "35_04_mirror": 0.7, "35_05_mirror": 0.7, "35_06_mirror": 0.7,
+                "35_07_mirror": 0.7, "35_08_mirror": 0.7, "35_09_mirror": 0.7,
+                "35_10_mirror": 0.7, "35_11_mirror": 0.7, "35_12_mirror": 0.7,
+                "35_13_mirror": 0.7, "35_14_mirror": 0.7, "35_15_mirror": 0.7,
+                "35_16_mirror": 0.7, "35_28_mirror": 0.7, "35_30_mirror": 0.7,
+                "35_31_mirror": 0.7, "35_32_mirror": 0.7, "35_33_mirror": 0.7,
+                "35_34_mirror": 0.7,
+                "0000_treadmill_norm_mirror": 0.7,
+                "0002_treadmill_slow_mirror": 0.7,
+                "0005_normal_walk1_mirror": 0.7,
+                "0007_normal_walk3_mirror": 0.7,
+                "0008_normal_walk4_mirror": 0.7,
+                "08_01_mirror": 0.5, "08_06_mirror": 0.5, "08_08_mirror": 0.5, "0026_circle_walk_mirror": 0.6,
+            }
+            print("[DATASET] v72 low-cadence library weights active "
+                  "(36 sources: 29 CMU + 7 anchored legacy; jogs/36xx/11 gate-rejected removed)")
+        elif _motion_dir == "x1_lab_v67":
             self.motion_data.motion_dataset.motion_data_weights = {
                 "36_01": 4.0, "36_11": 3.0, "0026_circle_walk": 3.0,
                 "0000_treadmill_norm": 0.5, "0002_treadmill_slow": 0.5,
@@ -726,7 +775,11 @@ class X1AmpEnvCfg(AmpEnvCfg):
         # real overground walking (genuinely counter-rotating torso, GMR
         # lumY swing 62 deg; kept at c=1.0 = exact elbows, subordinate
         # weight so the restrained BMLrub style stays dominant).
-        self.motion_data.motion_dataset.motion_data_weights = {
+        # v72 BUGFIX (audit metric: line-671 unconditional override): the
+        # v32 default table now applies ONLY to the v32/v67-default path —
+        # previously it silently overwrote every X1_MOTION_DIR branch above.
+        if _motion_dir == "x1_lab_v32":
+         self.motion_data.motion_dataset.motion_data_weights = {
             "36_01": 3.0,  # v51: 197/165mm
             "36_11": 1.0,
             "0000_treadmill_norm": 2.0,
