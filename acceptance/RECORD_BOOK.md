@@ -76,6 +76,12 @@ X1 29DOF，AMP 训练，**低步频 1-2 Hz/足 × 正常步幅 × 1 m/s 行走**
 
 **v73（首轮，预注册）**：见 §8。
 
+### v73 发射记录
+- 任务：TASK_20261024_003（gradmotion，47 号账号 filiyop303/userId 4590；46 号 xogim56224 余额耗尽已按规程移除）
+- 同 config 下 TASK_20261024_002（46 号创建）因余额未能发射，弃用
+- 发射 commit：e6e455c（main）@ 2026-10-24 00:2x
+- 早期自检要点（启动日志前几分钟）：`[INITIAL-REWARD]`、`[REWARD-TABLE] active terms (15)`、`[DATASET] ... 36 sources`、无 `[GAIT-CLOCK]`、`[V68-SIM2REAL]`
+
 ### v73 结果（待填）
 
 ### v74+ 候选（按 §5 协议从证据排序，每轮单变量）
