@@ -28,8 +28,16 @@ FPS_EPS = 1e-6
 
 
 def heading_yaw(root_rot):
-    """root_rot: (N,4) xyzw quaternions -> yaw per frame."""
-    x, y, z, w = root_rot[:, 0], root_rot[:, 1], root_rot[:, 2], root_rot[:, 3]
+    """root_rot: (N,4) WXYZ quaternions (the retarget pkl schema, verified
+    by check_retarget_gait S-gate) -> yaw per frame.
+
+    2026-10-24 BUGFIX (AUDIT_20261024 F-C): this parser previously read the
+    columns as xyzw, silently corrupting every heading-frame metric
+    (rootV 1.41 vs true 0.54 on 0000_treadmill_norm; step-length medians
+    collapsed to 0.02-0.35 m). Cadence (z-Schmitt) and planted (world
+    frame) were unaffected. The 'steps in TARGET band' counters printed
+    before this fix are INVALID."""
+    w, x, y, z = root_rot[:, 0], root_rot[:, 1], root_rot[:, 2], root_rot[:, 3]
     yaw = np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
     return np.unwrap(yaw)
 
@@ -123,6 +131,30 @@ def main():
         rp = np.asarray(m["root_pos"])
         rr = np.asarray(m["root_rot"])
         steps, ank, root_h = step_metrics(kb, rp, rr, fps)
+        # 2026-10-24: authoritative STEP LENGTH = world-frame distance
+        # between consecutive OPPOSITE-foot touchdowns (Schmitt z, min
+        # swing 0.25 s). The legacy cross-frame ankle-spread proxy below
+        # systematically UNDERESTIMATES (it mixes root-relative positions
+        # from different frames) — kept only for continuity.
+        _wsl = []
+        _steps2 = []
+        for _side in (0, 1):
+            z = kb[:, 2 + _side, 2] - kb[:, 2 + _side, 2].min()
+            _on, _off, _in, _st = 0.015, 0.008, False, 0
+            for _i in range(len(z)):
+                if not _in and z[_i] > _on:
+                    _in, _st = True, _i
+                elif _in and z[_i] < _off:
+                    if (_i - _st) / fps >= 0.25:
+                        _steps2.append((_i, _side))
+                    _in = False
+        _steps2.sort()
+        for _k in range(1, len(_steps2)):
+            (_i0, _s0), (_i1, _s1) = _steps2[_k - 1], _steps2[_k]
+            if _s0 != _s1:
+                _wsl.append(float(np.linalg.norm(
+                    kb[_i1, 2 + _s1, :2] - kb[_i0, 2 + _s0, :2])))
+        _wsl = np.array(_wsl)
         if not steps:
             clip_rows.append(dict(name=p.stem, n_steps=0))
             continue
@@ -135,7 +167,9 @@ def main():
         # leg speed vs root speed
         leg_v = float(np.median([60.0 * s["step_len"] / (100.0 * 0 + s["cadence"])
                                  for s in steps]))  # step_len * cadence_spm/60
-        root_v = float(np.median(np.linalg.norm(np.diff(root_h[:, :2], axis=0) * fps, axis=1)))
+        # 2026-10-24: WORLD frame — the heading-frame diff mixes in
+        # |dyaw|*|p_perp| terms for roots far from the origin
+        root_v = float(np.median(np.linalg.norm(np.diff(rp[:, :2], axis=0) * fps, axis=1)))
         clip_rows.append(dict(
             name=p.stem, n_steps=len(steps),
             cad_med=float(np.median(cad)), cad_p25=float(np.percentile(cad, 2.5)),
@@ -143,6 +177,8 @@ def main():
             sl_med=float(np.median(sl)), sl_p25=float(np.percentile(sl, 2.5)),
             sl_p975=float(np.percentile(sl, 97.5)),
             planted_frac=planted, root_v_med=root_v,
+            wf_step_med=float(np.median(_wsl)) if len(_wsl) else -1.0,
+            wf_step_p975=float(np.percentile(_wsl, 97.5)) if len(_wsl) else -1.0,
             implied_leg_v=leg_v,
             weight=weights.get(p.stem, 1.0)))
         for s in steps:
@@ -151,7 +187,9 @@ def main():
 
     # weighted distribution over (cadence, step_len)
     cad_all = np.array([s["cadence"] for s in all_steps])
-    sl_all = np.array([s["step_len"] for s in all_steps])
+    # 2026-10-24: use the WORLD-FOOTFALL step length per clip (wf_step_med)
+    _wf = {r["name"]: r.get("wf_step_med", -1.0) for r in clip_rows}
+    sl_all = np.array([_wf.get(s["clip"], s["step_len"]) for s in all_steps])
     w_all = np.array([s["weight"] / max(s["t_frac"] * (1 / s["period"]), 1e-9)
                       for s in all_steps])  # weight/duration proxy
     print(f"=== {d.name}: {len(all_steps)} steps across {len(clip_rows)} source clips ===")
