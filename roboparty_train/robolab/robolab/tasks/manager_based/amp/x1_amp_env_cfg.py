@@ -1502,13 +1502,22 @@ class X1AmpEnvCfg(AmpEnvCfg):
             # base acc/rate terms narrow to legs+torso (17 joints) and the
             # arm terms carry the v51 delivery doses.
             if _os_v73.environ.get("X1_ARM_SMOOTH", "0") == "1":
-                _legcfg_acc = {"asset_cfg": SceneEntityCfg(
-                    "robot", joint_names=[".*(hip|knee|ankle|lumbar).*_joint"])}
-                self.rewards.joint_acc_l2.params = _legcfg_acc
+                # NOTE (v77 crash forensics, TASK_20261024_056): each term
+                # MUST own an INDEPENDENT SceneEntityCfg instance — sharing
+                # one object across terms makes the manager's resolve pass
+                # fill joint_ids on the first parse and then die with
+                # "Both 'joint_names' and 'joint_ids' are specified, and
+                # are not consistent" on the second (RECORD_BOOK §6).
+                _leg_acc_joints = [".*(hip|knee|ankle|lumbar).*_joint"]
+                self.rewards.joint_acc_l2.params = {
+                    "asset_cfg": SceneEntityCfg(
+                        "robot", joint_names=list(_leg_acc_joints))}
                 # the whole-robot mdp.action_rate_l2 takes no asset_cfg —
                 # restore the v40 joints variant for the split
                 self.rewards.action_rate_l2.func = mdp.action_rate_l2_joints
-                self.rewards.action_rate_l2.params = dict(_legcfg_acc)
+                self.rewards.action_rate_l2.params = {
+                    "asset_cfg": SceneEntityCfg(
+                        "robot", joint_names=list(_leg_acc_joints))}
                 self.rewards.joint_acc_l2_arms.weight = -6.25e-8
                 self.rewards.action_rate_l2_arms.weight = -0.0025
                 print("[ARM-SMOOTH] v77: v40 split restored — base acc/rate "

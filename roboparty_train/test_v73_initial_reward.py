@@ -124,6 +124,11 @@ assert self77.rewards.joint_acc_l2_arms.weight == -6.25e-8
 assert self77.rewards.action_rate_l2_arms.weight == -0.0025
 assert "asset_cfg" in self77.rewards.joint_acc_l2.params
 assert self77.rewards.action_rate_l2.func is mdp.action_rate_l2_joints
+# v77 crash regression: independent cfg instances (shared object died in
+# the manager's resolve pass on-pod)
+assert (self77.rewards.joint_acc_l2.params["asset_cfg"]
+        is not self77.rewards.action_rate_l2.params["asset_cfg"]), \
+    "shared SceneEntityCfg across terms — pod crash (056 forensics)"
 final77 = {t: getattr(self77.rewards, t).weight.real
            for t in real_terms if getattr(self77.rewards, t).weight != 0}
 assert final77.get("joint_acc_l2_arms") == -6.25e-8
