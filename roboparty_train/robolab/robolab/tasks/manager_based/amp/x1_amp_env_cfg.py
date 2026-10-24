@@ -1454,7 +1454,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
             # weights, so those two terms are EXEMPT from the reset below.
             # Everything else v27-v72 stays OFF. (v73 = clock absent.)
             _v74_clock = _os_v73.environ.get("X1_GAIT_CLOCK", "0") == "1"
-            self.rewards.track_lin_vel_xy_exp.weight = 1.25
+            self.rewards.track_lin_vel_xy_exp.weight = float(
+                _os_v73.environ.get("X1_TRACK_W", "1.25"))  # v76 dose knob
             self.rewards.track_ang_vel_z_exp.weight = 1.25
             self.rewards.alive.weight = 0.15
             self.rewards.ang_vel_xy_l2.weight = -0.1

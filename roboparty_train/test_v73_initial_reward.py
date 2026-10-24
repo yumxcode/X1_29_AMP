@@ -102,6 +102,16 @@ exec(compile(block_src.replace("import os as _os_v73", "pass"), "<block>", "exec
 final = {t: getattr(self_obj.rewards, t).weight.real
          for t in real_terms if getattr(self_obj.rewards, t).weight != 0}
 assert final == KEEP, f"final table mismatch:\n got {sorted(final.items())}\n exp {sorted(KEEP.items())}"
+# v76: X1_TRACK_W overrides the lin-vel tracking dose (default 1.25 = initial)
+env["X1_TRACK_W"] = "2.0"
+self76 = types.SimpleNamespace(rewards=FakeRewards())
+exec(compile(block_src, "<block>", "exec"),
+     {"self": self76, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp,
+      "__builtins__": __builtins__,
+      "_os_v73": types.SimpleNamespace(environ=env)})
+assert self76.rewards.track_lin_vel_xy_exp.weight == 2.0
+env.pop("X1_TRACK_W")
+print("[2b] PASS — X1_TRACK_W=2.0 overrides the tracking dose (v76 knob)")
 # whole-robot param overrides applied:
 assert self_obj.rewards.joint_acc_l2.params["asset_cfg"].__class__.__name__ == "SceneEntityCfg"
 assert self_obj.rewards.action_rate_l2.params == {}
