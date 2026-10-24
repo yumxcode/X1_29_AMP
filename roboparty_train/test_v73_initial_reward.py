@@ -181,6 +181,29 @@ assert final78.get("foot_clock") == 1.0
 for k in ("X1_ARM_GUARDS", "X1_GAIT_CLOCK", "X1_SY_GUARD", "X1_LEAN_GUARD"):
     env.pop(k, None)
 print("[3b] PASS — v78 mode: guards survive the reset (sy/lean at v70b doses)")
+# ---- 3c. v79: X1_ARM_ASYM exempts arm_asym_lean ----------------------------
+env["X1_ARM_GUARDS"] = "1"
+env["X1_GAIT_CLOCK"] = "1"
+env["X1_ARM_ASYM"] = "1"
+self79 = types.SimpleNamespace(rewards=FakeRewards())
+self79.rewards.foot_clock.weight = 1.0
+self79.rewards.contact_clock.weight = -0.5
+self79.rewards.shoulder_yaw_fold.weight = -0.5
+self79.rewards.arm_shared_lean.weight = -0.5
+self79.rewards.arm_asym_lean.weight = -1.2
+exec(compile(block_src, "<block>", "exec"),
+     {"self": self79, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp,
+      "__builtins__": __builtins__,
+      "_os_v73": types.SimpleNamespace(environ=env)})
+final79 = {t: getattr(self79.rewards, t).weight.real
+           for t in real_terms if getattr(self79.rewards, t).weight != 0}
+assert final79.get("arm_asym_lean") == -1.2, final79.get("arm_asym_lean")
+assert final79.get("shoulder_yaw_fold") == -0.5
+assert final79.get("arm_shared_lean") == -0.5
+assert final79.get("foot_clock") == 1.0
+for k in ("X1_ARM_GUARDS", "X1_GAIT_CLOCK", "X1_ARM_ASYM"):
+    env.pop(k, None)
+print("[3c] PASS — v79 mode: asym guard survives alongside the v78 package")
 
 # ---- 4. launcher parity: v73 env knobs vs the v72 infra list --------------
 launcher = (REPO / "roboparty_train/run_v73_initial_reward.py").read_text()

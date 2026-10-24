@@ -1463,6 +1463,15 @@ class X1AmpEnvCfg(AmpEnvCfg):
             # the guards (P7g/P7h exact statistics) are the next single
             # variable from the initial+clock recipe.
             _v78_guards = _os_v73.environ.get("X1_ARM_GUARDS", "0") == "1"
+            # v79 (RECORD_BOOK §9): X1_ARM_ASYM=1 — the v28b/v54
+            # antisymmetric-DC guard (arm_asym_lean, EMA difference
+            # statistic, dose via X1_ARM_ASYM default -1.2). v78
+            # forensics: P7h shared lean FIXED (24.2 -> 0.1) but the arms
+            # re-solved into a FROZEN ANTIPHASE-OFFSET pose (shoL mean
+            # -53 / shoR +33 deg, corr -0.9, R elbow frozen 80 deg) —
+            # exactly the one-forward-one-back family the difference
+            # statistic was built for (P7g lean_asym 146 = |phiL-phiR|).
+            _v79_asym = _os_v73.environ.get("X1_ARM_ASYM", "0") != "0"
             self.rewards.track_lin_vel_xy_exp.weight = float(
                 _os_v73.environ.get("X1_TRACK_W", "1.25"))  # v76 dose knob
             self.rewards.track_ang_vel_z_exp.weight = 1.25
@@ -1489,7 +1498,7 @@ class X1AmpEnvCfg(AmpEnvCfg):
             _zero = [
                 "lin_vel_z_l2", "joint_acc_l2_arms", "action_rate_l2_arms",
                 "smoothness_1", "joint_regularization",
-                "arm_pitch_sync", "arm_asym_lean", "arm_leg_coupling",
+                "arm_pitch_sync", "arm_leg_coupling",
                 "lumbar_posture", "arm_amp_prior", "arm_amp_phase",
                 "knee_extension", "heel_first", "leg_amp_asym", "hip_phase",
                 "heel_down_ready", "swing_clearance", "ankle_flick",
@@ -1502,6 +1511,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 _zero += ["foot_clock", "contact_clock"]
             if not _v78_guards:
                 _zero += ["shoulder_yaw_fold", "arm_shared_lean"]
+            if not _v79_asym:
+                _zero += ["arm_asym_lean"]
             for _t in _zero:
                 getattr(self.rewards, _t).weight = 0.0
             # v77 (RECORD_BOOK §9): X1_ARM_SMOOTH=1 — the v40 arm-channel

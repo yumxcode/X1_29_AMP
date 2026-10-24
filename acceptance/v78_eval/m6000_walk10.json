@@ -1,0 +1,17 @@
+{
+ "ckpt": "acceptance/v78_eval/m6000.policy.npz",
+ "cmd": [
+  1.0,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 575,
+ "survived_s": 11.5,
+ "mean_vxy_err": 0.1464938125218757,
+ "mean_yaw_err": 0.2101434188746898,
+ "distance_m": 9.44547300057511,
+ "final_base_z": 0.581039658988499,
+ "fell": false
+}
