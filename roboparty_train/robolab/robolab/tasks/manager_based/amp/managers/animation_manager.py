@@ -31,6 +31,8 @@
 
 from __future__ import annotations
 
+import os
+
 import torch
 from prettytable import PrettyTable
 from typing import TYPE_CHECKING
@@ -118,7 +120,9 @@ class AnimationTerm(ManagerTermBase):
                 cmd = self._env.command_manager.get_command("base_velocity")
                 env_speeds = torch.linalg.vector_norm(cmd[:, :2], dim=1)[env_ids]
                 self.motion_ids[env_ids] = self.motion_data_term \
-                    .sample_motions_speed_gated(env_speeds)
+                    .sample_motions_speed_gated(
+                        env_speeds,
+                        tol=float(os.environ.get("X1_VMATCH_TOL", "0.35")))
             except Exception as e:
                 print(f"[ANIM] speed-gated motion assignment failed ({e}); "
                       "falling back to uniform weights")
@@ -166,7 +170,8 @@ class AnimationTerm(ManagerTermBase):
                 motion_ids, truncate_time_start=truncate_time_start,
                 truncate_time_end=truncate_time_end)
         return self.motion_data_term.sample_times_speed_gated(
-            motion_ids, speeds, window_s=self.num_steps * self._env.step_dt)
+            motion_ids, speeds, window_s=self.num_steps * self._env.step_dt,
+            tol=float(os.environ.get("X1_VMATCH_TOL", "0.35")))
 
     def update(self, dt: float):
         if self.cfg.random_fetch:
