@@ -1,0 +1,17 @@
+{
+ "ckpt": "acceptance/v75_eval/m5500.policy.npz",
+ "cmd": [
+  1.0,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 575,
+ "survived_s": 11.5,
+ "mean_vxy_err": 0.19273341356205545,
+ "mean_yaw_err": 0.152829194294824,
+ "distance_m": 9.540085879495663,
+ "final_base_z": 0.5561968984984675,
+ "fell": false
+}
