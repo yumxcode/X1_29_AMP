@@ -1,0 +1,17 @@
+{
+ "ckpt": "acceptance/v74_eval/m2000.policy.npz",
+ "cmd": [
+  1.0,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 575,
+ "survived_s": 11.5,
+ "mean_vxy_err": 0.2257085439367961,
+ "mean_yaw_err": 0.2418135148815177,
+ "distance_m": 8.87975340118025,
+ "final_base_z": 0.5781717813705686,
+ "fell": false
+}
