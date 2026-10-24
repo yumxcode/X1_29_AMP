@@ -158,6 +158,29 @@ final74 = {t: getattr(self74.rewards, t).weight.real
 exp74 = dict(KEEP); exp74["foot_clock"] = 1.0; exp74["contact_clock"] = -0.5
 assert final74 == exp74, f"v74 table mismatch: {sorted(final74.items())}"
 print("[3] PASS — v74 mode: initial 15 + foot_clock 1.0 + contact_clock -0.5; clock survives, all other additions still zeroed")
+# ---- 3b. v78: X1_ARM_GUARDS exempts sy/lean guards from the reset -------
+env["X1_ARM_GUARDS"] = "1"
+env["X1_GAIT_CLOCK"] = "1"
+env["X1_SY_GUARD"] = "0.5"; env["X1_LEAN_GUARD"] = "0.5"
+self78 = types.SimpleNamespace(rewards=FakeRewards())
+self78.rewards.foot_clock.weight = 1.0
+self78.rewards.contact_clock.weight = -0.5
+self78.rewards.shoulder_yaw_fold.weight = -0.5
+self78.rewards.arm_shared_lean.weight = -0.5
+exec(compile(block_src, "<block>", "exec"),
+     {"self": self78, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp,
+      "__builtins__": __builtins__,
+      "_os_v73": types.SimpleNamespace(environ=env)})
+assert self78.rewards.shoulder_yaw_fold.weight == -0.5
+assert self78.rewards.arm_shared_lean.weight == -0.5
+final78 = {t: getattr(self78.rewards, t).weight.real
+           for t in real_terms if getattr(self78.rewards, t).weight != 0}
+assert final78.get("shoulder_yaw_fold") == -0.5
+assert final78.get("arm_shared_lean") == -0.5
+assert final78.get("foot_clock") == 1.0
+for k in ("X1_ARM_GUARDS", "X1_GAIT_CLOCK", "X1_SY_GUARD", "X1_LEAN_GUARD"):
+    env.pop(k, None)
+print("[3b] PASS — v78 mode: guards survive the reset (sy/lean at v70b doses)")
 
 # ---- 4. launcher parity: v73 env knobs vs the v72 infra list --------------
 launcher = (REPO / "roboparty_train/run_v73_initial_reward.py").read_text()

@@ -1454,6 +1454,15 @@ class X1AmpEnvCfg(AmpEnvCfg):
             # weights, so those two terms are EXEMPT from the reset below.
             # Everything else v27-v72 stays OFF. (v73 = clock absent.)
             _v74_clock = _os_v73.environ.get("X1_GAIT_CLOCK", "0") == "1"
+            # v78 (RECORD_BOOK §9): X1_ARM_GUARDS=1 — the v70b arm-posture
+            # guard package (X1_SY_GUARD / X1_LEAN_GUARD at the v70b
+            # delivery doses 0.5/0.5) is EXEMPT from the reset: the v77
+            # verdict FALSIFIED H5 (the smoothing split freed arm motion
+            # but without posture anchoring the arms drifted into a
+            # forward-lean solution — P7g 60-63 deg vs 24.8 baseline), so
+            # the guards (P7g/P7h exact statistics) are the next single
+            # variable from the initial+clock recipe.
+            _v78_guards = _os_v73.environ.get("X1_ARM_GUARDS", "0") == "1"
             self.rewards.track_lin_vel_xy_exp.weight = float(
                 _os_v73.environ.get("X1_TRACK_W", "1.25"))  # v76 dose knob
             self.rewards.track_ang_vel_z_exp.weight = 1.25
@@ -1484,13 +1493,15 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 "lumbar_posture", "arm_amp_prior", "arm_amp_phase",
                 "knee_extension", "heel_first", "leg_amp_asym", "hip_phase",
                 "heel_down_ready", "swing_clearance", "ankle_flick",
-                "foot_yaw_neutral", "hip_roll_abduction", "shoulder_yaw_fold",
-                "arm_shared_lean", "demo_joint_track", "lateral_sway",
+                "foot_yaw_neutral", "hip_roll_abduction",
+                "demo_joint_track", "lateral_sway",
                 "gait_period", "swing_airtime",
                 "stance_sole_flat", "yaw_bias",
             ]
             if not _v74_clock:
                 _zero += ["foot_clock", "contact_clock"]
+            if not _v78_guards:
+                _zero += ["shoulder_yaw_fold", "arm_shared_lean"]
             for _t in _zero:
                 getattr(self.rewards, _t).weight = 0.0
             # v77 (RECORD_BOOK §9): X1_ARM_SMOOTH=1 — the v40 arm-channel
