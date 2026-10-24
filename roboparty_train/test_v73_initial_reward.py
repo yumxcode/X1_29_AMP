@@ -88,7 +88,8 @@ class SceneEntityCfg:  # stub
     def __init__(self, *a, **k):
         pass
 
-mdp = types.SimpleNamespace(action_rate_l2=lambda env: None)
+mdp = types.SimpleNamespace(action_rate_l2=lambda env: None,
+                         action_rate_l2_joints=lambda env, asset_cfg=None: None)
 env = {"X1_INITIAL_REWARD": "1", "X1_GAIT_CLOCK": "0"}
 
 g = {"self": self_obj, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp,
@@ -112,6 +113,23 @@ exec(compile(block_src, "<block>", "exec"),
 assert self76.rewards.track_lin_vel_xy_exp.weight == 2.0
 env.pop("X1_TRACK_W")
 print("[2b] PASS — X1_TRACK_W=2.0 overrides the tracking dose (v76 knob)")
+# ---- 2c. v77: X1_ARM_SMOOTH restores the v40 split -------------------------
+env["X1_ARM_SMOOTH"] = "1"
+self77 = types.SimpleNamespace(rewards=FakeRewards())
+exec(compile(block_src, "<block>", "exec"),
+     {"self": self77, "SceneEntityCfg": SceneEntityCfg, "mdp": mdp,
+      "__builtins__": __builtins__,
+      "_os_v73": types.SimpleNamespace(environ=env)})
+assert self77.rewards.joint_acc_l2_arms.weight == -6.25e-8
+assert self77.rewards.action_rate_l2_arms.weight == -0.0025
+assert "asset_cfg" in self77.rewards.joint_acc_l2.params
+assert self77.rewards.action_rate_l2.func is mdp.action_rate_l2_joints
+final77 = {t: getattr(self77.rewards, t).weight.real
+           for t in real_terms if getattr(self77.rewards, t).weight != 0}
+assert final77.get("joint_acc_l2_arms") == -6.25e-8
+assert final77.get("action_rate_l2_arms") == -0.0025
+env.pop("X1_ARM_SMOOTH")
+print("[2c] PASS — X1_ARM_SMOOTH=1: base terms legs+torse, arm split at v51 doses (v77 knob)")
 # whole-robot param overrides applied:
 assert self_obj.rewards.joint_acc_l2.params["asset_cfg"].__class__.__name__ == "SceneEntityCfg"
 assert self_obj.rewards.action_rate_l2.params == {}

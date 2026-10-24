@@ -1493,6 +1493,27 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 _zero += ["foot_clock", "contact_clock"]
             for _t in _zero:
                 getattr(self.rewards, _t).weight = 0.0
+            # v77 (RECORD_BOOK §9): X1_ARM_SMOOTH=1 — the v40 arm-channel
+            # smoothing split, the SECOND controlled addition from the
+            # initial table (H5: the arm-form regression of the v73-v76
+            # family — P7b elbow / P7a anti — is caused by the uniform
+            # full-strength smoothing making arm motion expensive, not by
+            # the missing guards). v40 SEMANTICS (no double penalty): the
+            # base acc/rate terms narrow to legs+torso (17 joints) and the
+            # arm terms carry the v51 delivery doses.
+            if _os_v73.environ.get("X1_ARM_SMOOTH", "0") == "1":
+                _legcfg_acc = {"asset_cfg": SceneEntityCfg(
+                    "robot", joint_names=[".*(hip|knee|ankle|lumbar).*_joint"])}
+                self.rewards.joint_acc_l2.params = _legcfg_acc
+                # the whole-robot mdp.action_rate_l2 takes no asset_cfg —
+                # restore the v40 joints variant for the split
+                self.rewards.action_rate_l2.func = mdp.action_rate_l2_joints
+                self.rewards.action_rate_l2.params = dict(_legcfg_acc)
+                self.rewards.joint_acc_l2_arms.weight = -6.25e-8
+                self.rewards.action_rate_l2_arms.weight = -0.0025
+                print("[ARM-SMOOTH] v77: v40 split restored — base acc/rate "
+                      "legs+torso only, arms at v51 delivery doses "
+                      "(-6.25e-8 / -0.0025)")
             print("[INITIAL-REWARD] v73/v74: reward table RESET to the initial "
                   "15-term design (6ea0655; the 16th, arm_pitch_mean_offset, "
                   "deliberately not resurrected — v28b FK-disproven); all "
