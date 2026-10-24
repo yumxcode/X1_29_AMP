@@ -60,7 +60,8 @@ X1 29DOF，AMP 训练，**低步频 1-2 Hz/足 × 正常步幅 × 1 m/s 行走**
 - **v70e2 dof 顺序 bug**：demo 列按 asset 序索引 motion 数组 → demo_joint_track 收入恒 0、reset 写乱关节。v70f 已修（name 级映射）。教训：**任何新奖励项先在日志验证收入非零**。
 - **v72 gitignore bug**：`data/` 未锚定匹配 robolab/data → pod 克隆无数据集 FATAL。已修（锚定 /data/ + force-add）。教训：**发射前 `git ls-files | grep <数据集>` 验证入库**。
 - **38_01 注释吞权重（本轮新发现，未修）**：v72 权重表 line709 `"38_01": 0.7` 写进注释 → 38_01 原版从未加载、38_01_mirror 无配对（实际 68 文件加载 vs 设计 70）。v73 修复。
-- **gait_coverage_stats.py 四元数约定 bug（本轮新发现）**：heading_yaw 按 xyzw 解析 wxyz 数据 → heading 系 rootV/stepLen 列污染（"0/178 in band" 是伪结论）。cadence（z-Schmitt）与 planted（世界系）两列不受影响。修复后排入待办。
+- **gait_coverage_stats.py 四元数约定 bug（本轮新发现，已修）**：heading_yaw 按 xyzw 解析 wxyz 数据 → heading 系 rootV/stepLen 列污染（"0/178 in band" 是伪结论）。cadence（z-Schmitt）与 planted（世界系）两列不受影响。已修（世界系 rootV + 世界系逐落脚步长 + TARGET band 13 与三角表互证）。
+- **v77 共享 SceneEntityCfg 崩溃（TASK_20261024_056，本轮新发现，已修）**：X1_ARM_SMOOTH 块浅拷贝使 joint_acc_l2 与 action_rate_l2 共享同一 cfg 对象 → manager resolve 二次解析 "joint_names/joint_ids not consistent" 崩溃（833s 死；启动打印全对=改动生效、炸在解析期）。修复=独立实例 + 单测断言对象身份。教训：**跨 reward term 永远独立构造 SceneEntityCfg**。v77r=TASK_20261024_073@20:37 重发。
 
 每轮发射前强制核对（写入 launcher 自检或人工）：
 - [ ] 权重表打印行 `[DATASET] ...` 出现且源数与设计一致
