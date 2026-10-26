@@ -447,6 +447,27 @@ class X1AmpRewards():
             "band_rad": 0.105,         # 6 deg (walking demos 0.1-3.7)
         },
     )
+    # v80: COMPLETE arm DC anchor (user defect 2, 2026-10-26 -- arms held
+    # up/out). All four arm joints per side banded simultaneously (the
+    # v77-v79 single-statistic guards left DC freedom to re-solve into).
+    # Bands rad: shoP (0, 25deg), shoR (0, 20deg), shoY (0, 15deg),
+    # elbow (20deg, 40deg) -- demo-library means all inside; m5500 defect
+    # (shoR -74/shoP -54/elbow 70) pays ~1.9 rad. See mdp.arm_dc_band_guard.
+    arm_dc_band = RewTerm(
+        func=mdp.arm_dc_band_guard,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_shoulder_pitch_joint", "left_shoulder_roll_joint",
+                             "left_shoulder_yaw_joint", "left_elbow_pitch_joint",
+                             "right_shoulder_pitch_joint", "right_shoulder_roll_joint",
+                             "right_shoulder_yaw_joint", "right_elbow_pitch_joint"],
+                preserve_order=True),
+            "bands": [(0.0, 0.4363), (0.0, 0.3491), (0.0, 0.2618), (0.3491, 0.6981)] * 2,
+            "alpha": 0.0025,
+        },
+    )
     # v70f: frame-synced demo joint tracking (the persistent rhythm
     # anchor; needs X1_DEMO_RESET_P=1.0 stashing + X1_DISC_VMATCH=1).
     demo_joint_track = RewTerm(
@@ -1545,6 +1566,31 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 print("[ARM-SMOOTH] v77: v40 split restored — base acc/rate "
                       "legs+torso only, arms at v51 delivery doses "
                       "(-6.25e-8 / -0.0025)")
+            _v80_form = _os_v73.environ.get("X1_FORM_PACKAGE", "0") == "1"
+            if not _v80_form:
+                _zero += ["foot_yaw_neutral", "hip_roll_abduction",
+                          "stance_sole_flat", "arm_dc_band"]
+            if _v80_form:
+                # v80 FORM PACKAGE (RECORD_BOOK section 10, user defect spec
+                # 2026-10-26: feet everted/toe-out walk + arms held up).
+                # Fresh-design single variable on top of the v76 delivery
+                # recipe (initial-15 + clock + track 2.0 + tol 0.15):
+                # the LEG guards use the v69-calibrated statistics (the
+                # discriminator is structurally blind to hip yaw/ankle roll
+                # -- key-body positions invariant), the ARM guard is the new
+                # complete four-joint DC anchor.
+                self.rewards.foot_yaw_neutral.weight = -float(
+                    _os_v73.environ.get("X1_TOE_GUARD", "0.6"))   # band 6 deg
+                self.rewards.hip_roll_abduction.weight = -float(
+                    _os_v73.environ.get("X1_ABD_GUARD", "0.8"))   # band 4 deg EMA
+                self.rewards.stance_sole_flat.weight = -float(
+                    _os_v73.environ.get("X1_SOFLAT_W", "1.5"))    # v27 phased dose
+                self.rewards.arm_dc_band.weight = -float(
+                    _os_v73.environ.get("X1_ARM_DC_W", "0.3"))    # bands in term
+                print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
+                      "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
+                      "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "
+                      "tau 8s) -- the FORM dimension the initial table lacks")
             print("[INITIAL-REWARD] v73/v74: reward table RESET to the initial "
                   "15-term design (6ea0655; the 16th, arm_pitch_mean_offset, "
                   "deliberately not resurrected — v28b FK-disproven); all "

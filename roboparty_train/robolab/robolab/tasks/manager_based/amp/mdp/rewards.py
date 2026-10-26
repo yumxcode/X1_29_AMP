@@ -443,6 +443,46 @@ def _stance_rising_edge(env, key: str, in_contact: torch.Tensor) -> torch.Tensor
     return edge
 
 
+
+def arm_dc_band_guard(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    bands: list,
+    alpha: float = 0.0025,
+) -> torch.Tensor:
+    """v80: COMPLETE arm DC anchor (RECORD_BOOK section 10, user defect 2
+    2026-10-26: arms held up/out while walking).
+
+    v80 form audit (acceptance/form_audit.py, FK convention-calibrated):
+    v76-m5500 walk10 holds shoP DC -54/-37 deg, shoR DC -74/-70 deg (p95
+    94), shoY -33/+5, elbow 70/61 (p95 91) -- while the x1_lab_v72 demo
+    library sits at shoP -21..+16 (swing p2p 55-92), shoR ~-9, shoY ~0,
+    elbow ~+20. The v77-v79 arc evidence: pinning ONE arm statistic at a
+    time lets the policy re-solve the remaining DC freedom (v78 fixed
+    shared lean 0.1-0.7 but antisym blew to 146.7; v79 asym -1.2 converged
+    only to ~50-60). Fresh design: pin the DC of ALL FOUR arm joints per
+    side simultaneously with slow-EMA bands -- no DC dimension left to
+    re-solve; the swing AC (antiphase, already present: P7a -0.90 on
+    m5500) stays free for the AMP style channel.
+
+    Statistic: per-joint continuous EMA (tau 8 s, the v34 DC-guard family
+    -- AC swing attenuated by alpha/(2*pi*f*tau), no per-episode reseed)
+    of joint angle; penalize relu(|DC - center| - half_band) summed over
+    the 8 joints. Demos pay ~0 (means inside every band); the m5500
+    defect state pays ~1.9 rad total -> -0.57/step at weight -0.3.
+
+    asset_cfg.joint_ids MUST be ordered to match `bands`, e.g.
+    [LshoP, LshoR, LshoY, Lelb, RshoP, RshoR, RshoY, Relb] with bands
+    [(0, 25deg), (0, 20deg), (0, 15deg), (20deg, 40deg)] x 2 (rad).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]
+    excess = torch.zeros_like(q[:, 0])
+    for k, (center, half_band) in enumerate(bands):
+        dc = _ema(env, f"armdc{k}", q[:, k], alpha)
+        excess = excess + ((dc - center).abs() - half_band).clamp(min=0.0)
+    return excess
+
 def _ema(env, key: str, x: torch.Tensor, alpha: float) -> torch.Tensor:
     """Per-env single-channel CONTINUOUS exponential moving average.
 

@@ -121,3 +121,10 @@ pylibs/torch/
 pylibs/torch-*.dist-info/
 pylibs/torchgen/
 pylibs/**/*.dylib
+
+# v80: local runtime dirs (never commit; the 83d7f4a accident caught pre-push)
+.venv-mac/
+.gm-home/
+ MUJOCO_LOG.TXT
+*.ses
+tmux-client-*.log
