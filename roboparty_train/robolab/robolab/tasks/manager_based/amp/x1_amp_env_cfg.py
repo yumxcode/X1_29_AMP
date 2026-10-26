@@ -1,3 +1,4 @@
+import math
 import os
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
@@ -1611,6 +1612,24 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 _v81_hipyaw = float(_os_v73.environ.get("X1_HIPYAW_W", "0"))
                 if _v81_hipyaw > 0:
                     self.rewards.hip_yaw_neutral.weight = -_v81_hipyaw
+                # v82 (RECORD_BOOK 10.6): BAND TIGHTENING of the failing
+                # families (the v81 tree branch: at -0.9 the arm equilibrium
+                # paid ~0.1/step and stayed out -- make the same pose cost
+                # more instead of another dose x2). Env-tunable so v80/v81
+                # defaults stay byte-identical.
+                _shor = float(_os_v73.environ.get("X1_SHOR_BAND_DEG", "20"))
+                _elb = float(_os_v73.environ.get("X1_ELBOW_HALF_DEG", "40"))
+                _hy = float(_os_v73.environ.get("X1_HIPYAW_BAND_DEG", "8"))
+                _elb_c = math.radians(20.0)
+                self.rewards.arm_dc_band.params["bands"] = [
+                    (0.0, math.radians(25.0)), (0.0, math.radians(_shor)),
+                    (0.0, math.radians(15.0)), (_elb_c, math.radians(_elb))] * 2
+                self.rewards.hip_yaw_neutral.params["bands"] = [
+                    (0.0, math.radians(_hy))] * 2
+                if _shor != 20.0 or _elb != 40.0 or _hy != 8.0:
+                    print(f"[FORM-PACKAGE] v82 band tightening: shoR "
+                          f"{_shor:g} deg / elbow 20+-{_elb:g} / hip_yaw "
+                          f"{_hy:g} (doses unchanged)")
                 print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
                       "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
                       "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "
