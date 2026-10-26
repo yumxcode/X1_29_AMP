@@ -1,0 +1,17 @@
+{
+ "ckpt": "acceptance/v80_eval/m3999.policy.npz",
+ "cmd": [
+  1.0,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 575,
+ "survived_s": 11.5,
+ "mean_vxy_err": 0.16529818933809412,
+ "mean_yaw_err": 0.21042278465619416,
+ "distance_m": 9.918816417595487,
+ "final_base_z": 0.5786732976418936,
+ "fell": false
+}

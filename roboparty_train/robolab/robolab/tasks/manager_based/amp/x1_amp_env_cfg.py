@@ -468,6 +468,22 @@ class X1AmpRewards():
             "alpha": 0.0025,
         },
     )
+    # v81: HIP-YAW DC band (residual of the v80 arc: with foot heading pinned
+    # to ~0 the policy still holds +-16 deg external hip_yaw DC, feet
+    # compensated forward via the ankle chain -- F3 gate fail). Same generic
+    # EMA-band statistic as arm_dc_band_guard, band (0, 8 deg) per leg.
+    hip_yaw_neutral = RewTerm(
+        func=mdp.arm_dc_band_guard,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_hip_yaw_joint", "right_hip_yaw_joint"],
+                preserve_order=True),
+            "bands": [(0.0, 0.1396)] * 2,
+            "alpha": 0.0025,
+        },
+    )
     # v70f: frame-synced demo joint tracking (the persistent rhythm
     # anchor; needs X1_DEMO_RESET_P=1.0 stashing + X1_DISC_VMATCH=1).
     demo_joint_track = RewTerm(
@@ -1569,7 +1585,7 @@ class X1AmpEnvCfg(AmpEnvCfg):
             _v80_form = _os_v73.environ.get("X1_FORM_PACKAGE", "0") == "1"
             if not _v80_form:
                 _zero += ["foot_yaw_neutral", "hip_roll_abduction",
-                          "stance_sole_flat", "arm_dc_band"]
+                          "stance_sole_flat", "arm_dc_band", "hip_yaw_neutral"]
             if _v80_form:
                 # v80 FORM PACKAGE (RECORD_BOOK section 10, user defect spec
                 # 2026-10-26: feet everted/toe-out walk + arms held up).
@@ -1587,6 +1603,14 @@ class X1AmpEnvCfg(AmpEnvCfg):
                     _os_v73.environ.get("X1_SOFLAT_W", "1.5"))    # v27 phased dose
                 self.rewards.arm_dc_band.weight = -float(
                     _os_v73.environ.get("X1_ARM_DC_W", "0.3"))    # bands in term
+                # v81 dose round (RECORD_BOOK section 10): failing-family
+                # escalation only -- arm DC -0.3 -> -0.9 (the m3999
+                # equilibrium shoR -46 paid only ~0.33/step at -0.3) + NEW
+                # hip_yaw DC band (F3 residual +-16 deg, feet compensated
+                # forward via the ankle chain). Same generic EMA-band func.
+                _v81_hipyaw = float(_os_v73.environ.get("X1_HIPYAW_W", "0"))
+                if _v81_hipyaw > 0:
+                    self.rewards.hip_yaw_neutral.weight = -_v81_hipyaw
                 print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
                       "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
                       "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "
