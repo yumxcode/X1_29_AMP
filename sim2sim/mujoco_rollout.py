@@ -27,6 +27,7 @@ import collections
 import functools
 import json
 import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -661,7 +662,11 @@ def main():
             # arbitrariness at episode start.
             _t = step * CONTROL_DT
             _v = float(np.linalg.norm(cmd[:2]))
-            _T = min(max(1.46 - 0.36 * _v, 0.70), 1.75)
+            # v84: mirror the training schedule knobs (gait_clock.py reads
+            # the SAME env vars; unset = the v71 byte-identical defaults)
+            _tA = float(os.environ.get("X1_CLOCK_T_A", "1.46"))
+            _tB = float(os.environ.get("X1_CLOCK_T_B", "0.36"))
+            _T = min(max(_tA - _tB * _v, 0.70), 1.75)
             _pl = (_t / _T) % 1.0
             _pr = (_pl + 0.5) % 1.0
             _ck = np.array([np.sin(2 * np.pi * _pl), np.sin(2 * np.pi * _pr),

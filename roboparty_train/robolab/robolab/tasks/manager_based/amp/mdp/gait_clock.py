@@ -32,7 +32,17 @@ from __future__ import annotations
 import torch
 
 # --- schedule constants (single source of truth; mirrored in sim2sim) -----
-T_STAR_A, T_STAR_B = 1.46, 0.36
+# v84 (RECORD_BOOK section 12): X1_CLOCK_T_A/B env override makes the
+# cadence-vs-speed slope tunable WITHOUT touching the v71 default
+# (byte-identical when unset). v84 dose: A=1.61 B=0.66 -> T*(1.0)=0.95 s
+# (1.053 Hz/foot; the v71 value was 1.10 s = 0.909 Hz = the measured 0.86
+# m/s ceiling identity 1.86*f*step), T*(0.5)=1.28 s unchanged (walk05
+# untouched). The sim2sim twin (sim2sim/mujoco_rollout.py) reads the SAME
+# env vars — set them for both training and rollout.
+import os as _os
+
+T_STAR_A = float(_os.environ.get("X1_CLOCK_T_A", "1.46"))
+T_STAR_B = float(_os.environ.get("X1_CLOCK_T_B", "0.36"))
 T_STAR_LO, T_STAR_HI = 0.70, 1.75
 D_A, D_B = 0.68, 0.07
 D_LO, D_HI = 0.55, 0.70
