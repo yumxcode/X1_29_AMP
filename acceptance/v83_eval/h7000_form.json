@@ -1,0 +1,217 @@
+[
+ {
+  "log": "acceptance/v83_eval/h7000_walk10.npz",
+  "frames": 600,
+  "metrics": {
+   "L_stance_n": 361,
+   "L_sole_tilt_med": 0.31011825587076,
+   "L_sole_tilt_p95": 10.349313336266436,
+   "L_tip_med": 0.17183202867538816,
+   "L_toe_out_med": 5.476081784567522,
+   "L_toe_out_p95": 0.02745238644646615,
+   "L_swing_tilt_p95": 19.503080611242066,
+   "L_hip_pitch_mean": 14.317103983463449,
+   "L_hip_pitch_p2p": 95.08227060311154,
+   "L_hip_pitch_ap95": 50.532654214222475,
+   "L_hip_roll_mean": 1.980434550652635,
+   "L_hip_roll_p2p": 20.278415475047275,
+   "L_hip_roll_ap95": 9.278129070258002,
+   "L_hip_yaw_mean": -5.560691151129365,
+   "L_hip_yaw_p2p": 71.95046815534613,
+   "L_hip_yaw_ap95": 33.84507928096615,
+   "L_ankle_roll_mean": -3.6789433512855667,
+   "L_ankle_roll_p2p": 22.275731949005042,
+   "L_ankle_roll_ap95": 7.55167334823582,
+   "L_ankle_pitch_mean": -16.276531752697164,
+   "L_ankle_pitch_p2p": 44.92140414051363,
+   "L_ankle_pitch_ap95": 26.319273561338264,
+   "L_shoulder_pitch_mean": 2.838876395993438,
+   "L_shoulder_pitch_p2p": 93.07664148206135,
+   "L_shoulder_pitch_ap95": 44.445930539284326,
+   "L_shoulder_roll_mean": -28.23576681277494,
+   "L_shoulder_roll_p2p": 44.22182452900939,
+   "L_shoulder_roll_ap95": 38.59109507523884,
+   "L_shoulder_yaw_mean": -29.615579144713895,
+   "L_shoulder_yaw_p2p": 70.99269464320383,
+   "L_shoulder_yaw_ap95": 46.60924620887645,
+   "L_elbow_pitch_mean": 52.50567480141189,
+   "L_elbow_pitch_p2p": 77.79813788511274,
+   "L_elbow_pitch_ap95": 75.90608710848392,
+   "L_lift_ratio": 4.688841232201347,
+   "R_stance_n": 379,
+   "R_sole_tilt_med": 0.20125115313890946,
+   "R_sole_tilt_p95": 13.407643729172225,
+   "R_tip_med": -0.02530348259598936,
+   "R_toe_out_med": 0.8085910316267737,
+   "R_toe_out_p95": 8.31975304954858,
+   "R_swing_tilt_p95": 32.493676842953086,
+   "R_hip_pitch_mean": -15.550741487276737,
+   "R_hip_pitch_p2p": 89.55568143042082,
+   "R_hip_pitch_ap95": 52.25757458911713,
+   "R_hip_roll_mean": -2.35816342017424,
+   "R_hip_roll_p2p": 18.141701529114965,
+   "R_hip_roll_ap95": 10.434126845339486,
+   "R_hip_yaw_mean": 9.03029531091232,
+   "R_hip_yaw_p2p": 70.67844409655831,
+   "R_hip_yaw_ap95": 31.82240329103096,
+   "R_ankle_roll_mean": 2.2344204628554882,
+   "R_ankle_roll_p2p": 17.986282907219795,
+   "R_ankle_roll_ap95": 7.590078864030604,
+   "R_ankle_pitch_mean": -18.295653776023997,
+   "R_ankle_pitch_p2p": 33.94536031986821,
+   "R_ankle_pitch_ap95": 27.13347710826265,
+   "R_shoulder_pitch_mean": -30.773467253633086,
+   "R_shoulder_pitch_p2p": 79.40943425388458,
+   "R_shoulder_pitch_ap95": 63.22007266434164,
+   "R_shoulder_roll_mean": -17.636283534048754,
+   "R_shoulder_roll_p2p": 26.156114665602402,
+   "R_shoulder_roll_ap95": 23.47080687642923,
+   "R_shoulder_yaw_mean": -20.548781195475954,
+   "R_shoulder_yaw_p2p": 70.43729904719314,
+   "R_shoulder_yaw_ap95": 42.80900877906557,
+   "R_elbow_pitch_mean": 48.062178123442095,
+   "R_elbow_pitch_p2p": 74.7979109726832,
+   "R_elbow_pitch_ap95": 70.51296181465726,
+   "R_lift_ratio": 4.936454350034153,
+   "sep_ankle_p50": 0.2888589080099523,
+   "sep_ankle_p90": 0.3372144104983706,
+   "sep_p50": 0.28629445421313715,
+   "sep_p90": 0.33686983253170855
+  },
+  "form_gate": {
+   "verdict": "FAIL",
+   "fails": [
+    "L_hip_yaw_ap95",
+    "L_shoulder_roll_mean",
+    "L_shoulder_yaw_mean",
+    "L_elbow_pitch_ap95",
+    "R_hip_yaw_ap95",
+    "R_shoulder_pitch_mean",
+    "R_shoulder_yaw_mean",
+    "R_elbow_pitch_ap95"
+   ],
+   "checks": {
+    "L_sole_tilt_med": {
+     "val": 0.31,
+     "thr": 10.0,
+     "pass": true
+    },
+    "L_sole_tilt_p95": {
+     "val": 10.35,
+     "thr": 30.0,
+     "pass": true
+    },
+    "L_toe_out_med": {
+     "val": 5.48,
+     "thr": 15.0,
+     "pass": true
+    },
+    "L_toe_out_p95": {
+     "val": 0.03,
+     "thr": 35.0,
+     "pass": true
+    },
+    "L_hip_yaw_mean": {
+     "val": 5.56,
+     "thr": 12.0,
+     "pass": true
+    },
+    "L_hip_yaw_ap95": {
+     "val": 33.85,
+     "thr": 30.0,
+     "pass": false
+    },
+    "L_hip_roll_mean": {
+     "val": 1.98,
+     "thr": 10.0,
+     "pass": true
+    },
+    "L_shoulder_pitch_mean": {
+     "val": 2.84,
+     "thr": 25.0,
+     "pass": true
+    },
+    "L_shoulder_roll_mean": {
+     "val": 28.24,
+     "thr": 20.0,
+     "pass": false
+    },
+    "L_shoulder_yaw_mean": {
+     "val": 29.62,
+     "thr": 15.0,
+     "pass": false
+    },
+    "L_elbow_pitch_ap95": {
+     "val": 75.91,
+     "thr": 70.0,
+     "pass": false
+    },
+    "R_sole_tilt_med": {
+     "val": 0.2,
+     "thr": 10.0,
+     "pass": true
+    },
+    "R_sole_tilt_p95": {
+     "val": 13.41,
+     "thr": 30.0,
+     "pass": true
+    },
+    "R_toe_out_med": {
+     "val": 0.81,
+     "thr": 15.0,
+     "pass": true
+    },
+    "R_toe_out_p95": {
+     "val": 8.32,
+     "thr": 35.0,
+     "pass": true
+    },
+    "R_hip_yaw_mean": {
+     "val": 9.03,
+     "thr": 12.0,
+     "pass": true
+    },
+    "R_hip_yaw_ap95": {
+     "val": 31.82,
+     "thr": 30.0,
+     "pass": false
+    },
+    "R_hip_roll_mean": {
+     "val": 2.36,
+     "thr": 10.0,
+     "pass": true
+    },
+    "R_shoulder_pitch_mean": {
+     "val": 30.77,
+     "thr": 25.0,
+     "pass": false
+    },
+    "R_shoulder_roll_mean": {
+     "val": 17.64,
+     "thr": 20.0,
+     "pass": true
+    },
+    "R_shoulder_yaw_mean": {
+     "val": 20.55,
+     "thr": 15.0,
+     "pass": false
+    },
+    "R_elbow_pitch_ap95": {
+     "val": 70.51,
+     "thr": 70.0,
+     "pass": false
+    },
+    "sep_p50": {
+     "val": 0.2863,
+     "thr": 0.33,
+     "pass": true
+    },
+    "sep_p90": {
+     "val": 0.3369,
+     "thr": 0.38,
+     "pass": true
+    }
+   }
+  }
+ }
+]
