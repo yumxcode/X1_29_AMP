@@ -1531,6 +1531,19 @@ class X1AmpEnvCfg(AmpEnvCfg):
             _v79_asym = _os_v73.environ.get("X1_ARM_ASYM", "0") != "0"
             self.rewards.track_lin_vel_xy_exp.weight = float(
                 _os_v73.environ.get("X1_TRACK_W", "1.25"))  # v76 dose knob
+            # v85 (RECORD_BOOK 12.1): X1_TRACK_STD — kernel TEMPERATURE of
+            # the linear-velocity tracking term (std 0.5 -> 0.25 steepens
+            # the pull toward the command; distinct from the v76-falsified
+            # WEIGHT scaling: shape vs amplitude). The v84 finding: speed
+            # equilibrium ~0.85 is invariant under clock cadence changes
+            # (0.91Hz->1.05Hz moved step 0.51->0.43, speed constant) — the
+            # bottleneck is the task-style balance, so steepen the task
+            # side's gradient at the operating point.
+            _v85_std = float(_os_v73.environ.get("X1_TRACK_STD", "0"))
+            if _v85_std > 0:
+                self.rewards.track_lin_vel_xy_exp.params["std"] = _v85_std
+                print(f"[TRACK-STD] v85: track_lin_vel_xy_exp kernel std "
+                      f"0.5 -> {_v85_std:g} (temperature; weight unchanged)")
             self.rewards.track_ang_vel_z_exp.weight = 1.25
             self.rewards.alive.weight = 0.15
             self.rewards.ang_vel_xy_l2.weight = -0.1
