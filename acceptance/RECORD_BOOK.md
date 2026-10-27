@@ -426,9 +426,31 @@ hip_yaw+roll 归零 → 198mm ≈ 演示水平。
 
 **决策树**：全过→交付候选+全套电池+1m/s 速度弧；步宽入但节奏/速度回归→soup 中点，再破→铰链 3.0→1.5；
 步宽卡 >0.38（查铰链收入：≈0=统计未生效；大而不动=结构吸引子）→v84 数据轮（08_xx 0.5→0.15、
-旧跑步机族 0.7→0.3）；Isaac 带内但 MuJoCo 漂出→sim2sim-gap 族带 F3 注记交付。
+旧跑步机族 0.7→0.3）；Isaac 带内但 MuJoCo 漂出→**sim2sim-gap 族：不得自动带注记交付**（本轮用户缺陷=可见步宽本身，hip_yaw ~103mm 直接计入判据，v82 时代"F3 注记交付"前提不再成立）——转 sim2sim 原点/动力学侧修复（default_q/qpos0/阻尼差异）并请运营方裁决交付口径，F5 门不得自我放宽。
+
+**§11.2a 分支4 修正（航向审查 2026-10-27，drift 采纳）**：训练侧 vs MuJoCo 侧步宽份额缺测——补测：(a) v82 任务（TASK_20261027_001，同基座 m2500）训练日志的 hip_yaw/hip_roll 收入与关节 DC；(b) 本地 MuJoCo hip_yaw 中性化 rollout 的 F5 上界。若训练可达降幅 ≥117mm（MuJoCo p50 可达 ≤0.33）→按原决策树；若 hip_yaw 中性化后仍 >0.38 且 hip_roll 已达演示水平→sim2sim-gap 证实，主线转原点修复+用户裁决。
 
 单测 `test_v83_stance_package.py` [1]-[6] 全过（2026-10-27）：默认字节一致 / 旋钮生效（21 项含
 stance_separation_hinge=-3）/ FORM-off 路径不变 / 剂量数学 0.38/步 / 顺序锁定 / 发射器契约。
 基线门复现：m2500 walk10 FORM-GATE FAIL 含 sep_p50/sep_p90（432/533mm）。
-发射：TASK_20261027_XXX（待填，gradmotion 账号 50，项目复用 PRO_20261026_054）
+发射：TASK_20261027_212 @16:35:11（gradmotion 账号 50 kedawas517，项目 PRO_20261026_054，pod rl-prod-4599-...-212-f7wz9；发射波折：ESKU000001 禁挂个人存储→edit 去掉 /personal 后 run 成功）。审计原始证据 acceptance/v83_eval/audit_evidence.json
+
+## 11.3 训练侧 vs MuJoCo 侧份额量化（航向审查补测，2026-10-27）
+
+**训练侧（v82 TASK_20261027_001 日志反演，同 m2500 血统）**：
+- `feet_distance_y` 收入 0.0433-0.0435/步（带内满额 0.05）；核函数反演（高侧渐近 0.5 特性）：
+  Isaac 侧典型步宽 ≈ **0.503m**（或混合分布 0.45-0.52）——**比 MuJoCo（0.447）更宽，缺陷主体在训练侧**
+- `hip_yaw_neutral` -0.0558~-0.0629 @w0.8 带5° → Isaac EMA |hip_yaw| ≈ 9.5°
+- `hip_roll_abduction` -0.0229~-0.0270 @w0.8 带4° → Isaac |hip_roll| ≈ 5.9°（MuJoCo -3.5/+5.5，基本一致）
+
+**MuJoCo 几何上界（wipe 法，walk10 踝基 p50，基线 458）**：
+| wipe 目标 | p50 | 含义 |
+|---|---|---|
+| hip_yaw → 训练水平 ±9.5° | 402 | **sim2sim-only hip_yaw 漂移 ≈ 56mm** |
+| hip_roll → ±4° | 359 | hip_roll 姿态差 ≈ 99mm（训练侧可达） |
+| 两者同 wipe | **312** | 政策姿态=训练水平时 MuJoCo p50=312 ≤ 330 门线 |
+
+**结论**：缺陷主体训练侧（Isaac ≈0.50m，铰链目标正确，可达降幅 ≥117mm 审查阈值）；
+MuJoCo-only 残差 ≈56mm（hip_yaw 漂移族）。若 Isaac 收敛 0.30-0.32 → MuJoCo 预计 0.32-0.37（F5 边缘）。
+原点一致性已核（Isaac x1.py init = MuJoCo DEFAULT_Q = ∓0.33853 rad）→ 漂移属动力学差异（低载关节 PD/阻尼/隐式执行器），非原点引入。
+判定（审查结束条件 a+b 满足）：dig 结束，v83 原决策树推进；分支4 已修正为"用户裁决"。

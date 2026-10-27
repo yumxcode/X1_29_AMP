@@ -1,0 +1,102 @@
+{
+ "date": "2026-10-27",
+ "policy": "v81-m2500 (acceptance/v81_eval/m2500.policy.npz)",
+ "foot_separation_mm": {
+  "walk10": {
+   "p50": 447,
+   "p90": 527,
+   "double_stance_p50": 424,
+   "foot_offsets_from_base_L_R_p50": [
+    221,
+    -202
+   ]
+  },
+  "walk05": {
+   "p50": 477,
+   "p90": 519,
+   "double_stance_p50": 477
+  },
+  "form_audit_gate_basis": {
+   "p50": 432,
+   "p90": 533,
+   "note": "audit includes 0.5s settle frames"
+  }
+ },
+ "robot_geometry_mm": {
+  "shoulder_joint_width": 292,
+  "hip_joint_separation": 268,
+  "default_ankle_separation": 268
+ },
+ "demo_x1_lab_v72_fk_fullscan": {
+  "population_p50_median": 306,
+  "population_p50_range": [
+   112,
+   448
+  ],
+  "p90_median": 369,
+  "families": {
+   "35_xx_p50": [
+    281,
+    318
+   ],
+   "08_xx_p50": [
+    434,
+    448
+   ],
+   "legacy_treadmill_p50": [
+    352,
+    406
+   ],
+   "103_07_p50": 112,
+   "07_01": 379,
+   "38_02": 375,
+   "38_01": 365
+  },
+  "weights_prime_w1.2": [
+   "07_01(379)",
+   "08_03(442)",
+   "38_02(375)",
+   "103_07(112)"
+  ],
+  "note": "v69-era 'demo 220-260' was the OLD x1_lab_v32 library — premise changed for v72"
+ },
+ "fk_wipe_attribution_walk10_mm": {
+  "baseline_ankle_sep_p50": 458,
+  "wipe_hip_yaw_to_default(-/+19.4deg)": 451,
+  "wipe_hip_yaw_to_zero": 355,
+  "wipe_hip_roll_to_default": 248,
+  "wipe_hip_roll_to_zero": 301,
+  "wipe_hip_yaw_plus_roll_to_zero": 198,
+  "wipe_hip_pitch_to_zero": 377,
+  "conclusion": "hip_roll ~157 (largest, training-reachable) + hip_yaw ~103 (sim2sim-gap suspect, MuJoCo DC -14.6/+22.9 vs vendor default -19.4/+19.4) + hip_pitch interaction ~81"
+ },
+ "joint_dc_walk10_deg": {
+  "hip_yaw": {
+   "L": -14.6,
+   "R": 22.9,
+   "vendor_default": "L -19.4 / R +19.4"
+  },
+  "hip_roll": {
+   "L": -3.5,
+   "R": 5.5,
+   "AC_p10_p90": "L -10.1/+8.4, R -8.9/+12.3"
+  },
+  "hip_pitch": {
+   "L": 19.8,
+   "R": -24.5
+  },
+  "ankle_roll": {
+   "L": -6.4,
+   "R": 8.9
+  }
+ },
+ "reward_side": {
+  "feet_distance_y_band": [
+   0.2,
+   0.5
+  ],
+  "flat_inside_band": true,
+  "gradient_at_defect": "exp(-100*0.15)~1e-7 = zero pull",
+  "v69_precedent": "band 0.38 + abd guard took 460->330 (old lib)"
+ }
+}
