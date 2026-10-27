@@ -1155,6 +1155,48 @@ def feet_distance_y(
     return (torch.exp(-torch.abs(d_min) * 100) + torch.exp(-torch.abs(d_max) * 100)) / 2
 
 
+def stance_separation_hinge(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    max: float = 0.32,
+    alpha: float = 0.02,
+) -> torch.Tensor:
+    """v83: stance-width hinge penalty (user defect spec 2026-10-27: the
+    two feet walk severely wider than shoulder width).
+
+    v83 audit (acceptance, FK wipe decomposition on v81-m2500 walk10):
+    root-frame foot separation p50 447-477 mm vs X1 shoulder-joint width
+    292 mm / hip separation 268 mm / demo library median 306 mm (35_xx
+    PRIME family 281-318). Wipe attribution: hip_roll DC+AC ~157 mm +
+    hip_yaw external ~103 mm + hip_pitch interaction ~81 mm. The initial
+    feet_distance_y bonus band [0.2, 0.5] is FLAT inside the band (exp
+    kernel, 10 mm scale): at the defect level the gradient is
+    exp(-100*0.15) ~ 1e-7 -- no pull at all; and the demo mixture itself
+    (08_xx 434-448 mm, legacy treadmill 352-406 mm) plus ROBUST=3
+    randomization actively favor a wide support base.
+
+    Statistic: medium EMA (tau 1 s @ 50 Hz; alpha 0.02 attenuates the
+    1 Hz swing AC ~6x but keeps the sustained stance width -- the user
+    statistic is the TYPICAL separation, not the swing peak) of the same
+    root-frame |y_L - y_R| feet_distance_y computes; LINEAR hinge beyond
+    `max` -- gradient reaches ANY distance (0.13 m excess at the m2500
+    defect pays 0.13*w per step, vs the exp bonus's 1e-7).
+
+    Band: 0.32 m = demo PRIME-family p50 upper envelope (318) + margin;
+    the exp bonus band (X1_STANCE_MAX 0.50 -> 0.30) holds p50 inside
+    once the hinge has pulled it near.
+    """
+    assert len(asset_cfg.body_ids) == 2
+    asset: Articulation = env.scene[asset_cfg.name]
+    root_quat_w = asset.data.root_quat_w.unsqueeze(1).expand(-1, 2, -1)
+    root_pos_w = asset.data.root_pos_w.unsqueeze(1).expand(-1, 2, -1)
+    feet_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids]
+    feet_pos_b = math_utils.quat_apply_inverse(root_quat_w, feet_pos_w - root_pos_w)
+    distance = torch.abs(feet_pos_b[:, 0, 1] - feet_pos_b[:, 1, 1])
+    dc = _ema(env, "stancesep", distance, alpha)
+    return (dc - max).clamp(min=0.0)
+
+
 def feet_stumble(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     # extract the used quantities (to enable type-hinting)
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]

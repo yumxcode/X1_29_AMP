@@ -485,6 +485,25 @@ class X1AmpRewards():
             "alpha": 0.0025,
         },
     )
+    # v83: STANCE-WIDTH hinge (user defect spec 2026-10-27: feet walk
+    # severely wider than shoulder width). EMA(tau 1 s) of root-frame foot
+    # separation, LINEAR hinge beyond 0.32 m -- the exp bonus band is flat
+    # at the defect level (see mdp.stance_separation_hinge docstring for
+    # the FK-wipe attribution: hip_roll ~157 + hip_yaw ~103 + hip_pitch
+    # ~81 mm). Dose via X1_STANCE_HINGE_W (FORM package block).
+    stance_separation_hinge = RewTerm(
+        func=mdp.stance_separation_hinge,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True,
+            ),
+            "max": 0.32,
+            "alpha": 0.02,
+        },
+    )
     # v70f: frame-synced demo joint tracking (the persistent rhythm
     # anchor; needs X1_DEMO_RESET_P=1.0 stashing + X1_DISC_VMATCH=1).
     demo_joint_track = RewTerm(
@@ -1586,7 +1605,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
             _v80_form = _os_v73.environ.get("X1_FORM_PACKAGE", "0") == "1"
             if not _v80_form:
                 _zero += ["foot_yaw_neutral", "hip_roll_abduction",
-                          "stance_sole_flat", "arm_dc_band", "hip_yaw_neutral"]
+                          "stance_sole_flat", "arm_dc_band", "hip_yaw_neutral",
+                          "stance_separation_hinge"]
             if _v80_form:
                 # v80 FORM PACKAGE (RECORD_BOOK section 10, user defect spec
                 # 2026-10-26: feet everted/toe-out walk + arms held up).
@@ -1630,6 +1650,34 @@ class X1AmpEnvCfg(AmpEnvCfg):
                     print(f"[FORM-PACKAGE] v82 band tightening: shoR "
                           f"{_shor:g} deg / elbow 20+-{_elb:g} / hip_yaw "
                           f"{_hy:g} (doses unchanged)")
+                # v83 (RECORD_BOOK section 11, user defect spec 2026-10-27:
+                # feet walk severely wider than shoulder width): STANCE
+                # PACKAGE, two knobs on the SAME statistic (root-frame foot
+                # separation) --
+                #   X1_STANCE_MAX       exp bonus band max 0.50 -> 0.30
+                #                      (MUST be applied here: line above
+                #                      resets it to 0.50 unconditionally)
+                #   X1_STANCE_HINGE_W   NEW linear hinge beyond
+                #   X1_STANCE_HINGE_MAX (default 0.32) on a 1 s EMA -- the
+                #                      exp kernel is flat at the 0.45 m
+                #                      defect (gradient 1e-7), the hinge
+                #                      pays 0.13*w/step there.
+                # v83 audit: policy 447-477 mm vs shoulder 292 / demo 306;
+                # v69 precedent fixed 460->330 with band 0.38+abd guard.
+                _v83_stance_max = float(_os_v73.environ.get("X1_STANCE_MAX", "0"))
+                if _v83_stance_max > 0:
+                    self.rewards.feet_distance_y.params["max"] = _v83_stance_max
+                    print(f"[STANCE-PACKAGE] v83: feet_distance_y bonus band "
+                          f"max 0.50 -> {_v83_stance_max:.2f}")
+                _v83_hinge_w = float(_os_v73.environ.get("X1_STANCE_HINGE_W", "0"))
+                if _v83_hinge_w > 0:
+                    self.rewards.stance_separation_hinge.weight = -_v83_hinge_w
+                    self.rewards.stance_separation_hinge.params["max"] = float(
+                        _os_v73.environ.get("X1_STANCE_HINGE_MAX", "0.32"))
+                    print(f"[STANCE-PACKAGE] v83: separation hinge "
+                          f"-{_v83_hinge_w:g} beyond "
+                          f"{self.rewards.stance_separation_hinge.params['max']:.2f} "
+                          f"(EMA tau 1 s)")
                 print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
                       "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
                       "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "

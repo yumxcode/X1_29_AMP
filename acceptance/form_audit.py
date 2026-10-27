@@ -96,6 +96,9 @@ def audit(path):
         ankle_z_src = d["sole_xyz"][:, :, :, 2].min(axis=2) if "sole_xyz" in d.files else None
 
     F = {s: dict(tilt=[], tip=[], toe=[]) for s in "LR"}
+    sep_ankle, lat_hist = [], []
+    if p.suffix != ".pkl" and "sole_xyz" in d.files:
+        fc = d["sole_xyz"].mean(axis=2)          # (T,2,3) sole-corner centers
     # per-foot local axes (calibrated 2026-10-26): L sole-normal=+y; the R
     # frame is rotated 180 deg about z => sole-normal=-y, toe stays +z.
     N_LOCAL = {"L": np.array([0, 1.0, 0]), "R": np.array([0, -1.0, 0])}
@@ -118,6 +121,9 @@ def audit(path):
         h[2] = 0
         h = unit(h)
         lat = unit(np.cross(h, UP))  # body-right
+        pa = {s: data.xpos[bids[s]].copy() for s in "LR"}
+        sep_ankle.append(abs(float((pa["L"] - pa["R"]) @ lat)))
+        lat_hist.append(lat.copy())
         for s in "LR":
             Rf = data.xmat[bids[s]].reshape(3, 3).copy()
             n_vec = unit(Rf @ N_LOCAL[s])   # sole normal (per-foot calibrated)
@@ -160,6 +166,20 @@ def audit(path):
             M[f"{s}_{jn}_p2p"] = float(np.ptp(j))
             M[f"{s}_{jn}_ap95"] = float(np.percentile(np.abs(j), 95))
         M[f"{s}_lift_ratio"] = M[f"{s}_hip_pitch_p2p"] / max(M[f"{s}_hip_roll_p2p"], 1e-6)
+    # v83 F5: stance separation (walking-heading lateral distance between
+    # the feet). npz rollouts: sole-corner centers (authoritative stat);
+    # pkls: ankle origins (report-only). Baseline v81-m2500 walk10
+    # 447/527 mm FAIL vs shoulder width 292 / demo 35_xx 281-318.
+    _sa = np.array(sep_ankle)
+    M["sep_ankle_p50"] = float(np.percentile(_sa, 50))
+    M["sep_ankle_p90"] = float(np.percentile(_sa, 90))
+    if p.suffix != ".pkl" and "sole_xyz" in d.files:
+        fc = d["sole_xyz"].mean(axis=2)[idxs]   # (N,2,3)
+        _lat = np.array(lat_hist)               # (N,3) walking lateral axes
+        _rel = fc[:, 0] - fc[:, 1]              # (N,3) R<-L world offset
+        _proj = np.abs(np.einsum("ij,ij->i", _rel, _lat))
+        M["sep_p50"] = float(np.percentile(_proj, 50))
+        M["sep_p90"] = float(np.percentile(_proj, 90))
     return out
 
 
@@ -192,6 +212,9 @@ def demo_ankle_z(model, data, p, idxs, bid, col, jadr, quat_wxyz):
 #   F3 hip_yaw DC        |mean| <= 12, p95 <= 30 (m5500: 31/64-66 FAIL; demos <=18/24)
 #   F4 hip_roll outward  |mean| <= 10           (m5500: 22-24 FAIL; demos <=9)
 #   A1 arm DC            shoP <= 25, shoR <= 20, shoY <= 15, elbow p95 <= 70
+#   F5 stance separation p50 <= 0.33 m, p90 <= 0.38 m (v83 2026-10-27,
+#     user defect 劈腿走: v81-m2500 447/527 FAIL; shoulder width 0.292,
+#     hip 0.268, demo 35_xx 0.281-0.318 / p90 0.338-0.395)
 # -------------------------------------------------------form-gates---------
 GATE = {
     "sole_tilt_med": 10.0, "sole_tilt_p95": 30.0,
@@ -199,6 +222,7 @@ GATE = {
     "hip_yaw_mean": 12.0, "hip_yaw_p95": 30.0,
     "hip_roll_mean": 10.0,
     "shoP_dc": 25.0, "shoR_dc": 20.0, "shoY_dc": 15.0, "elbow_p95": 70.0,
+    "sep_p50": 0.33, "sep_p90": 0.38,
 }
 
 
@@ -222,6 +246,15 @@ def form_gate(report, side="both"):
         ):
             ok = val <= thr
             checks[key] = {"val": round(float(val), 2), "thr": thr, "pass": bool(ok)}
+            if not ok:
+                fails.append(key)
+    if "sep_p50" in m:  # npz only (authoritative sole-corner statistic)
+        for key, thr, val in (
+            ("sep_p50", GATE["sep_p50"], m["sep_p50"]),
+            ("sep_p90", GATE["sep_p90"], m["sep_p90"]),
+        ):
+            ok = val <= thr
+            checks[key] = {"val": round(float(val), 4), "thr": thr, "pass": bool(ok)}
             if not ok:
                 fails.append(key)
     return {"verdict": "PASS" if not fails else "FAIL", "fails": fails,
@@ -256,6 +289,9 @@ def main():
                   f" | shoR {m[f'{s}_shoulder_roll_mean']:+6.1f} p95 {m[f'{s}_shoulder_roll_ap95']:5.1f}"
                   f" | shoY {m[f'{s}_shoulder_yaw_mean']:+6.1f}"
                   f" | elbow {m[f'{s}_elbow_pitch_mean']:+5.1f} p95 {m[f'{s}_elbow_pitch_ap95']:5.1f}")
+        if "sep_p50" in m:
+            print(f"[SEP] stance separation p50/p90 {m['sep_p50']*1000:.0f}/{m['sep_p90']*1000:.0f} mm"
+                  f" (ankle-basis {m['sep_ankle_p50']*1000:.0f}/{m['sep_ankle_p90']*1000:.0f})")
     if args.gate:
         for r in reps:
             if r["log"].endswith(".npz"):

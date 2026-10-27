@@ -384,3 +384,51 @@ v28b 时代"一前一后"缺陷家族的精确既有解（EMA差分统计对 L-5
 **弧证伪链**：v80（FORM包修腿✓）→ v81（剂量 0.3→0.9 肘入带）→ v81b（续训漂移）→ v82（带宽收紧边际失效）。臂均衡抵抗奖励压力的机制候选：横向平衡惯量需求 / AMP style 对冻结肘演示流的偏好 / sim2sim gap。
 **下一弧候选（机制级，预注册待运营方指令）**：1) arm_amp_phase 先验（v55 统计量，显式自然摆幅）；2) 演示库肘部动画化（36/36 冻结→摆动，改 disc 分布）；3) disc 臂观测通道复核（v38 10-body 的位置通道对关节角不敏感）。
 复现链：gm task model list TASK_20261026_284 ckpt 2500 → extract_ckpt_npz → mujoco_rollout --ckpt acceptance/v81_eval/m2500.policy.npz；门工具 form_audit.py --gate / rhythm_gates.py / check_policy_gait.py / self_collision_audit.py / robustness_sweep.py。
+
+## 11. v83 弧 —— 劈腿步态修复（用户缺陷报告 2026-10-27：双脚水平距离严重大于肩宽）
+
+### 11.1 审计（2026-10-27，本地 FK + 演示库全量复测）
+
+**缺陷量化（v81-m2500 sim2sim rollout，行走方向横向投影，足底角点中心）**：
+
+| 场景 | 步宽 p50 | p90 | 判定 |
+|---|---|---|---|
+| walk10 | 447mm（audit 口径 432） | 527mm | FAIL |
+| walk05 | 477mm | 519mm | FAIL |
+| 参照：X1 肩关节距 | 292mm | — | 用户判据 |
+| 参照：髋关节距 | 268mm | — | |
+| 参照：演示库 36 源（v72 全量 FK 复测） | 中位 306mm | 中位 369mm | 35_xx 族 281-318 |
+| v69 先例（同类缺陷） | 460→**330mm** | 501→ | 当时 demo 220-260（v32 库） |
+
+**FK wipe 消融归因（walk10，wipe 至 0）**：hip_roll（DC -3.5/+5.5° 外展 + AC 摆动 ±10-12°）≈157mm
++ hip_yaw 外旋（-14.6/+22.9°，贴 vendor 默认 ∓19.4°，F3 族）≈103mm + hip_pitch 摆动交互 ≈81mm；
+hip_yaw+roll 归零 → 198mm ≈ 演示水平。
+
+**三层成因**：
+1. 奖励：初始 `feet_distance_y` 指数奖励带 [0.2, **0.5**]（v73 复位恢复了 0.38 收紧）——带内平坦，
+   缺陷级梯度 exp(-100×0.15)≈1e-7 = 零拉力
+2. 数据：当前 v72 库演示步宽中位 306mm，但 **08_xx 族 434-448mm（与策略一致）、旧跑步机族 352-406mm**
+   ——cmd-1.0 PRIME 流含 08_03(442)；v69 时代"demo 220-260"是旧 v32 库数据，前提已变
+3. 结构：ROBUST=3 域随机化偏好宽支撑（v69 已记录"宽站姿抗推挤"）；hip_yaw 为 sim2sim-gap 族
+
+### 11.2 v83 预注册（STANCE PACKAGE；单变量族 = 同一统计量的两旋钮）
+
+配方 = v81-m2500 嵌入 +1500（其余字节同 run_v81_form_dose2.py）：
+- `X1_STANCE_MAX=0.30`：feet_distance_y 奖励带 max 0.50→0.30（**在 INITIAL_REWARD 复位行之后应用**——
+  1531 行无条件覆写 0.50，顺序陷阱已在单测 [2] 锁定）
+- `X1_STANCE_HINGE_W=3.0` + `X1_STANCE_HINGE_MAX=0.32`：**新函数** `stance_separation_hinge`
+  （1s EMA 的根系足间距线性铰链；缺陷级 0.13m×3.0 = 0.39/步，带内 0；补指数核远场零梯度）
+
+**绑定门（预注册）**：
+- **F5 步宽（新）**：walk10 sep p50 ≤ 0.33m 且 p90 ≤ 0.38m（form_audit.py --gate，足底角点中心）
+- 非回归（绑定）：节奏 R1-R4+L1 全过；速度 ≥0.85 m/s；存活 4/4；walk05 ≥0.30 m/s；F1/F2（外八/足底）非回归
+- A1 臂带/F3 hip_yaw：非绑定注记（v82 终判结构性吸引子/sim2sim-gap 族）
+
+**决策树**：全过→交付候选+全套电池+1m/s 速度弧；步宽入但节奏/速度回归→soup 中点，再破→铰链 3.0→1.5；
+步宽卡 >0.38（查铰链收入：≈0=统计未生效；大而不动=结构吸引子）→v84 数据轮（08_xx 0.5→0.15、
+旧跑步机族 0.7→0.3）；Isaac 带内但 MuJoCo 漂出→sim2sim-gap 族带 F3 注记交付。
+
+单测 `test_v83_stance_package.py` [1]-[6] 全过（2026-10-27）：默认字节一致 / 旋钮生效（21 项含
+stance_separation_hinge=-3）/ FORM-off 路径不变 / 剂量数学 0.38/步 / 顺序锁定 / 发射器契约。
+基线门复现：m2500 walk10 FORM-GATE FAIL 含 sep_p50/sep_p90（432/533mm）。
+发射：TASK_20261027_XXX（待填，gradmotion 账号 50，项目复用 PRO_20261026_054）
