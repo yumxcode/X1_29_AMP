@@ -90,6 +90,10 @@ def main():
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=str(ROOT / "robolab/data/motions/x1_lab"))
+    ap.add_argument("--names", nargs="*", default=None,
+                    help="restrict to these clip names (v88 lesson: the "
+                         "6-body output must then be re-extended to 10 "
+                         "bodies before entering the v72+ library)")
     ap.add_argument("--tol", type=float, default=0.02, help="FK mirror tol (m)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
@@ -149,6 +153,8 @@ def main():
 
     clips = sorted(src.glob("*.pkl"))
     clips = [c for c in clips if not c.stem.endswith("_mirror")]
+    if args.names:
+        clips = [c for c in clips if c.stem in set(args.names)]
     print(f"[INFO] {len(clips)} source clips in {src}")
     ok_all = True
     for c in clips:

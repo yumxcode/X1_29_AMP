@@ -812,6 +812,21 @@ class X1AmpEnvCfg(AmpEnvCfg):
                     _w[_n] = 1.2
                 print("[DATASET] v88: 82_12/13 (+mirrors) added to PRIME "
                       "w=1.2 (1.0 m/s long-step exemplars; 40 sources)")
+            # v90 (RECORD_BOOK 12.9): fresh-chain CMU fast-family retargets.
+            # f08_01 (1.14 m/s) / f08_03 (1.10) sit INSIDE the cmd-1.0 VMATCH
+            # window [0.85,1.15] with the longest steps in the library
+            # (~0.55 m vs stream's 0.42-0.53) — genuine long-step exemplars
+            # at the target speed. f08_06/f08_08 (1.27) go to FAST as
+            # curriculum assets. Default OFF = byte-identical.
+            if os.environ.get("X1_V90_PRIMEF08", "0") == "1":
+                _w = self.motion_data.motion_dataset.motion_data_weights
+                for _n in ("f08_01", "f08_01_mirror", "f08_03", "f08_03_mirror"):
+                    _w[_n] = 1.2
+                for _n in ("f08_06", "f08_06_mirror", "f08_08", "f08_08_mirror"):
+                    _w[_n] = 0.5
+                print("[DATASET] v90: f08_01/f08_03 (+mirrors) added to "
+                      "PRIME w=1.2 (in-window long-step 1.10-1.14 m/s); "
+                      "f08_06/f08_08 at FAST 0.5")
             print("[DATASET] v72 low-cadence library weights active "
                   "(36 sources: 29 CMU + 7 anchored legacy; jogs/36xx/11 gate-rejected removed)")
         elif _motion_dir == "x1_lab_v67":
