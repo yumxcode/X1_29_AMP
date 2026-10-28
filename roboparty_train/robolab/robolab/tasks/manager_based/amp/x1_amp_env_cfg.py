@@ -796,6 +796,22 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 "0008_normal_walk4_mirror": 0.7,
                 "08_01_mirror": 0.5, "08_06_mirror": 0.5, "08_08_mirror": 0.5, "0026_circle_walk_mirror": 0.6,
             }
+            # v88 (RECORD_BOOK 12.6, audit directive 2026-10-28): add the
+            # 82_12/13 long-step 1.0 m/s demos to PRIME. The v72-era claim
+            # "82 lumY 75-77>75 rejected" is now fixed (lumY damped to
+            # 73.4/73.5 deg, key_body_pos regenerated 10-body by FK,
+            # J-gate PASS 0-fail); the earlier "stance 52-61mm" measurement
+            # was an FK-projection artifact — authoritative key_body_pos
+            # heading-frame double-stance sep = 203-211mm (inside the
+            # feet_distance_y bonus band [0.2,0.3]). rootV 0.99-1.01 m/s,
+            # step ~0.53 m — the only in-library 1.0 m/s exemplars.
+            # Single-variable data switch; default OFF = byte-identical.
+            if os.environ.get("X1_V88_PRIME82", "0") == "1":
+                _w = self.motion_data.motion_dataset.motion_data_weights
+                for _n in ("82_12", "82_13", "82_12_mirror", "82_13_mirror"):
+                    _w[_n] = 1.2
+                print("[DATASET] v88: 82_12/13 (+mirrors) added to PRIME "
+                      "w=1.2 (1.0 m/s long-step exemplars; 40 sources)")
             print("[DATASET] v72 low-cadence library weights active "
                   "(36 sources: 29 CMU + 7 anchored legacy; jogs/36xx/11 gate-rejected removed)")
         elif _motion_dir == "x1_lab_v67":
