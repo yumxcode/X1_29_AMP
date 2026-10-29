@@ -1274,6 +1274,50 @@ def step_length_clock(
     return reward
 
 
+def chest_lean_guard(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = None,
+    lo: float = 0.0,
+    hi: float = 0.35,
+) -> torch.Tensor:
+    """v94: CHEST (torso) backward-lean hinge — the 腰后仰 fix (RECORD_BOOK 13).
+
+    Measured quantity = the heading-frame tilt of the base->shoulder-mid
+    vector (the user-VISIBLE chest lean; + = chest FORWARD):
+
+        tilt = atan2(v . fwd_horizontal, v_z),
+        v = (pos_L_shoulder + pos_R_shoulder)/2 - root_pos_w
+
+    Calibration (acceptance/torso_lean_stats.py + demo_lumbar_survey.py,
+    2026-10-29): the x1_lab_v72 demo stream holds chest tilt +2..+11 deg
+    (PRIME in-window +6..+11); the v91b-q4499 delivery sits at **-10 deg**
+    (chest BACKWARD, p10-p90 -10.4..-10.1 — rigidly pinned), while the
+    v83-v86/v88 continuation lineage sits at the OPPOSITE attractor
+    (+26..+28 deg over-forward). The lumbar_pitch state is BISTABLE and
+    the discriminator cannot see it (KEY_BODY_NAMES has no torso body;
+    shoulder/elbow positions are compensable by arm joints), so nothing in
+    the style channel pins the chest. The joint-space lumbar_posture prior
+    (-0.4, target +14.9 deg) is compensation-blind: the policy parks the
+    lumbar at -10 with the pelvis at -3 and the CHEST stays 10 deg back
+    while the joint term pays -0.174/step. This term measures the chest
+    directly, hinge-gated free in [lo, hi] = [0, +20 deg] so the natural
+    demo range is untaxed and only OUT-OF-BAND lean pays (linear in rad).
+    Heading-invariant (fwd projected through the root quaternion's
+    horizontal frame, the v91 step_length_clock convention).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    sh = asset.data.body_pos_w[:, asset_cfg.body_ids]              # (N,2,3)
+    v = 0.5 * (sh[:, 0] + sh[:, 1]) - asset.data.root_pos_w        # (N,3)
+    root_quat_w = asset.data.root_quat_w
+    heading = math_utils.quat_apply(root_quat_w, torch.tensor([1.0, 0.0, 0.0],
+                              device=root_quat_w.device).expand(root_quat_w.shape[0], -1))
+    fwd_h = heading[:, :2]
+    fwd_h = fwd_h / (torch.linalg.norm(fwd_h, dim=1, keepdim=True) + 1e-8)
+    fore = torch.einsum("nk,nk->n", v[:, :2], fwd_h)
+    tilt = torch.atan2(fore, v[:, 2])                              # + = chest fwd
+    return torch.relu(lo - tilt) + torch.relu(tilt - hi)
+
+
 def feet_stumble(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     forces_z = torch.abs(contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, 2])

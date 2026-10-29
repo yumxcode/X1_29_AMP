@@ -1,5 +1,6 @@
 import math
 import os
+import numpy as np
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
@@ -521,6 +522,24 @@ class X1AmpRewards():
                 preserve_order=True),
             "speed_ratio": 1.86,
             "sigma": 0.05,
+        },
+    )
+    # v94: CHEST LEAN GUARD (RECORD_BOOK 13 — the 腰后仰 fix). Heading-frame
+    # tilt of base->shoulder-mid; free hinge band [0, +20 deg] (demo stream
+    # +2..+11); the q4499 delivery pins at -10 deg (chest BACKWARD) which
+    # the discriminator cannot see and lumbar_posture (-0.4, joint-space)
+    # fails to move. Dose via X1_CHEST_LEAN_W (default 0 = off).
+    chest_lean = RewTerm(
+        func=mdp.chest_lean_guard,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_shoulder_pitch_link", "right_shoulder_pitch_link"],
+                preserve_order=True,
+            ),
+            "lo": 0.0,
+            "hi": 0.35,
         },
     )
     # v70f: frame-synced demo joint tracking (the persistent rhythm
@@ -1669,7 +1688,8 @@ class X1AmpEnvCfg(AmpEnvCfg):
             if not _v80_form:
                 _zero += ["foot_yaw_neutral", "hip_roll_abduction",
                           "stance_sole_flat", "arm_dc_band", "hip_yaw_neutral",
-                          "stance_separation_hinge", "step_length_clock"]
+                          "stance_separation_hinge", "step_length_clock",
+                          "chest_lean"]
             if _v80_form:
                 # v80 FORM PACKAGE (RECORD_BOOK section 10, user defect spec
                 # 2026-10-26: feet everted/toe-out walk + arms held up).
@@ -1750,6 +1770,19 @@ class X1AmpEnvCfg(AmpEnvCfg):
                     print(f"[STEP-DRIVE] v91: analytic step target "
                           f"L*(1.0)=0.511 m (ratio 1.86, clock 1.053 Hz), "
                           f"w={_v91_step_w:g}, sigma 0.05")
+                # v94 (RECORD_BOOK 13): CHEST LEAN GUARD — the 腰后仰 fix.
+                # Hinge free in [0, +20 deg] (demo stream +2..+11); the
+                # q4499 delivery pins at -10 deg. Default 0 = byte-identical.
+                _v94_chest_w = float(_os_v73.environ.get("X1_CHEST_LEAN_W", "0"))
+                if _v94_chest_w != 0:
+                    self.rewards.chest_lean.weight = _v94_chest_w
+                    _v94_lo = float(_os_v73.environ.get("X1_CHEST_LEAN_LO", "0.0"))
+                    _v94_hi = float(_os_v73.environ.get("X1_CHEST_LEAN_HI", "0.35"))
+                    self.rewards.chest_lean.params["lo"] = _v94_lo
+                    self.rewards.chest_lean.params["hi"] = _v94_hi
+                    print(f"[CHEST-LEAN] v94: chest tilt hinge band "
+                          f"[{np.degrees(_v94_lo):.0f}, {np.degrees(_v94_hi):.0f}] deg, "
+                          f"w={_v94_chest_w:g} (demo stream +2..+11; q4499 sits -10)")
                 print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
                       "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
                       "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "
