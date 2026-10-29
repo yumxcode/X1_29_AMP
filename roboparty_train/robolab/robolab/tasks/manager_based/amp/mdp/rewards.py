@@ -1269,7 +1269,7 @@ def step_length_clock(
         kernel = torch.exp(-((step_len - L_star.unsqueeze(1)).abs() / sigma))
         reward = torch.where(active, (kernel * valid.float()).sum(dim=1), torch.zeros_like(reward))
     with torch.no_grad():
-        state["last_fore"] = torch.where(first_contact.unsqueeze(-1), fore, last_fore)
+        state["last_fore"] = torch.where(first_contact, fore, last_fore)
         state["has_prev"] = has_prev | first_contact
     return reward
 
