@@ -1,0 +1,97 @@
+{
+ "verdict": "FAIL",
+ "fails": [
+  "P2d_bad_sum",
+  "P3b_ang_kernel",
+  "P3c_err_xy",
+  "P3d_err_yaw",
+  "P6_play"
+ ],
+ "results": {
+  "P1_iters": {
+   "pass": true,
+   "detail": "completed 4000/4000 iterations",
+   "value": null
+  },
+  "P2a_ep_len": {
+   "pass": true,
+   "detail": "ep_len 977.5 >= 950",
+   "value": 977.4787142857142
+  },
+  "P2b_timeout": {
+   "pass": true,
+   "detail": "time_out 0.9549 >= 0.95",
+   "value": 0.9549414285714286
+  },
+  "P2c_base_contact": {
+   "pass": true,
+   "detail": "base_contact 0.00000 == 0",
+   "value": 0.0
+  },
+  "P2d_bad_sum": {
+   "pass": false,
+   "detail": "base_height 0.0004 + bad_orient 0.0450 <= 0.03",
+   "value": 0.045380000000000004
+  },
+  "P3a_lin_kernel": {
+   "pass": true,
+   "detail": "lin kernel 0.9757 >= 0.82 (reward 1.220)",
+   "value": 0.9757245714285713
+  },
+  "P3b_ang_kernel": {
+   "pass": false,
+   "detail": "ang kernel 0.3021 >= 0.5 (reward 0.378)",
+   "value": 0.30210400000000004
+  },
+  "P3c_err_xy": {
+   "pass": false,
+   "detail": "error_vel_xy 0.4677 <= 0.44",
+   "value": 0.46774
+  },
+  "P3d_err_yaw": {
+   "pass": false,
+   "detail": "error_vel_yaw 1.7499 <= 0.95",
+   "value": 1.7498500000000001
+  },
+  "P4_no_collapse": {
+   "pass": true,
+   "detail": "last100 19.27 >= 90% x best 19.27",
+   "value": 1.0
+  },
+  "P5a_style": {
+   "pass": true,
+   "detail": "style 0.165 >= 0.15",
+   "value": 0.16514285714285715
+  },
+  "P5b_disc": {
+   "pass": true,
+   "detail": "disc_loss 0.00011 <= 0.05",
+   "value": 0.00011000000000000003
+  },
+  "P6_play": {
+   "pass": false,
+   "detail": "no play evidence provided",
+   "value": null
+  }
+ },
+ "targets": {
+  "T1_lin_kernel": {
+   "hit": true,
+   "detail": "0.9757 vs 0.85"
+  },
+  "T2_ang_kernel": {
+   "hit": false,
+   "detail": "0.3021 vs 0.6"
+  },
+  "T3_style": {
+   "hit": false,
+   "detail": "0.165 vs 0.5"
+  }
+ },
+ "window_last": 100,
+ "iters": [
+  3930,
+  3999
+ ],
+ "total_cfg": 4000
+}

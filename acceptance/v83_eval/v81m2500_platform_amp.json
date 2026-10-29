@@ -1,0 +1,99 @@
+{
+ "verdict": "FAIL",
+ "fails": [
+  "P1_iters",
+  "P2b_timeout",
+  "P2d_bad_sum",
+  "P3b_ang_kernel",
+  "P3c_err_xy",
+  "P3d_err_yaw",
+  "P6_play"
+ ],
+ "results": {
+  "P1_iters": {
+   "pass": false,
+   "detail": "completed 2742/3500 iterations",
+   "value": null
+  },
+  "P2a_ep_len": {
+   "pass": true,
+   "detail": "ep_len 976.0 >= 950",
+   "value": 975.9644303797469
+  },
+  "P2b_timeout": {
+   "pass": false,
+   "detail": "time_out 0.9482 >= 0.95",
+   "value": 0.9481759493670888
+  },
+  "P2c_base_contact": {
+   "pass": true,
+   "detail": "base_contact 0.00000 == 0",
+   "value": 0.0
+  },
+  "P2d_bad_sum": {
+   "pass": false,
+   "detail": "base_height 0.0000 + bad_orient 0.0519 <= 0.03",
+   "value": 0.05186329113924051
+  },
+  "P3a_lin_kernel": {
+   "pass": true,
+   "detail": "lin kernel 1.2366 >= 0.82 (reward 1.546)",
+   "value": 1.2366308860759492
+  },
+  "P3b_ang_kernel": {
+   "pass": false,
+   "detail": "ang kernel 0.3756 >= 0.5 (reward 0.470)",
+   "value": 0.375620253164557
+  },
+  "P3c_err_xy": {
+   "pass": false,
+   "detail": "error_vel_xy 0.4764 <= 0.44",
+   "value": 0.4763696202531645
+  },
+  "P3d_err_yaw": {
+   "pass": false,
+   "detail": "error_vel_yaw 1.3653 <= 0.95",
+   "value": 1.3653316455696203
+  },
+  "P4_no_collapse": {
+   "pass": true,
+   "detail": "last100 31.28 >= 90% x best 31.28",
+   "value": 1.0
+  },
+  "P5a_style": {
+   "pass": true,
+   "detail": "style 0.173 >= 0.15",
+   "value": 0.1734177215189873
+  },
+  "P5b_disc": {
+   "pass": true,
+   "detail": "disc_loss 0.00020 <= 0.05",
+   "value": 0.00019746835443037983
+  },
+  "P6_play": {
+   "pass": false,
+   "detail": "no play evidence provided",
+   "value": null
+  }
+ },
+ "targets": {
+  "T1_lin_kernel": {
+   "hit": true,
+   "detail": "1.2366 vs 0.85"
+  },
+  "T2_ang_kernel": {
+   "hit": false,
+   "detail": "0.3756 vs 0.6"
+  },
+  "T3_style": {
+   "hit": false,
+   "detail": "0.173 vs 0.5"
+  }
+ },
+ "window_last": 100,
+ "iters": [
+  2663,
+  2741
+ ],
+ "total_cfg": 3500
+}
