@@ -1197,8 +1197,84 @@ def stance_separation_hinge(
     return (dc - max).clamp(min=0.0)
 
 
+_STEP_DRIVE_STATE: dict = {}
+
+
+def step_length_clock(
+    env: ManagerBasedRLEnv,
+    command_name: str = "base_velocity",
+    sensor_cfg: SceneEntityCfg = None,
+    asset_cfg: SceneEntityCfg = None,
+    speed_ratio: float = 1.86,
+    sigma: float = 0.05,
+) -> torch.Tensor:
+    """v91: ANALYTIC STEP-LENGTH DRIVE (RECORD_BOOK 12.12, lever B2).
+
+    The seven-lever falsification chain closed at 0.895 m/s all-pass:
+    the policy tracks the clock cadence exactly (1.05-1.06 Hz) but the
+    STEP LENGTH stays style-pinned at 0.446-0.453 m (R4 floor 0.45),
+    capping speed at ratio x f x step = 1.86 x 1.06 x 0.45 = 0.89.
+    Every style/data lever left step untouched; this term sets the
+    step target ANALYTICALLY from the command, bypassing the style
+    anchor entirely:
+
+        L*(v) = v_cmd / (speed_ratio x f_clk(v)),   f_clk = 1/T*(v)
+        L*(1.0) = 1.00 / (1.86 x 1.053) = 0.511 m  (R4 band [0.45, 1.05])
+
+    Statistic: at each FOOT TOUCHDOWN (contact edge), the heading-frame
+    fore-aft displacement from that foot's previous touchdown (the
+    per-footfall step the rhythm gates measure); exp kernel on
+    |step - L*| with sigma 0.05 m. Only v_cmd >= 0.3 m/s pays (stand /
+    slow walk untargeted). The speed_ratio 1.86 is the family-stable
+    empirical identity (j3000/m5000/n3500 all 0.887-0.895 =
+    1.86 x 1.05-1.06 x 0.446-0.453).
+    """
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    asset: Articulation = env.scene[asset_cfg.name]
+    first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
+    feet_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids]          # (N,2,3)
+    root_quat_w = asset.data.root_quat_w
+    heading = math_utils.quat_apply(root_quat_w, torch.tensor([1.0, 0.0, 0.0],
+                              device=root_quat_w.device).expand(root_quat_w.shape[0], -1))
+    heading = heading / (torch.linalg.norm(heading, dim=1, keepdim=True) + 1e-8)
+    fore = torch.einsum("nfk,nk->nf", feet_pos_w, heading)             # (N,2)
+
+    cmd = env.command_manager.get_command(command_name)
+    v = torch.norm(cmd[:, :2], dim=1)
+    try:
+        from .gait_clock import t_star
+    except ImportError:
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_gait_clock_r", _P(__file__).resolve().parent / "gait_clock.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        t_star = _m.t_star
+    L_star = v / (speed_ratio * (1.0 / t_star(v)))
+
+    key = (id(env), "stepdrive")
+    state = _STEP_DRIVE_STATE.get(key)
+    N, F = fore.shape
+    if state is None or state["last_fore"].shape != fore.shape or state["last_fore"].device != fore.device:
+        state = {"last_fore": fore.detach().clone(),
+                 "has_prev": torch.zeros((N, F), dtype=torch.bool, device=fore.device)}
+        _STEP_DRIVE_STATE[key] = state
+    last_fore, has_prev = state["last_fore"], state["has_prev"]
+    step_len = (fore - last_fore).abs()
+    # valid only at touchdown of a foot that had a previous touchdown
+    reward = torch.zeros_like(v)
+    active = (v >= 0.3)
+    valid = first_contact & has_prev
+    if valid.any():
+        kernel = torch.exp(-((step_len - L_star.unsqueeze(1)).abs() / sigma))
+        reward = torch.where(active, (kernel * valid.float()).sum(dim=1), torch.zeros_like(reward))
+    with torch.no_grad():
+        state["last_fore"] = torch.where(first_contact.unsqueeze(-1), fore, last_fore)
+        state["has_prev"] = has_prev | first_contact
+    return reward
+
+
 def feet_stumble(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
-    # extract the used quantities (to enable type-hinting)
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     forces_z = torch.abs(contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, 2])
     forces_xy = torch.linalg.norm(contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, :2], dim=2)

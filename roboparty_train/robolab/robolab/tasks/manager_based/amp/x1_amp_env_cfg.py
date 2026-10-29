@@ -504,6 +504,25 @@ class X1AmpRewards():
             "alpha": 0.02,
         },
     )
+    # v91: ANALYTIC STEP-LENGTH DRIVE (RECORD_BOOK 12.12, lever B2 of the
+    # operator adjudication menu): at each foot touchdown, exp kernel on
+    # |step - v_cmd/(1.86 x f_clk)| — sets the step target analytically,
+    # bypassing the style anchor that pinned 0.446-0.453 across all seven
+    # lever families. Dose via X1_STEP_DRIVE_W (FORM package block).
+    step_length_clock = RewTerm(
+        func=mdp.step_length_clock,
+        weight=0,
+        params={
+            "command_name": "base_velocity",
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
+            "asset_cfg": SceneEntityCfg(
+                "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+                preserve_order=True),
+            "speed_ratio": 1.86,
+            "sigma": 0.05,
+        },
+    )
     # v70f: frame-synced demo joint tracking (the persistent rhythm
     # anchor; needs X1_DEMO_RESET_P=1.0 stashing + X1_DISC_VMATCH=1).
     demo_joint_track = RewTerm(
@@ -1650,7 +1669,7 @@ class X1AmpEnvCfg(AmpEnvCfg):
             if not _v80_form:
                 _zero += ["foot_yaw_neutral", "hip_roll_abduction",
                           "stance_sole_flat", "arm_dc_band", "hip_yaw_neutral",
-                          "stance_separation_hinge"]
+                          "stance_separation_hinge", "step_length_clock"]
             if _v80_form:
                 # v80 FORM PACKAGE (RECORD_BOOK section 10, user defect spec
                 # 2026-10-26: feet everted/toe-out walk + arms held up).
@@ -1722,6 +1741,15 @@ class X1AmpEnvCfg(AmpEnvCfg):
                           f"-{_v83_hinge_w:g} beyond "
                           f"{self.rewards.stance_separation_hinge.params['max']:.2f} "
                           f"(EMA tau 1 s)")
+                # v91 (RECORD_BOOK 12.12, adjudication lever B2): ANALYTIC
+                # STEP-LENGTH DRIVE — exp kernel at each touchdown on
+                # |step - v_cmd/(1.86 x f_clk)|; bypasses the style anchor.
+                _v91_step_w = float(_os_v73.environ.get("X1_STEP_DRIVE_W", "0"))
+                if _v91_step_w > 0:
+                    self.rewards.step_length_clock.weight = _v91_step_w
+                    print(f"[STEP-DRIVE] v91: analytic step target "
+                          f"L*(1.0)=0.511 m (ratio 1.86, clock 1.053 Hz), "
+                          f"w={_v91_step_w:g}, sigma 0.05")
                 print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
                       "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
                       "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "
