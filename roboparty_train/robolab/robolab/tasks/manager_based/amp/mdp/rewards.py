@@ -664,6 +664,62 @@ def arm_swing_amplitude_prior(
                   torch.ones_like(amp), above.clamp(min=0.0)))
 
 
+def arm_amp_antiphase_prior(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    alpha: float = 0.02,
+    lo: float = 0.52,
+    hi: float = 0.79,
+    sync_cap: float = 0.24,
+    dc_alpha: float = 0.0025,
+) -> torch.Tensor:
+    """v95c: AMP-under-ANTIPHASE prior — shoP swing amplitude band gated by
+    the L/R SYNC residual (audit item 2, RECORD_BOOK 14.5; user defect:
+    双臂摆动失调 corr(phiL,phiR) -0.35/-0.10 vs demo -0.98).
+
+    Why a new term (v55's arm_amp_phase_prior is structurally broken):
+      1. SIGN CANCELLATION — measured on x1_lab_v72 demos (2026-10-30):
+         corr(hp_shoL, hp_hipR) = +0.98 but corr(hp_shoR, hp_hipL) = -0.91
+         (the anti-aligned hip/shoulder conventions, the v33 discovery);
+         v55's prod = shoL*hipR + shoR*hipL sums a positive and a negative
+         product -> ~0 on the NATURAL demos themselves (gate active on
+         only 9-29% of demo frames). The v33 negation was never ported.
+      2. Even sign-fixed, an instantaneous arm-leg gate cannot separate
+         demo from policy: the coarse phase relation is already right in
+         the policies (gate ~1.0 both) — the defect is the L/R residual.
+
+    Statistic (asset_cfg = [LshoP, RshoP]):
+      hp   = q - EMA_slow(q, tau 8 s)          the swing
+      amp  = min(RMS_L, RMS_R) via EMA(hp^2, tau 1 s)   min -> symmetric
+      band = amp/lo below lo, 1 in [lo, hi], decaying above (v52/v55 band)
+      sync = RMS(hpL + hpR) via EMA((hpL+hpR)^2, tau 1 s)
+             = A*sqrt(2(1+rho)): 0 at ANY amplitude for perfect antiphase
+             (the v34 arm_sync_residual property — no amplitude force);
+             carries (1+rho) of the power for incoherent swing.
+      gate = 1 - relu(sync - sync_cap)/sync_cap
+    Measured (steady-state, deg): demos sync 5.1-13.1 / ampL 21-49 with
+    min-amplitude mostly in band; x7397-family sync 17-25 + walk05
+    amplitude asymmetry 29/11 -> reward ~0.2-0.5 of demo.
+    To farm it the policy must raise BOTH arms' shoP swing into the demo
+    band AND kill the sync component — amplitude + 左右反相 in one term.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]
+    hp_l = q[:, 0] - _ema(env, "aap_dcL", q[:, 0], dc_alpha)
+    hp_r = q[:, 1] - _ema(env, "aap_dcR", q[:, 1], dc_alpha)
+    ms_l = _ema(env, "aap_msL", hp_l * hp_l, alpha)
+    ms_r = _ema(env, "aap_msR", hp_r * hp_r, alpha)
+    amp = torch.minimum(torch.sqrt(ms_l.clamp_min(1e-12)),
+                        torch.sqrt(ms_r.clamp_min(1e-12)))
+    band = torch.where(amp < lo, (amp / lo).clamp(max=1.0),
+              torch.where(amp <= hi, torch.ones_like(amp),
+                          (1.0 - (amp - hi).clamp(min=0.0) / hi).clamp(min=0.0)))
+    s = hp_l + hp_r
+    sync = torch.sqrt(_ema(env, "aap_syn", s * s, alpha).clamp_min(1e-12))
+    gate = (1.0 - (sync - sync_cap).clamp(min=0.0) / sync_cap).clamp(min=0.0, max=1.0)
+    return band * gate
+
+
 def leg_amp_asym(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     alpha: float = 0.0025,

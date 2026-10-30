@@ -28,8 +28,9 @@ def eval_run(rep, name):
             ("A3b", f"{name} {s} wriR p2p", M[f"{s}_wrist_roll_p2p"], 35.0, "le"),
             ("A5", f"{name} {s} hand lat p2p", M[f"{s}_hand_lat_p2p"], 0.45, "le"),
         ]
-    if name in ("walk10", "walk05"):
-        checks.append(("A4", f"{name} corr(phiL,phiR)", M["corr_phiLR"], -0.6, "ge"))
+    if any(name.endswith(s) for s in ("walk10", "walk05")):
+        # pre-registered: corr(phiL,phiR) <= -0.6 (demo -0.98)
+        checks.append(("A4", f"{name} corr(phiL,phiR)", M["corr_phiLR"], -0.6, "le"))
     return checks
 
 

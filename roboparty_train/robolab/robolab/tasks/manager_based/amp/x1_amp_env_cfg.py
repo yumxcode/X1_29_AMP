@@ -495,6 +495,23 @@ class X1AmpRewards():
             "alpha": 0.02, "dc_alpha": 0.0025,
         },
     )
+    # v95c: AMP-under-ANTIPHASE prior (audit item 2, RECORD_BOOK 14.5).
+    # shoP min(L,R) swing-amplitude band gated by the L/R sync residual
+    # RMS(hpL+hpR) — demos sync 5-13 deg / policies 17-25 deg with walk05
+    # amplitude asymmetry. v55's arm_amp_phase has a sign cancellation on
+    # the natural demos (see mdp.arm_amp_antiphase_prior docstring).
+    # Dose via X1_AMP_ANTI_W (default 0 = off, byte-identical).
+    arm_amp_anti = RewTerm(
+        func=mdp.arm_amp_antiphase_prior,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_shoulder_pitch_joint", "right_shoulder_pitch_joint"],
+                preserve_order=True),
+            "alpha": 0.02, "lo": 0.52, "hi": 0.79, "sync_cap": 0.24,
+        },
+    )
     # v81: HIP-YAW DC band (residual of the v80 arc: with foot heading pinned
     # to ~0 the policy still holds +-16 deg external hip_yaw DC, feet
     # compensated forward via the ankle chain -- F3 gate fail). Same generic
@@ -1820,6 +1837,16 @@ class X1AmpEnvCfg(AmpEnvCfg):
                           f"[shoR 8.0 / shoY 2.9 / elbP 2.9 / elbY 2.9 / "
                           f"wriP 9.2 / wriR 7.4] deg x2 sides, "
                           f"w={_v95_quiet_w:g} (x7398 defect 1.32 rad walk10)")
+                # v95c (RECORD_BOOK 14.5, audit item 2): AMP-under-
+                # ANTIPHASE — shoP amplitude band x L/R sync gate (cap 0.24 rad = 13.7 deg, demo max 13.1).
+                # Default 0 = byte-identical.
+                _v95c_anti_w = float(_os_v73.environ.get("X1_AMP_ANTI_W", "0"))
+                if _v95c_anti_w != 0:
+                    self.rewards.arm_amp_anti.weight = _v95c_anti_w
+                    print(f"[AMP-ANTI] v95c: shoP min-amp band "
+                          f"[0.52, 0.79] rad x sync gate cap 0.24 rad, "
+                          f"w={_v95c_anti_w:g} (demo sync 5-13 deg vs "
+                          f"policy 17-25; corr(phiL,phiR) -0.35 -> <=-0.6)")
                 print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
                       "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
                       "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "
