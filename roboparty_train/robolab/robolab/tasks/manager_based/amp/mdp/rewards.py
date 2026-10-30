@@ -483,6 +483,51 @@ def arm_dc_band_guard(
         excess = excess + ((dc - center).abs() - half_band).clamp(min=0.0)
     return excess
 
+
+def arm_distal_amp_guard(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    bands: list,
+    alpha: float = 0.02,
+    dc_alpha: float = 0.0025,
+) -> torch.Tensor:
+    """v95: QUIET-HANDS guard — SWING-amplitude bands on the distal arm
+    joints (user defect 2026-10-30: 手臂摆动别扭).
+
+    Diagnosis (acceptance/arm_swing_audit.py + FFT, x7398 rollouts vs
+    x1_lab_v72 demos): the demo arm is a RIGID PENDULUM — all swing lives in
+    shoulder_pitch (p2p 92-133 deg, FK corr(phiL,phiR) -0.98); shoY / elbow
+    P / elbow Y / wrists are FROZEN in 36/36 clips (elbow exactly +20.0,
+    shoY p2p <= 0.5 deg) and shoR carries only 2-7 deg RMS. The v94d policy
+    instead UNDER-swings shoP (gait-band RMS 12-17 vs demo 26-47 deg) and
+    pumps the distal joints at GAIT frequency (shoY RMS 9-14 / elbP 5-9 /
+    elbY 3-17 / wriR 7-10 deg; hand lateral sweep p2p up to 0.56 m) — the
+    flail is policy-driven (>=0.4-3 Hz band), not MuJoCo PD oscillation.
+    Why nothing catches it: the discriminator sees these channels but they
+    are CONSTANT in every demo (zero variance -> zero adversarial
+    gradient), and arm_dc_band anchors only the EMA DC, never the swing.
+
+    Statistic per channel k: hp = q_k - EMA_slow(q_k, dc_alpha tau 8 s,
+    removes DC & slow drift); ms = EMA(hp^2, alpha tau ~1 s, tracks the
+    gait-band swing power); excess += relu(sqrt(ms) - band_k). Demos pay
+    ~0 (max demo RMS: shoR 7.3 deg / wriP 8.8 / wriR 7.1 — bands cover);
+    the x7398 defect pays 1.32 rad (walk10) / 1.75 rad (walk05) measured
+    (EMA-RMS captures the full AC incl. slow drift, test_v95_armquiet).
+
+    asset_cfg.joint_ids MUST match `bands` ordering, e.g.
+    [LshoR, LshoY, LelbP, LelbY, LwriP, LwriR] x 2 sides with bands
+    [0.14, 0.05, 0.05, 0.05, 0.16, 0.13] rad. shoulder_pitch is
+    deliberately EXCLUDED (it carries the natural swing).
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]
+    excess = torch.zeros_like(q[:, 0])
+    for k, half_band in enumerate(bands):
+        hp = q[:, k] - _ema(env, f"arqdc{k}", q[:, k], dc_alpha)
+        ms = _ema(env, f"arqms{k}", hp * hp, alpha)
+        excess = excess + (torch.sqrt(ms.clamp_min(1e-12)) - half_band).clamp(min=0.0)
+    return excess
+
 def _ema(env, key: str, x: torch.Tensor, alpha: float) -> torch.Tensor:
     """Per-env single-channel CONTINUOUS exponential moving average.
 

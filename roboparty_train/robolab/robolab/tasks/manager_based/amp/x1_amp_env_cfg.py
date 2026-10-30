@@ -470,6 +470,31 @@ class X1AmpRewards():
             "alpha": 0.0025,
         },
     )
+    # v95: QUIET-HANDS guard (user defect 2026-10-30: 手臂摆动别扭).
+    # SWING-amplitude bands on the distal arm joints — the demo library is
+    # a rigid shoP pendulum (shoY/elbowP/elbowY/wrists frozen 36/36, shoR
+    # 2-7 deg RMS); x7398 pumps them at gait frequency instead (shoY RMS
+    # 9-14 deg etc., hand sweep 0.56 m). arm_dc_band anchors DC only; the
+    # disc is blind (zero-variance demo channels). Bands rad RMS cover the
+    # max demo: shoR 7.3 / wriP 8.8 / wriR 7.1 deg. Dose via X1_ARM_QUIET_W
+    # (default 0 = off, byte-identical).
+    arm_distal_amp = RewTerm(
+        func=mdp.arm_distal_amp_guard,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=["left_shoulder_roll_joint", "left_shoulder_yaw_joint",
+                             "left_elbow_pitch_joint", "left_elbow_yaw_joint",
+                             "left_wrist_pitch_joint", "left_wrist_roll_joint",
+                             "right_shoulder_roll_joint", "right_shoulder_yaw_joint",
+                             "right_elbow_pitch_joint", "right_elbow_yaw_joint",
+                             "right_wrist_pitch_joint", "right_wrist_roll_joint"],
+                preserve_order=True),
+            "bands": [0.14, 0.05, 0.05, 0.05, 0.16, 0.13] * 2,
+            "alpha": 0.02, "dc_alpha": 0.0025,
+        },
+    )
     # v81: HIP-YAW DC band (residual of the v80 arc: with foot heading pinned
     # to ~0 the policy still holds +-16 deg external hip_yaw DC, feet
     # compensated forward via the ankle chain -- F3 gate fail). Same generic
@@ -1783,6 +1808,18 @@ class X1AmpEnvCfg(AmpEnvCfg):
                     print(f"[CHEST-LEAN] v94: chest tilt hinge band "
                           f"[{np.degrees(_v94_lo):.0f}, {np.degrees(_v94_hi):.0f}] deg, "
                           f"w={_v94_chest_w:g} (demo stream +2..+11; q4499 sits -10)")
+                # v95 (RECORD_BOOK 14): QUIET-HANDS — swing-amplitude bands
+                # on the 12 distal arm channels (shoR/shoY/elbP/elbY/wriP/
+                # wriR x L/R). Demos are a rigid shoP pendulum (distal
+                # frozen 36/36); x7398 pumps them at gait frequency.
+                # Default 0 = byte-identical.
+                _v95_quiet_w = float(_os_v73.environ.get("X1_ARM_QUIET_W", "0"))
+                if _v95_quiet_w != 0:
+                    self.rewards.arm_distal_amp.weight = _v95_quiet_w
+                    print(f"[ARM-QUIET] v95: distal swing RMS bands "
+                          f"[shoR 8.0 / shoY 2.9 / elbP 2.9 / elbY 2.9 / "
+                          f"wriP 9.2 / wriR 7.4] deg x2 sides, "
+                          f"w={_v95_quiet_w:g} (x7398 defect 1.32 rad walk10)")
                 print("[FORM-PACKAGE] v80: toe -0.6 (band 6deg) / abd -0.8 "
                       "(band 4deg EMA) / soflat -1.5 (phased) / arm_dc -0.3 "
                       "(shoP 25 / shoR 20 / shoY 15 / elbow 20+-40 deg EMA "
