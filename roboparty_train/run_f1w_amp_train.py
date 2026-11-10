@@ -77,6 +77,21 @@ def phase_dataset_gate() -> bool:
         except Exception as e:
             print(f"  {p.name}: LOAD FAIL {e}")
             ok = False
+    # weights <-> file bijection (TASK_20261110_107 crashed at env build:
+    # 12 stale weight keys pointed at nonexistent clips)
+    import re as _re
+    cfg_src = (REPO_ROOT / "roboparty_train" / "robolab" / "robolab" / "tasks" /
+               "manager_based" / "amp" / "f1w_amp_env_cfg.py").read_text()
+    m_w = _re.search(r"motion_data_weights\s*=\s*\{(.*?)\}", cfg_src, _re.S)
+    keys = set(_re.findall(r'"([^"]+)":', m_w.group(1))) if m_w else set()
+    names = {p_.stem for p_ in pkls}
+    stale = keys - names
+    unweighted = names - keys
+    ok = ok and not stale and not unweighted
+    print(f"[{'OK' if not stale and not unweighted else 'FAIL'}] weights<->files "
+          f"bijection: {len(keys)} keys / {len(names)} files; "
+          f"stale={sorted(stale)[:4]} unweighted={sorted(unweighted)[:4]}")
+
     urdf = ROBOT / "urdf" / "f1w.urdf"
     print(f"[{'OK' if urdf.exists() else 'FAIL'}] F1 urdf: {urdf.exists()}")
     ok = ok and urdf.exists()
