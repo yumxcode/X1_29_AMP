@@ -377,9 +377,9 @@
   </link>
   <link name="lumbar_pitch_link">
     <inertial>
-      <origin xyz="0.00070244 0.14952141 0" rpy="0 0 0" />
-      <mass value="6.0571074" />
-      <inertia ixx="0.0639595" ixy="-0.00392755" ixz="0" iyy="0.0518987" iyz="0" izz="0.0278329" />
+      <origin xyz="0.00020422489 0.19590998 7.988452e-06" rpy="0 0 0" />
+      <mass value="7.8380654" />
+      <inertia ixx="0.15361919" iyy="0.05527149" izz="0.11730176" ixy="-0.0077548844" ixz="-6.1549092e-07" iyz="-1.3751358e-05" />
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
@@ -457,9 +457,9 @@
   </link>
   <link name="left_elbow_yaw_link">
     <inertial>
-      <origin xyz="3.656e-5 0.00424199 -0.05421422" rpy="0 0 0" />
-      <mass value="0.28787886" />
-      <inertia ixx="0.00071486" ixy="9e-08" ixz="-3.7e-07" iyy="0.00069793" iyz="2.677e-05" izz="0.00054487" />
+      <origin xyz="-0.0046431222 -0.0039574417 -0.063738506" rpy="0 0 0" />
+      <mass value="0.80386922" />
+      <inertia ixx="0.0023032984" iyy="0.0020137126" izz="0.0009022359" ixy="-3.1108094e-05" ixz="2.231841e-05" iyz="0.00042250684" />
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
@@ -569,9 +569,9 @@
   </link>
   <link name="right_elbow_yaw_link">
     <inertial>
-      <origin xyz="3.656e-05 -0.00424199 -0.05421422" rpy="0 0 0" />
-      <mass value="0.28787886" />
-      <inertia ixx="0.00071486" ixy="-9e-08" ixz="-3.7e-07" iyy="0.00069793" iyz="-2.677e-05" izz="0.00054487" />
+      <origin xyz="-0.0046431222 0.0039574417 -0.063738506" rpy="0 0 0" />
+      <mass value="0.80386922" />
+      <inertia ixx="0.0023032984" iyy="0.0020137126" izz="0.0009022359" ixy="3.1108094e-05" ixz="2.231841e-05" iyz="-0.00042250684" />
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
