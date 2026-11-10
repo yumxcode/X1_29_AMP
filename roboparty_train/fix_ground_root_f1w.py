@@ -261,10 +261,12 @@ def process_clip(job):
     elbp95 = float(np.percentile(np.degrees(np.maximum(
         q[:, idx["left_elbow_pitch_joint"]], q[:, idx["right_elbow_pitch_joint"]])), 95))
 
+    # GMR-direct construction: the elbP gate checked that the v30 arm-fix
+    # output was preserved (X1 chain order). This library has GMR-native or
+    # frozen arms (no v30 upstream) -> elbP is report-only.
     checks = {
         "pen>=-3mm": pen_min >= -0.003,
         "lr_pitch": lr_diff <= lr_lim,
-        "elbP_unchanged": elbp95 <= 66.0,
         "input_fk": True,
     }
     ok = all(checks.values())

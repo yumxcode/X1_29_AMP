@@ -73,6 +73,16 @@ def main():
                 if tt + 1 < len(dof):
                     dof[tt] = 0.5 * (dof[tt - 1] + dof[tt + 1])
                     n_rep += 1
+        # frozen-arms fallback BEFORE kb (stored kb must reflect final dof;
+        # v31's input_fk gate caught the stale-kb bug on frozen clips)
+        jv0 = np.abs(np.diff(dof, axis=0) * fps).max(axis=1)
+        if float(np.percentile(jv0, 99)) > R4_P99 or float(jv0.max()) > R4_MAX:
+            upper = [i for i, n in enumerate(lab)
+                     if any(k in n for k in ("shoulder", "elbow", "wrist", "lumbar"))]
+            dof[:, upper] = 0.0
+            frozen_arms = True
+        else:
+            frozen_arms = False
         # ground normalize + FK key bodies
         Tn = len(dof)
         kb = np.zeros((Tn, 10, 3))
@@ -95,17 +105,6 @@ def main():
                 kb[t, i] = Ts[b][:3, 3]
         jv = np.abs(np.diff(dof, axis=0) * fps).max(axis=1)
         p99, mx = float(np.percentile(jv, 99)), float(jv.max())
-        if p99 > R4_P99 or mx > R4_MAX:
-            # frozen-arms fallback (v13-validated: legs untouched, arms static
-            # at standing pose — a consistent learnable simplification)
-            upper = [i for i, n in enumerate(lab)
-                     if any(k in n for k in ("shoulder", "elbow", "wrist", "lumbar"))]
-            dof[:, upper] = 0.0
-            jv = np.abs(np.diff(dof, axis=0) * fps).max(axis=1)
-            p99, mx = float(np.percentile(jv, 99)), float(jv.max())
-            frozen_arms = True
-        else:
-            frozen_arms = False
         # FK deviation vs the raw GMR solution (R2' family, <=30mm)
         dof_raw = q[:, 7:][:, g2l]
         devs = []
