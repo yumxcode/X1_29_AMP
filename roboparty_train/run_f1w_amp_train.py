@@ -191,8 +191,9 @@ def phase_train() -> int:
     print(f"[INFO] PYTHONPATH shadowing (no pip): {os.environ['PYTHONPATH']}")
 
     train_script = robolab_src / "scripts" / "rsl_rl" / "train.py"
+    num_envs = os.environ.get("F1W_NUM_ENVS", "4096")
     cmd = [sys.executable, str(train_script),
-           "--task=F1W-AMP", "--headless", "--logger=tensorboard", "--num_envs=4096"]
+           "--task=F1W-AMP", "--headless", "--logger=tensorboard", "--num_envs=" + str(num_envs)]
     iters = os.environ.get("F1_ITERS", "")
     if iters and not os.environ.get("F1_RESUME_CKPT", "").strip():
         cmd += ["--max_iterations", iters]
@@ -249,6 +250,14 @@ def phase_train() -> int:
                         mirrored.add(nm)
             except Exception as e:
                 print(f"[MONITOR] error: {e}")
+            # visibility (TASK_20261110_121 hung 95min with zero platform
+            # log lines): echo the train_stdout.log tail every monitor cycle
+            try:
+                if TRAIN_LOG.exists():
+                    tail = TRAIN_LOG.read_text(errors="replace").splitlines()[-3:]
+                    print(f"[STDOUT-TAIL] {' | '.join(t[-160:] for t in tail)}")
+            except Exception:
+                pass
             stop_monitor.wait(60)
 
     threading.Thread(target=monitor, daemon=True).start()
@@ -268,6 +277,12 @@ def phase_train() -> int:
         rc = proc.wait()
     stop_monitor.set()
     print(f"[INFO] training exit={rc} (full log: {TRAIN_LOG.name})")
+    if rc != 0 and TRAIN_LOG.exists():
+        try:
+            tail = TRAIN_LOG.read_text(errors="replace").splitlines()[-80:]
+            print("[TRAIN-FAIL-TAIL] " + "\n".join(tail))
+        except Exception:
+            pass
     return rc
 
 
