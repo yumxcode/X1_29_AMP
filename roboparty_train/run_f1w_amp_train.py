@@ -50,7 +50,7 @@ if REPO_ROOT is None:
 print(f"[INFO] REPO_ROOT = {REPO_ROOT}")
 
 EXP = "f1w_amp"
-MOTIONS = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / "f1w_lab_v1"
+MOTIONS = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / os.environ.get("F1W_MOTION_DIR", "f1w_lab_v2")
 ROBOT = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "robots" / "f1w"
 UPLOAD_DIR = REPO_ROOT / "model_upload"
 OUTSIDE_DIR = REPO_ROOT.parent / "f1w_upload" if REPO_ROOT.parent.name == "isaaclab" else Path("/workspace/isaaclab/f1w_upload")
@@ -63,8 +63,9 @@ TAG = time.strftime("%Y%m%d_%H%M%S")
 def phase_dataset_gate() -> bool:
     print("\n=== Phase 1: dataset + assets gate ===")
     pkls = sorted(MOTIONS.glob("*.pkl"))
-    ok = len(pkls) == 52
-    print(f"[{'OK' if ok else 'FAIL'}] f1w_lab_v1 clips: {len(pkls)}/52")
+    expected = int(os.environ.get("F1W_N_CLIPS", "4"))
+    ok = len(pkls) == expected
+    print(f"[{'OK' if ok else 'FAIL'}] {MOTIONS.name} clips: {len(pkls)}/{expected}")
     for p in pkls[:3]:
         try:
             c = pickle.load(open(p, "rb"))

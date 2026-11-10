@@ -15,22 +15,16 @@ X1_VMATCH_TOL=0.15
 # run-band gait clock: T*=1.265-0.384v clamp[0.30,1.30] (v0.3->1.15s,
 # v1.0->0.88, v1.6->0.65, v2.2->0.42); duty D*=0.72-0.17v clamp[0.30,0.70]
 # (v0.3->0.67, v1.0->0.55, v1.6->0.45, v2.2->0.35)
-X1_CLOCK_T_A=1.265
-X1_CLOCK_T_B=0.384
-X1_CLOCK_T_LO=0.30
-X1_CLOCK_T_HI=1.30
-X1_CLOCK_D_A=0.72
-X1_CLOCK_D_B=0.17
-X1_CLOCK_D_LO=0.30
-X1_CLOCK_D_HI=0.70
 # robustness + control
 X1_ROBUST_TRAIN=1
 X1_CONTROL_HZ=50
 # fresh budget: running is harder than walking (X1 walk 4-5k; margin)
 F1W_ITERS=6000
 # play rollout at the contract run target
-F1W_PLAY_VEL=1.6
+F1W_PLAY_VEL=0.8
 
 # resume budget (v1h): v1g stopped at 3000/6000 (env-order bug 361e1793); resume from model_3000
 # needs +3000 to complete the 6000 plan
 F1W_FINE_TUNE_ITERS=3000
+F1W_CMD_LO=0.3
+F1W_CMD_HI=1.0

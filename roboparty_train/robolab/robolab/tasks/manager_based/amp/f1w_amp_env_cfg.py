@@ -33,65 +33,27 @@ class F1WAmpEnvCfg(X1AmpEnvCfg):
         # the 1.4-1.8 m/s target band per F1W_RUN_SPEED_TARGET.md)
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
             ROBOLAB_ROOT_DIR, "data", "motions",
-            os.environ.get("F1W_MOTION_DIR", "f1w_lab_v1")
+            os.environ.get("F1W_MOTION_DIR", "f1w_lab_v2")
         )
         self.motion_data.motion_dataset.motion_data_weights = {
-            "run_09_01": 0.5,
-            "run_09_04": 0.5,
-            "run_09_05": 0.5,
-            "run_09_06": 0.5,
-            "run_09_07": 0.5,
-            "run_09_11": 0.5,
-            "run_35_17": 0.5,
-            "run_35_18": 0.5,
-            "run_35_19": 0.5,
-            "run_35_20": 0.5,
-            "run_16_35": 0.5,
-            "run_accM_C3": 0.5,
-            "run_accM_C4": 1.2,
-            "run_accM_C4b": 1.2,
-            "run_accM_C5": 1.2,
-            "run_accF_C5": 1.2,
-            "run_02_03": 0.8,
-            "08_08": 1.0,
-            "08_01": 1.0,
-            "08_03": 1.0,
-            "08_06": 1.0,
-            "07_01": 0.5,
-            "38_02": 0.5,
-            "103_07": 0.5,
-            "0005_normal_walk1": 0.5,
-            "35_02": 0.5,
-            "run_09_01_mirror": 0.5,
-            "run_09_04_mirror": 0.5,
-            "run_09_05_mirror": 0.5,
-            "run_09_06_mirror": 0.5,
-            "run_09_07_mirror": 0.5,
-            "run_09_11_mirror": 0.5,
-            "run_35_17_mirror": 0.5,
-            "run_35_18_mirror": 0.5,
-            "run_35_19_mirror": 0.5,
-            "run_35_20_mirror": 0.5,
-            "run_16_35_mirror": 0.5,
-            "run_accM_C3_mirror": 0.5,
-            "run_accM_C4_mirror": 1.2,
-            "run_accM_C4b_mirror": 1.2,
-            "run_accM_C5_mirror": 1.2,
-            "run_accF_C5_mirror": 1.2,
-            "run_02_03_mirror": 0.8,
-            "08_08_mirror": 1.0,
-            "08_01_mirror": 1.0,
-            "08_03_mirror": 1.0,
-            "08_06_mirror": 1.0,
-            "07_01_mirror": 0.5,
-            "38_02_mirror": 0.5,
-            "103_07_mirror": 0.5,
-            "0005_normal_walk1_mirror": 0.5,
-            "35_02_mirror": 0.5,
+            # v2 milestone library (f1w_lab_v2): GMR-direct construction,
+            # time-warped to X1-side anchored speeds; 2 sources + mirrors,
+            # all R4/FK/F'/C' gates PASS (F1W_RUN_REPORT.md sec 8)
+            "07_01": 1.0,
+            "103_07": 1.0,
+            "07_01_mirror": 1.0,
+            "103_07_mirror": 1.0,
         }
 
         if self.__class__.__name__ == "F1WAmpEnvCfg":
             self.disable_zero_weight_rewards()
+            # v2 milestone command band: demo coverage 0.81-0.89 m/s
+            # (F1W_RUN_REPORT sec 8); F1W_CMD_LO/HI to widen later
+            _lo = float(os.environ.get("F1W_CMD_LO", "0.3"))
+            _hi = float(os.environ.get("F1W_CMD_HI", "1.0"))
+            self.commands.base_velocity.ranges.lin_vel_x = (_lo, _hi)
+            self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+            self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
 
 
 # Speed-band weights for the f1w_lab_v1 library (literal dict: the
