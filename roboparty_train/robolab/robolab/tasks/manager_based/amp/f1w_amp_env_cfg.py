@@ -37,12 +37,12 @@ class F1WAmpEnvCfg(X1AmpEnvCfg):
         )
         self.motion_data.motion_dataset.motion_data_weights = {
             # v2 milestone library (f1w_lab_v2): GMR-direct construction,
-            # time-warped to X1-side anchored speeds; 2 sources + mirrors,
+            # time-warped to X1-side anchored speeds; 2 sources (mirror-free:
+            # weilai joint space is not a structural mirror, pair_sign probe
+            # 207-271mm; mirrors deferred to a root-space construction),
             # all R4/FK/F'/C' gates PASS (F1W_RUN_REPORT.md sec 8)
             "07_01": 1.0,
             "103_07": 1.0,
-            "07_01_mirror": 1.0,
-            "103_07_mirror": 1.0,
         }
 
         if self.__class__.__name__ == "F1WAmpEnvCfg":
