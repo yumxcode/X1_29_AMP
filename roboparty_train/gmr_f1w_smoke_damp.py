@@ -27,7 +27,9 @@ OUT = REPO / "roboparty_train" / "robolab" / "data" / "motions" / "f1w_gmr_smoke
 OUT.mkdir(parents=True, exist_ok=True)
 
 CLIPS = [
-    "data/amass/CMU/08_01_stageii.npz",     # jog (worst clip)
+    "data/amass/CMU/07_01_stageii.npz",     # walk
+    "data/amass/CMU/08_01_stageii.npz",     # jog
+    "data/amass/CMU/run_09_05_stageii.npz", # run
 ]
 
 retargeter = None
