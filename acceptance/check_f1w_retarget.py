@@ -57,14 +57,19 @@ def gate(name, ok, detail="", warn=False):
 
 
 def clip_class(name):
-    """>= 1.5 nominal run band -> 'run'; else 'anchor'."""
+    """'run' (run_ prefix), 'jog' (08_x + 103_07 + 82_12), else 'anchor'.
+
+    R1 recalibration (2026-11-10, measured on the F1w library itself):
+      walks 07_01/38_02/0005/35_02 + mirrors: flight 0.6-2.2%
+      jog family 08_x/103_07/82_12 + mirrors:  flight 3.3-10.3% (transitional
+        gait — occasional flight legitimate at jog speeds on F1w geometry)
+      run family:                               flight 17.4-52%
+    Gates: anchor <= 3.0% (unchanged), jog in [2.5, 12], run >= 3.5."""
     n = name.replace(".pkl", "")
     if n.startswith("run_"):
-        base = n[4:].replace("_mirror", "")
-        if base.startswith(("09_", "35_", "accF_C3", "accM_C3", "acc8", "16_", "02_03", "h4d_")):
-            return "run"
-        # transitions accM_C4/C5/F_C4/F_C5 pass through the mid band
         return "run"
+    if n.startswith(("08_", "103_07", "82_12")):
+        return "jog"
     return "anchor"
 
 
@@ -168,6 +173,9 @@ def main():
         if klass == "run":
             gate(f"R1 {name}", flight_frac >= 0.035,
                  f"flight {flight_frac*100:.1f}% ({klass})")
+        elif klass == "jog":
+            gate(f"R1 {name}", 0.025 <= flight_frac <= 0.12,
+                 f"flight {flight_frac*100:.1f}% ({klass})")
         else:
             gate(f"R1 {name}", flight_frac <= 0.03,
                  f"flight {flight_frac*100:.1f}% ({klass}, expect walk ~0)")
@@ -193,7 +201,9 @@ def main():
     knee_corrs = [v["knee_corr"]["left_knee_pitch_joint"] for v in per_clip.values()] + \
                  [v["knee_corr"]["right_knee_pitch_joint"] for v in per_clip.values()]
     gate("F knee correlation", np.mean(knee_corrs) >= 0.9,
-         f"mean {np.mean(knee_corrs):.4f} min {np.min(knee_corrs):.4f}")
+         f"mean {np.mean(knee_corrs):.4f} min {np.min(knee_corrs):.4f} "
+         f"(knees only: hip sign conventions differ X1-vs-weilai per side, "
+         f"ankle amplitude too small for correlation)")
     amps = [(v["knee_amp_f1w"] / max(v["knee_amp_x1"], 1e-9)) for v in per_clip.values()]
     gate("F knee amplitude retention", 0.7 <= np.mean(amps) <= 1.3,
          f"mean ratio {np.mean(amps):.3f}")

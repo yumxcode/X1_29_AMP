@@ -63,8 +63,7 @@ class F1WAmpEnvCfg(X1AmpEnvCfg):
             "103_07": 0.5,
             "0005_normal_walk1": 0.5,
             "35_02": 0.5,
-            "82_12": 0.5,
-            "run_09_01_mirror": 0.5,
+                    "run_09_01_mirror": 0.5,
             "run_09_04_mirror": 0.5,
             "run_09_05_mirror": 0.5,
             "run_09_06_mirror": 0.5,
@@ -92,8 +91,7 @@ class F1WAmpEnvCfg(X1AmpEnvCfg):
             "103_07_mirror": 0.5,
             "0005_mirror": 0.5,
             "35_02_mirror": 0.5,
-            "82_12_mirror": 0.5,
-        }
+                }
 
         if self.__class__.__name__ == "F1WAmpEnvCfg":
             self.disable_zero_weight_rewards()
