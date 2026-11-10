@@ -151,9 +151,77 @@ F1_DEFAULT_Q.update({
     "right_ankle_pitch_joint": -0.14649, "right_ankle_roll_joint": -0.02125,
 })
 
+# F1W (weilai) tables — kp/kd from F1_29DOF_weilai/f1_kp_kd.json (legs by
+# I_stand + X1-validated band; upper = X1 plan B), effort from the URDF
+# (ankles 241.875/218.4 — 3x X1). Armature = f1_kd_kd estimates (unverified
+# bench identification, torque-class scaled) — SAME values as
+# F1W_CFG.actuators in assets/robots/f1w.py so the domains match.
+PD_F1W = dict(PD)  # start from X1 v68 shape, then override
+PD_F1W.update({
+    "left_hip_pitch_joint": (70.0, 8.0, 130.0),
+    "right_hip_pitch_joint": (70.0, 8.0, 130.0),
+    "left_hip_roll_joint": (60.0, 8.0, 130.0),
+    "right_hip_roll_joint": (60.0, 8.0, 130.0),
+    "left_hip_yaw_joint": (90.0, 2.0, 130.0),
+    "right_hip_yaw_joint": (90.0, 2.0, 130.0),
+    "left_knee_pitch_joint": (90.0, 6.0, 130.0),
+    "right_knee_pitch_joint": (90.0, 6.0, 130.0),
+    "left_ankle_pitch_joint": (60.0, 1.0, 241.875),
+    "right_ankle_pitch_joint": (60.0, 1.0, 241.875),
+    "left_ankle_roll_joint": (45.0, 0.6, 218.4),
+    "right_ankle_roll_joint": (45.0, 0.6, 218.4),
+    "lumbar_yaw_joint": (90.0, 8.0, 150.0),
+    "lumbar_roll_joint": (70.0, 8.0, 150.0),
+    "lumbar_pitch_joint": (100.0, 8.0, 180.0),
+    "left_shoulder_pitch_joint": (40.0, 4.0, 20.0),
+    "right_shoulder_pitch_joint": (40.0, 4.0, 20.0),
+    "left_shoulder_roll_joint": (40.0, 4.0, 20.0),
+    "right_shoulder_roll_joint": (40.0, 4.0, 20.0),
+    "left_shoulder_yaw_joint": (40.0, 2.0, 20.0),
+    "right_shoulder_yaw_joint": (40.0, 2.0, 20.0),
+    "left_elbow_pitch_joint": (30.0, 1.9, 20.0),
+    "right_elbow_pitch_joint": (30.0, 1.9, 20.0),
+    "left_elbow_yaw_joint": (20.0, 1.0, 20.0),
+    "right_elbow_yaw_joint": (20.0, 1.0, 20.0),
+    "left_wrist_pitch_joint": (15.0, 1.0, 10.0),
+    "right_wrist_pitch_joint": (15.0, 1.0, 10.0),
+    "left_wrist_roll_joint": (15.0, 1.0, 10.0),
+    "right_wrist_roll_joint": (15.0, 1.0, 10.0),
+})
+ARMATURE_F1W = dict(ARMATURE)
+ARMATURE_F1W.update({
+    "left_hip_pitch_joint": 0.15, "right_hip_pitch_joint": 0.15,
+    "left_hip_roll_joint": 0.15, "right_hip_roll_joint": 0.15,
+    "left_hip_yaw_joint": 0.02, "right_hip_yaw_joint": 0.02,
+    "left_knee_pitch_joint": 0.20, "right_knee_pitch_joint": 0.20,
+    "left_ankle_pitch_joint": 0.01, "right_ankle_pitch_joint": 0.01,
+    "left_ankle_roll_joint": 0.01, "right_ankle_roll_joint": 0.01,
+    "left_wrist_pitch_joint": 0.005, "right_wrist_pitch_joint": 0.005,
+    "left_wrist_roll_joint": 0.005, "right_wrist_roll_joint": 0.005,
+})
+# weilai URDF passive dynamics (Isaac imports damping+friction per joint;
+# MuJoCo must mirror them — NOT the X1 flat 1.0/0 alignment)
+F1W_PASSIVE = {
+    "hip": (0.3, 0.5), "knee": (0.3, 0.5),
+    "ankle": (0.1, 0.2),
+}
+
+# F1W standing pose (f1_stand.json, FK-verified, base z 0.5876)
+F1W_DEFAULT_Q = dict(DEFAULT_Q)
+F1W_DEFAULT_Q.update({
+    "left_hip_pitch_joint": -0.2915291, "left_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0, "left_knee_pitch_joint": 0.4500,
+    "left_ankle_pitch_joint": -0.1584709, "left_ankle_roll_joint": 0.0,
+    "right_hip_pitch_joint": -0.2915291, "right_hip_roll_joint": 0.0,
+    "right_hip_yaw_joint": 0.0, "right_knee_pitch_joint": 0.4500,
+    "right_ankle_pitch_joint": -0.1584709, "right_ankle_roll_joint": 0.0,
+})
+
 ROBOT_CFG = {
     "x1": dict(xml="gmr_x1_assets/x1.xml", default_q=DEFAULT_Q),
     "f1": dict(xml="gmr_f1_assets/f1.xml", default_q=F1_DEFAULT_Q),
+    "f1w": dict(xml="gmr_f1w_assets/f1w.xml", default_q=F1W_DEFAULT_Q,
+                pd=PD_F1W, armature=ARMATURE_F1W, passive=F1W_PASSIVE),
 }
 
 # mutable preset holder set from --pd-preset in main(); build_model consults it
@@ -182,7 +250,7 @@ def quat2mat(q):
     return out.reshape(3, 3)
 
 
-def build_model(xml_path: Path, actuator_mode: str = "explicit"):
+def build_model(xml_path: Path, actuator_mode: str = "explicit", robot_cfg: dict = None):
     """Load x1.xml, add a floor, and drop the unused vendor <motor> actuators
     (we drive torques via qfrc_applied).
 
@@ -221,8 +289,8 @@ def build_model(xml_path: Path, actuator_mode: str = "explicit"):
         # explicit loop's PD table; implicitfast solves kv implicitly like
         # Isaac's implicit actuator.
         xml_text = Path(xml_path).read_text()
-        _tbl = PD if PD_ACTIVE_PRESET[0] == "v68" else {
-            k: (PD_LEGACY[k][0], PD_LEGACY[k][1], PD[k][2]) for k in PD}
+        _tbl = (robot_cfg or {}).get("pd") or (PD if PD_ACTIVE_PRESET[0] == "v68" else {
+            k: (PD_LEGACY[k][0], PD_LEGACY[k][1], PD[k][2]) for k in PD})
         srv = "\n".join(
             f'<position name="servo_{n}" joint="{n}" kp="{kp}" kv="{kd}" '
             f'forcerange="-{eff} {eff}" ctrlrange="-6.28 6.28"/>'
@@ -264,6 +332,23 @@ def build_model(xml_path: Path, actuator_mode: str = "explicit"):
     model = spec.compile()
     if actuator_mode == "native":
         model.opt.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+    if robot_cfg and robot_cfg.get("passive"):
+        # F1W (weilai): mirror the URDF passive dynamics Isaac imports
+        # (per-joint damping/friction), zero only unspecified joints.
+        model.dof_frictionloss[:] = 0.0
+        for j in range(model.njnt):
+            if model.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE:
+                adr = model.jnt_dofadr[j]
+                jname = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j)
+                damp, fric = 1.0, 0.0
+                for key, (d, f) in robot_cfg["passive"].items():
+                    if key in jname:
+                        damp, fric = d, f
+                        break
+                model.dof_damping[adr] = damp
+                model.dof_frictionloss[adr] = fric
+                model.dof_armature[adr] = robot_cfg["armature"].get(jname, 0.01)
+        return model, n_feet
     model.dof_frictionloss[:] = 0.0
     if getattr(build_model, "_damp_mult", 1.0) != 1.0 or True:
         pass  # placeholder (applied by caller below via ankle-damp arg)
@@ -340,7 +425,7 @@ def find_sole_geoms(model):
     out = {}
     for b in range(model.nbody):
         name = model.body(b).name
-        if not name.endswith("ankle_roll_link"):
+        if not (name.endswith("ankle_roll_link") or name.endswith("ankle_roll")):
             continue
         g0, gnum = int(model.body_geomadr[b]), int(model.body_geomnum[b])
         gids = [g for g in range(g0, g0 + gnum)
@@ -493,7 +578,7 @@ def main():
                          "Isaac's implicit actuator PD; the v58 harness-"
                          "alignment probe against the cross-sim ankle flick)")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--robot", choices=["x1", "f1"], default="x1",
+    ap.add_argument("--robot", choices=["x1", "f1", "f1w"], default="x1",
                     help="robot model + default pose (x1 = gmr_x1_assets/"
                          "x1.xml; f1 = gmr_f1_assets/f1.xml, F1_29DOF)")
     ap.add_argument("--pd-preset", choices=["v68", "legacy"], default="v68",
@@ -518,7 +603,8 @@ def main():
 
     robot_cfg = ROBOT_CFG[args.robot]
     _default_q_table = robot_cfg["default_q"]
-    model, n_feet = build_model(root / robot_cfg["xml"], args.actuator)
+    PD_TABLE = robot_cfg.get("pd") or PD_TABLE
+    model, n_feet = build_model(root / robot_cfg["xml"], args.actuator, robot_cfg)
     if args.ankle_damp != 1.0:
         n_damped = 0
         for j in range(model.njnt):
@@ -666,7 +752,9 @@ def main():
             # the SAME env vars; unset = the v71 byte-identical defaults)
             _tA = float(os.environ.get("X1_CLOCK_T_A", "1.46"))
             _tB = float(os.environ.get("X1_CLOCK_T_B", "0.36"))
-            _T = min(max(_tA - _tB * _v, 0.70), 1.75)
+            _tLo = float(os.environ.get("X1_CLOCK_T_LO", "0.70"))
+            _tHi = float(os.environ.get("X1_CLOCK_T_HI", "1.75"))
+            _T = min(max(_tA - _tB * _v, _tLo), _tHi)
             _pl = (_t / _T) % 1.0
             _pr = (_pl + 0.5) % 1.0
             _ck = np.array([np.sin(2 * np.pi * _pl), np.sin(2 * np.pi * _pr),

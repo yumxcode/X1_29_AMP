@@ -43,9 +43,12 @@ import os as _os
 
 T_STAR_A = float(_os.environ.get("X1_CLOCK_T_A", "1.46"))
 T_STAR_B = float(_os.environ.get("X1_CLOCK_T_B", "0.36"))
-T_STAR_LO, T_STAR_HI = 0.70, 1.75
-D_A, D_B = 0.68, 0.07
-D_LO, D_HI = 0.55, 0.70
+T_STAR_LO = float(_os.environ.get("X1_CLOCK_T_LO", "0.70"))
+T_STAR_HI = float(_os.environ.get("X1_CLOCK_T_HI", "1.75"))
+D_A = float(_os.environ.get("X1_CLOCK_D_A", "0.68"))
+D_B = float(_os.environ.get("X1_CLOCK_D_B", "0.07"))
+D_LO = float(_os.environ.get("X1_CLOCK_D_LO", "0.55"))
+D_HI = float(_os.environ.get("X1_CLOCK_D_HI", "0.70"))
 H_A, H_B = 0.025, 0.025
 H_LO, H_HI = 0.025, 0.075
 # contact-timing hinge windows (fractions INSIDE each desired phase)

@@ -12,6 +12,7 @@ Runs on pure numpy (+ optional mujoco for group E). Exit code:
 """
 import argparse
 import functools
+import os
 import json
 import math
 import pickle
@@ -99,8 +100,11 @@ _FALLBACK_WEIGHTS = {
 
 
 def _motion_weights(repo_root: Path) -> dict:
-    cfg = repo_root / "roboparty_train" / "robolab" / "robolab" / "tasks" / \
-        "manager_based" / "amp" / "x1_amp_env_cfg.py"
+    import os as _os
+    _override = _os.environ.get("RETARGET_WEIGHTS_FROM", "")
+    cfg = (repo_root / _override) if _override else (
+        repo_root / "roboparty_train" / "robolab" / "robolab" / "tasks" /
+        "manager_based" / "amp" / "x1_amp_env_cfg.py")
     try:
         src = cfg.read_text()
         m = re.search(r"motion_data_weights\s*=\s*\{(.*?)\}", src, re.S)
@@ -332,8 +336,10 @@ def check_gmr_file(pkl_path: Path, gmr_dof_names, xml_path, rep: Report):
     # F semantic (WARN only)
     if MOVING_PAT.search(name) and "treadmill" not in name:
         vxy = np.linalg.norm(np.diff(rp[:, :2], axis=0) * fps, axis=1).mean()
-        if not (0.1 <= vxy <= 3.0):
-            rep.warn("F1", f"{name}: mean horizontal speed {vxy:.2f} m/s outside [0.1,3.0]")
+        _lo = float(os.environ.get("RETARGET_F1_LO", "0.1"))
+        _hi = float(os.environ.get("RETARGET_F1_HI", "3.0"))
+        if not (_lo <= vxy <= _hi):
+            rep.warn("F1", f"{name}: mean horizontal speed {vxy:.2f} m/s outside [{_lo},{_hi}]")
         else:
             rep.ok("F1", f"{name}: speed {vxy:.2f} m/s")
     if WALK_PAT.search(name):
