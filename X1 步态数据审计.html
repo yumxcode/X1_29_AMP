@@ -1,0 +1,535 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>X1 步态数据审计</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700;900&display=swap">
+<style>
+/* Layout: a lab notebook — one reading column of figures, each figure = caption-first panel on a cool instrument-grey ground */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#18212c; --ink2:#465263; --muted:#768194; --rule:#dfe4ea; --grid:#eceff3;
+  --accent:#1d4f7a; --accent-soft:#e3edf6;
+  --s-inplace:#2a78d6; --s-over:#eb6834; --s-terrain:#1baf7a; --s-jog:#eda100; --s-rpo:#a7afba; --s-target:#c0336d;
+  --ok:#2f8a4a; --ok-bg:#e4f3e8; --warn:#9a6a00; --warn-bg:#fbf1d6; --bad:#b8332a; --bad-bg:#fae5e2;
+  --band:rgba(192,51,109,.08);
+  --f-display:"Noto Serif SC","Songti SC",serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --surface:#19202a; --ink:#e7ecf2; --ink2:#b4bfcc; --muted:#8a95a5; --rule:#2b3440; --grid:#232b36;
+  --accent:#8cbbe6; --accent-soft:#1f3347;
+  --s-inplace:#3987e5; --s-over:#d95926; --s-terrain:#199e70; --s-jog:#c98500; --s-rpo:#5d6876; --s-target:#e56b9c;
+  --ok:#6cc387; --ok-bg:#183323; --warn:#e3b54a; --warn-bg:#3a2f12; --bad:#f08a7e; --bad-bg:#3d1c19;
+  --band:rgba(229,107,156,.12); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --surface:#19202a; --ink:#e7ecf2; --ink2:#b4bfcc; --muted:#8a95a5; --rule:#2b3440; --grid:#232b36;
+  --accent:#8cbbe6; --accent-soft:#1f3347;
+  --s-inplace:#3987e5; --s-over:#d95926; --s-terrain:#199e70; --s-jog:#c98500; --s-rpo:#5d6876; --s-target:#e56b9c;
+  --ok:#6cc387; --ok-bg:#183323; --warn:#e3b54a; --warn-bg:#3a2f12; --bad:#f08a7e; --bad-bg:#3d1c19;
+  --band:rgba(229,107,156,.12); color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:1080px;margin:0 auto}
+header.top{padding-block:40px 20px;display:grid;gap:14px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(28px,4.4vw,42px);line-height:1.2;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:700;font-size:24px;margin:0;text-wrap:balance}
+h3{font-size:16px;font-weight:700;margin:0}
+p{margin:0}
+.lead{font-size:17px;color:var(--ink2);max-width:66ch}
+.lead b{color:var(--ink)}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;padding-block:8px 4px;border-top:1px solid var(--rule)}
+nav.toc a{color:var(--accent);text-decoration:none}
+nav.toc a:hover,nav.toc a:focus-visible{text-decoration:underline}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-block:8px 4px}
+.kpi{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.kpi .lab{font-size:12.5px;color:var(--muted)}
+.kpi .val{font-family:var(--f-mono);font-size:26px;font-weight:500;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .val small{font-size:14px;color:var(--ink2)}
+.kpi .cmp{font-size:12.5px;color:var(--ink2)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;border-radius:999px;padding:1px 8px;white-space:nowrap;width:max-content}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.bad{color:var(--bad);background:var(--bad-bg)} .pill.warn{color:var(--warn);background:var(--warn-bg)} .pill.ok{color:var(--ok);background:var(--ok-bg)}
+section{padding-block:36px 8px;display:grid;gap:18px}
+section > .head{display:grid;gap:6px;border-top:2px solid var(--ink);padding-top:14px}
+section > .head p{color:var(--ink2);max-width:70ch}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+figure{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px 16px 12px;display:grid;gap:10px;min-width:0}
+figure .cap{display:grid;gap:3px}
+figure .cap .t{font-weight:700;font-size:15px}
+figure .cap .s{font-size:13px;color:var(--ink2)}
+figure .chart{width:100%;min-width:0;position:relative}
+figure .note{font-size:12px;color:var(--muted)}
+svg text{font-family:var(--f-body)}
+svg .num{font-family:var(--f-mono)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--ink2)}
+.legend button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;border-radius:4px}
+.legend button:focus-visible{outline:2px solid var(--accent)}
+.legend button[aria-pressed="false"]{opacity:.38}
+.legend .sw{width:10px;height:10px;border-radius:50%;display:inline-block}
+.legend .sw.sq{border-radius:2px}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;width:max-content;max-width:100%;flex-wrap:wrap}
+.seg button{all:unset;cursor:pointer;font-size:13px;padding:4px 12px;color:var(--ink2)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+#tip{position:fixed;pointer-events:none;z-index:20;background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-radius:8px;
+  padding:7px 10px;font-size:12.5px;line-height:1.5;box-shadow:0 6px 18px rgba(0,0,0,.12);max-width:260px}
+#tip b{font-weight:500}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--rule);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:820px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:500;background:var(--surface);position:sticky;top:0}
+td.v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td .why{color:var(--ink2);font-size:12.5px}
+.cat{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.score{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bar100{display:flex;height:12px;border-radius:6px;overflow:hidden;flex:1 1 240px;min-width:200px;gap:2px;background:var(--surface)}
+.bar100 span{display:block}
+ol.fix{margin:0;padding-left:22px;display:grid;gap:8px;max-width:72ch}
+ol.fix li::marker{font-family:var(--f-mono);color:var(--muted)}
+.callout{background:var(--accent-soft);border-radius:10px;padding:14px 16px;font-size:14px;color:var(--ink);max-width:80ch}
+footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted);display:grid;gap:6px}
+footer a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.92em;background:var(--accent-soft);padding:0 4px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">x1_lab_v32 · AMP 演示数据 · 2026-10-22</div>
+  <h1>X1 步态数据审计：步频与步幅能不能精细调？</h1>
+  <p class="lead"><b>不能。</b>当前演示数据的步长被锁在 0.23–0.34 m，速度只靠步频变化；脚在演示里几乎一直在滑；判别器每次只看 40 ms。要先把数据修成物理一致、在步长维度上展开，步频/步幅的调节才有数据可依。</p>
+  <div class="kpis" id="kpis"></div>
+  <nav class="toc" aria-label="目录">
+    <a href="#coverage">覆盖与多样性</a><a href="#consistency">物理一致性</a><a href="#observe">判别器可观测性</a><a href="#metrics">指标清单</a><a href="#opensource">开源数据对照</a><a href="#fix">修复顺序</a>
+  </nav>
+</header>
+
+<section id="coverage">
+  <div class="head"><div class="eyebrow">指标 1–7</div><h2>覆盖与多样性：目标步态不在数据里</h2>
+  <p>片段内部很稳定，但 11 个源片段只聚成慢走、常速走、原地慢跑三团。1.0 m/s 的等速线在 170 步/分以下没有任何演示数据。</p></div>
+
+  <figure>
+    <div class="cap"><div class="t">步频 × 步长：每个点是一步</div><div class="s">虚线为等速线（步长 = 60·v / 步频）。粉色框是 1.0 m/s 下的目标邻域，星号为按 Froude 缩放的人类步态，菱形为 v70c 训练目标。点击图例可隐藏某一类。</div></div>
+    <div class="legend" id="lg-scatter"></div>
+    <div class="chart" id="c-scatter"></div>
+    <div class="note">步长 = 着地瞬间两踝在航向系下的前后距；着地 = 踝相对根节点前向位移的极大值。灰点是上游 Roboparty rpo_lab 的步行数据（另一机器人，根高约 0.71 m），仅作参照。</div>
+  </figure>
+
+  <div class="grid2">
+    <figure>
+      <div class="cap"><div class="t">步频分布（按训练采样权重）</div><div class="s">粉色带为 1.0 m/s 目标 109–130 步/分；横线为 X1 的 95% 区间。</div></div>
+      <div class="legend" id="lg-hcad"></div>
+      <div class="chart" id="c-hcad"></div>
+    </figure>
+    <figure>
+      <div class="cap"><div class="t">步长分布（按训练采样权重）</div><div class="s">X1 的步长没有一步超过 0.36 m；目标带 0.46–0.55 m 完全空白。</div></div>
+      <div class="legend" id="lg-hsl"></div>
+      <div class="chart" id="c-hsl"></div>
+    </figure>
+  </div>
+
+  <figure>
+    <div class="cap"><div class="t">各片段的 95% 区间</div><div class="s">点 = 中位数，线 = P2.5–P97.5，粉色带 = 1.0 m/s 目标区。切换查看不同指标。</div></div>
+    <div class="seg" id="seg-range" role="group" aria-label="指标"></div>
+    <div class="chart" id="c-range"></div>
+  </figure>
+
+  <figure>
+    <div class="cap"><div class="t">加速靠什么：步频涨，步长不动</div><div class="s">每个点是一个片段的中位数，横轴为腿部运动学速度（步长×步频）。黑线是人类 walk ratio 按 Froude 缩放到 X1：步频和步长应一起随速度上升。</div></div>
+    <div class="grid2" style="gap:12px"><div class="chart" id="c-scale-cad"></div><div class="chart" id="c-scale-sl"></div></div>
+    <div class="note">从走（106 步/分）到慢跑（153–157 步/分），步频 +46%，步长只从 0.30 m 到 0.31–0.35 m。步行片段内步频与步长的相关系数 r = 0.06。</div>
+  </figure>
+</section>
+
+<section id="consistency">
+  <div class="head"><div class="eyebrow">指标 8–15</div><h2>物理一致性：演示里的脚一直在滑</h2>
+  <p>判别器的关键点速度用的是世界系速度。演示里支撑脚很少静止，所以策略一旦把脚踩实，反而不像演示。</p></div>
+
+  <div class="grid2">
+    <figure>
+      <div class="cap"><div class="t">根速度 vs 腿部速度</div><div class="s">无滑移时每一步都应落在对角线上。原地片段根速度≈0；平地片段腿只解释了约 45% 的位移。</div></div>
+      <div class="chart" id="c-slip"></div>
+    </figure>
+    <figure>
+      <div class="cap"><div class="t">有一只脚踩实的帧占比</div><div class="s">踩实 = 至少一只踝的世界水平速度 &lt; 0.1 m/s。真实步行应有 60–80%。</div></div>
+      <div class="chart" id="c-planted"></div>
+    </figure>
+  </div>
+
+  <figure>
+    <div class="cap"><div class="t">踝的世界速度随时间：从没降到 0</div><div class="s">粉色带是「踩实」区间（&lt; 0.1 m/s）。平地片段 103_07 中支撑脚以约 0.45 m/s 向前滑；跑步机片段中支撑脚以带速向后滑。</div></div>
+    <div class="seg" id="seg-ts" role="group" aria-label="片段"></div>
+    <div class="legend" id="lg-ts"></div>
+    <div class="chart" id="c-ts"></div>
+  </figure>
+
+  <div class="grid2">
+    <figure>
+      <div class="cap"><div class="t">CMU 36_01 是踏台，不是平地走</div><div class="s">根和双踝一起抬高 0.3–0.4 m（站上台子）。训练场景是平地，这些帧不可达。</div></div>
+      <div class="chart" id="c-terrain"></div>
+    </figure>
+    <figure>
+      <div class="cap"><div class="t">采样权重构成</div><div class="s">v67 设计的走地主导权重被第 671 行无条件覆盖，实际生效的仍是 v32 权重减去 103_07。</div></div>
+      <div class="legend" id="lg-comp"></div>
+      <div class="chart" id="c-comp"></div>
+    </figure>
+  </div>
+</section>
+
+<section id="observe">
+  <div class="head"><div class="eyebrow">指标 16–17</div><h2>判别器可观测性：40 ms 看不见 1.1 s 的节律</h2>
+  <p>主线 <code>AMP_NUM_STEPS=3</code>，50 Hz 下覆盖约 40 ms，只有步态周期的 4%。步频只能通过关节速度间接约束，小幅高频和大幅低频在这个窗口里难以区分。</p></div>
+  <figure>
+    <div class="cap"><div class="t">一个步态周期里，判别器能看到多少</div><div class="s">上方为左右脚的支撑/摆动时序（103_07 典型周期 1.10 s，占空比 0.66）；下方为不同判别器窗口的长度。</div></div>
+    <div class="chart" id="c-window"></div>
+  </figure>
+</section>
+
+<section id="metrics">
+  <div class="head"><div class="eyebrow">17 项</div><h2>精细调节步频/步幅前，训练数据要统计的指标</h2>
+  <p>任何一类不达标，靠 reward 拉步频都会和风格奖励对抗。建议把 8–11 设为数据硬门控，把 1–7 作为换数据前后的对比报表。</p></div>
+  <div class="score"><div class="bar100" id="scorebar" aria-hidden="true"></div><div class="legend" id="scoreleg"></div></div>
+  <div class="seg" id="seg-cat" role="group" aria-label="类别"></div>
+  <div class="tablewrap"><table id="tbl"><thead><tr><th>#</th><th>指标 · 计算方式</th><th>为什么影响步频/步幅</th><th>X1 v32 现状</th><th>建议门槛</th><th>状态</th></tr></thead><tbody></tbody></table></div>
+  <p class="note" style="font-size:12.5px;color:var(--muted)">X1 现状为主线权重下的步行片段，区间为 P2.5–P97.5。全部指标可用项目内 <code>acceptance/data_gait_stats/gait_stats.py</code> 复现（X1 KEY10 踝关节下标 2/3）。</p>
+</section>
+
+<section id="opensource">
+  <div class="head"><div class="eyebrow">对照</div><h2>开源 AMP 用的数据</h2>
+  <p>公开 AMP 工作都不靠数据本身精确控制步频或步幅。数据少的接受涌现出的步态；要控制节律的加显式相位参考，或者用大量按速度均衡的数据。</p></div>
+  <div class="grid2">
+    <figure>
+      <div class="cap"><div class="t">步行数据对比：X1 vs 上游 rpo_lab</div><div class="s">中位数与 95% 区间。上游数据同样来自 GMR 重定向，但步长随速度展开，脚滑也轻得多。</div></div>
+      <div class="legend" id="lg-cmp"></div>
+      <div class="chart" id="c-cmp"></div>
+    </figure>
+    <figure>
+      <div class="cap"><div class="t">演示数据总时长（对数轴）</div><div class="s">只列出论文给出时长的工作。</div></div>
+      <div class="chart" id="c-amount"></div>
+    </figure>
+  </div>
+  <div class="tablewrap"><table style="min-width:640px"><thead><tr><th>工作</th><th>机器人</th><th>数据</th><th>步频/步幅由什么决定</th></tr></thead><tbody id="tbl-os"></tbody></table></div>
+</section>
+
+<section id="fix">
+  <div class="head"><div class="eyebrow">顺序有依赖</div><h2>修复顺序</h2>
+  <p>先让一致性指标达标，再扩覆盖，最后才是条件化调节。</p></div>
+  <ol class="fix">
+    <li><b>修根平移尺度。</b>让支撑脚世界速度≈0，使根速度 = 步长×步频；用滑移 &lt; 0.1 m/s、速度比 0.9–1.1 作为门控。</li>
+    <li><b>跑步机片段补回带速</b>（根 += 支撑脚后滑量），变成 0.33 / 0.50 / 0.80 m/s 的真实平地步态。</li>
+    <li><b>移出 CMU 36_01 / 36_11 踏台数据</b>，或只截取根未抬高的平地段。</li>
+    <li><b>补充平地步行数据</b>，使 X1 尺度下 1.0 m/s 附近覆盖 0.40–0.55 m 步长、105–135 步/分，并做 (步频, 步长) 二维均衡采样。</li>
+    <li><b>条件化调节</b>：按步频选演示、条件判别器 D(s, s′, c) 或相位时钟；判别器窗口拉长到至少半个步态周期。</li>
+    <li><b>修 <code>x1_amp_env_cfg.py</code> 第 671 行</b>的权重覆盖，再重跑 v67f 类换数据实验。</li>
+  </ol>
+  <div class="callout">按 Froude 缩放（腿长 X1 ≈ 0.62 m，人 ≈ 0.9 m），X1 在 1.0 m/s 的自然步态约 129 步/分、0.46 m，单脚 1.08 Hz。v70c 的 0.91 Hz（109 步/分、0.55 m）相当于人类的偏大步，可以考虑放宽到 1.0–1.1 Hz。</div>
+</section>
+
+<footer>
+  <div>统计口径：踝相对根前向位移极大值记为着地；95% 区间 = P2.5–P97.5；加权 = 片段权重 / 片段时长 × 该步时长（与采样器一致）。腿长按演示中骨盆高度中位数估计，为近似值。</div>
+  <div>来源：<a href="https://arxiv.org/pdf/2104.02180" target="_blank" rel="noopener">AMP (2104.02180)</a> · <a href="https://arxiv.org/pdf/2203.15103" target="_blank" rel="noopener">AMP for hardware (2203.15103)</a> · <a href="https://arxiv.org/pdf/2605.18611" target="_blank" rel="noopener">State-dependent AMP (2605.18611)</a> · <a href="https://arxiv.org/pdf/2604.19102" target="_blank" rel="noopener">Selective AMP (2604.19102)</a> · <a href="https://arxiv.org/pdf/2509.20696" target="_blank" rel="noopener">RuN (2509.20696)</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5430280" target="_blank" rel="noopener">Walk ratio (PMC5430280)</a> · <a href="https://github.com/Roboparty/legged_lab" target="_blank" rel="noopener">Roboparty/legged_lab</a></div>
+</footer>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+const DATA = {"steps":[{"c":"0000_treadmill_norm","f":"inplace","cad":101.4,"sl":0.273,"vr":-0.029,"vl":0.462,"sf":null,"clr":74},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.299,"vr":-0.041,"vl":0.535,"sf":0.87,"clr":60},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.269,"vr":-0.029,"vl":0.482,"sf":0.896,"clr":72},{"c":"0000_treadmill_norm","f":"inplace","cad":110.8,"sl":0.281,"vr":-0.02,"vl":0.519,"sf":0.909,"clr":57},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.266,"vr":-0.03,"vl":0.47,"sf":0.902,"clr":78},{"c":"0000_treadmill_norm","f":"inplace","cad":109.1,"sl":0.292,"vr":-0.038,"vl":0.53,"sf":0.896,"clr":55},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.276,"vr":-0.02,"vl":0.487,"sf":0.896,"clr":94},{"c":"0000_treadmill_norm","f":"inplace","cad":112.5,"sl":0.284,"vr":-0.039,"vl":0.533,"sf":0.909,"clr":58},{"c":"0000_treadmill_norm","f":"inplace","cad":102.9,"sl":0.267,"vr":-0.053,"vl":0.457,"sf":0.896,"clr":84},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.288,"vr":-0.003,"vl":0.516,"sf":0.876,"clr":56},{"c":"0000_treadmill_norm","f":"inplace","cad":104.3,"sl":0.265,"vr":-0.039,"vl":0.462,"sf":0.882,"clr":79},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.278,"vr":-0.028,"vl":0.498,"sf":0.882,"clr":57},{"c":"0000_treadmill_norm","f":"inplace","cad":104.3,"sl":0.273,"vr":-0.031,"vl":0.474,"sf":0.882,"clr":77},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.273,"vr":-0.045,"vl":0.49,"sf":0.882,"clr":54},{"c":"0000_treadmill_norm","f":"inplace","cad":102.9,"sl":0.283,"vr":-0.024,"vl":0.485,"sf":0.876,"clr":85},{"c":"0000_treadmill_norm","f":"inplace","cad":109.1,"sl":0.285,"vr":-0.033,"vl":0.519,"sf":0.882,"clr":58},{"c":"0000_treadmill_norm","f":"inplace","cad":96.0,"sl":0.277,"vr":-0.017,"vl":0.443,"sf":0.851,"clr":76},{"c":"0000_treadmill_norm","f":"inplace","cad":102.9,"sl":0.305,"vr":-0.033,"vl":0.522,"sf":0.828,"clr":72},{"c":"0000_treadmill_norm","f":"inplace","cad":101.4,"sl":0.292,"vr":-0.029,"vl":0.494,"sf":0.851,"clr":77},{"c":"0000_treadmill_norm","f":"inplace","cad":104.3,"sl":0.286,"vr":-0.042,"vl":0.498,"sf":0.857,"clr":64},{"c":"0000_treadmill_norm","f":"inplace","cad":96.0,"sl":0.302,"vr":-0.03,"vl":0.483,"sf":0.833,"clr":81},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.292,"vr":-0.039,"vl":0.523,"sf":0.845,"clr":65},{"c":"0000_treadmill_norm","f":"inplace","cad":100.0,"sl":0.284,"vr":-0.03,"vl":0.474,"sf":0.863,"clr":70},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.293,"vr":-0.03,"vl":0.517,"sf":0.857,"clr":57},{"c":"0000_treadmill_norm","f":"inplace","cad":102.9,"sl":0.276,"vr":-0.03,"vl":0.474,"sf":0.87,"clr":83},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.287,"vr":-0.048,"vl":0.507,"sf":0.87,"clr":55},{"c":"0000_treadmill_norm","f":"inplace","cad":102.9,"sl":0.279,"vr":-0.019,"vl":0.478,"sf":0.87,"clr":81},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.283,"vr":-0.044,"vl":0.499,"sf":0.87,"clr":56},{"c":"0000_treadmill_norm","f":"inplace","cad":101.4,"sl":0.271,"vr":-0.037,"vl":0.459,"sf":0.863,"clr":71},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.29,"vr":-0.042,"vl":0.519,"sf":0.87,"clr":54},{"c":"0000_treadmill_norm","f":"inplace","cad":104.3,"sl":0.283,"vr":-0.019,"vl":0.492,"sf":0.882,"clr":75},{"c":"0000_treadmill_norm","f":"inplace","cad":109.1,"sl":0.284,"vr":-0.054,"vl":0.517,"sf":0.889,"clr":55},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.266,"vr":-0.017,"vl":0.469,"sf":0.896,"clr":78},{"c":"0000_treadmill_norm","f":"inplace","cad":107.5,"sl":0.287,"vr":-0.052,"vl":0.514,"sf":0.889,"clr":55},{"c":"0000_treadmill_norm","f":"inplace","cad":102.9,"sl":0.269,"vr":-0.033,"vl":0.462,"sf":0.876,"clr":79},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.286,"vr":-0.047,"vl":0.505,"sf":0.87,"clr":57},{"c":"0000_treadmill_norm","f":"inplace","cad":102.9,"sl":0.274,"vr":-0.025,"vl":0.47,"sf":0.87,"clr":91},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.295,"vr":-0.052,"vl":0.52,"sf":0.87,"clr":64},{"c":"0000_treadmill_norm","f":"inplace","cad":104.3,"sl":0.267,"vr":-0.023,"vl":0.465,"sf":0.876,"clr":76},{"c":"0000_treadmill_norm","f":"inplace","cad":105.9,"sl":0.278,"vr":-0.045,"vl":0.491,"sf":0.876,"clr":58},{"c":"0002_treadmill_slow","f":"inplace","cad":76.6,"sl":0.255,"vr":-0.059,"vl":0.326,"sf":null,"clr":81},{"c":"0002_treadmill_slow","f":"inplace","cad":83.7,"sl":0.225,"vr":-0.043,"vl":0.314,"sf":0.667,"clr":51},{"c":"0002_treadmill_slow","f":"inplace","cad":75.0,"sl":0.25,"vr":-0.047,"vl":0.312,"sf":0.659,"clr":76},{"c":"0002_treadmill_slow","f":"inplace","cad":80.9,"sl":0.25,"vr":-0.029,"vl":0.337,"sf":0.649,"clr":69},{"c":"0002_treadmill_slow","f":"inplace","cad":75.0,"sl":0.259,"vr":-0.061,"vl":0.324,"sf":0.649,"clr":74},{"c":"0002_treadmill_slow","f":"inplace","cad":82.8,"sl":0.261,"vr":-0.031,"vl":0.36,"sf":0.656,"clr":59},{"c":"0002_treadmill_slow","f":"inplace","cad":76.6,"sl":0.261,"vr":-0.062,"vl":0.333,"sf":0.663,"clr":81},{"c":"0002_treadmill_slow","f":"inplace","cad":85.7,"sl":0.25,"vr":-0.041,"vl":0.357,"sf":0.674,"clr":51},{"c":"0002_treadmill_slow","f":"inplace","cad":80.0,"sl":0.247,"vr":-0.044,"vl":0.329,"sf":0.69,"clr":80},{"c":"0002_treadmill_slow","f":"inplace","cad":77.4,"sl":0.261,"vr":-0.039,"vl":0.337,"sf":0.656,"clr":55},{"c":"0002_treadmill_slow","f":"inplace","cad":78.3,"sl":0.253,"vr":-0.051,"vl":0.33,"sf":0.649,"clr":71},{"c":"0002_treadmill_slow","f":"inplace","cad":91.1,"sl":0.227,"vr":-0.039,"vl":0.345,"sf":0.702,"clr":52},{"c":"0002_treadmill_slow","f":"inplace","cad":80.0,"sl":0.241,"vr":-0.063,"vl":0.322,"sf":0.71,"clr":73},{"c":"0002_treadmill_slow","f":"inplace","cad":81.8,"sl":0.223,"vr":-0.042,"vl":0.304,"sf":0.674,"clr":47},{"c":"0002_treadmill_slow","f":"inplace","cad":72.0,"sl":0.272,"vr":-0.045,"vl":0.326,"sf":0.638,"clr":76},{"c":"0002_treadmill_slow","f":"inplace","cad":83.7,"sl":0.245,"vr":-0.035,"vl":0.343,"sf":0.645,"clr":63},{"c":"0002_treadmill_slow","f":"inplace","cad":80.0,"sl":0.256,"vr":-0.052,"vl":0.342,"sf":0.682,"clr":81},{"c":"0002_treadmill_slow","f":"inplace","cad":85.7,"sl":0.257,"vr":-0.042,"vl":0.367,"sf":0.69,"clr":60},{"c":"0002_treadmill_slow","f":"inplace","cad":79.1,"sl":0.225,"vr":-0.069,"vl":0.297,"sf":0.686,"clr":79},{"c":"0002_treadmill_slow","f":"inplace","cad":76.6,"sl":0.251,"vr":-0.05,"vl":0.321,"sf":0.649,"clr":55},{"c":"0002_treadmill_slow","f":"inplace","cad":77.4,"sl":0.235,"vr":-0.061,"vl":0.303,"sf":0.642,"clr":70},{"c":"0002_treadmill_slow","f":"inplace","cad":81.8,"sl":0.244,"vr":-0.04,"vl":0.333,"sf":0.663,"clr":47},{"c":"0002_treadmill_slow","f":"inplace","cad":81.8,"sl":0.253,"vr":-0.06,"vl":0.345,"sf":0.682,"clr":73},{"c":"0002_treadmill_slow","f":"inplace","cad":85.7,"sl":0.229,"vr":-0.055,"vl":0.327,"sf":0.698,"clr":52},{"c":"0002_treadmill_slow","f":"inplace","cad":82.8,"sl":0.241,"vr":-0.033,"vl":0.332,"sf":0.702,"clr":75},{"c":"0002_treadmill_slow","f":"inplace","cad":82.8,"sl":0.222,"vr":-0.052,"vl":0.307,"sf":0.69,"clr":51},{"c":"0002_treadmill_slow","f":"inplace","cad":85.7,"sl":0.247,"vr":-0.035,"vl":0.353,"sf":0.702,"clr":73},{"c":"0002_treadmill_slow","f":"inplace","cad":85.7,"sl":0.241,"vr":-0.047,"vl":0.344,"sf":0.714,"clr":49},{"c":"0002_treadmill_slow","f":"inplace","cad":80.9,"sl":0.237,"vr":-0.07,"vl":0.319,"sf":0.694,"clr":72},{"c":"0002_treadmill_slow","f":"inplace","cad":86.7,"sl":0.247,"vr":-0.026,"vl":0.356,"sf":0.698,"clr":52},{"c":"0002_treadmill_slow","f":"inplace","cad":79.1,"sl":0.234,"vr":-0.029,"vl":0.309,"sf":0.69,"clr":78},{"c":"0003_treadmill_jog","f":"jog","cad":156.5,"sl":0.303,"vr":-0.067,"vl":0.791,"sf":null,"clr":68},{"c":"0003_treadmill_jog","f":"jog","cad":146.9,"sl":0.314,"vr":-0.069,"vl":0.768,"sf":1.263,"clr":50},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.319,"vr":-0.093,"vl":0.815,"sf":1.25,"clr":72},{"c":"0003_treadmill_jog","f":"jog","cad":146.9,"sl":0.305,"vr":-0.067,"vl":0.747,"sf":1.25,"clr":60},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.321,"vr":-0.083,"vl":0.819,"sf":1.25,"clr":72},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.317,"vr":-0.053,"vl":0.809,"sf":1.277,"clr":66},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.317,"vr":-0.075,"vl":0.81,"sf":1.277,"clr":82},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.307,"vr":-0.081,"vl":0.783,"sf":1.277,"clr":70},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.313,"vr":-0.087,"vl":0.784,"sf":1.263,"clr":74},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.319,"vr":-0.081,"vl":0.796,"sf":1.25,"clr":74},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.32,"vr":-0.096,"vl":0.816,"sf":1.263,"clr":73},{"c":"0003_treadmill_jog","f":"jog","cad":146.9,"sl":0.333,"vr":-0.055,"vl":0.815,"sf":1.25,"clr":77},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.315,"vr":-0.073,"vl":0.805,"sf":1.25,"clr":75},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.307,"vr":-0.105,"vl":0.768,"sf":1.263,"clr":69},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.307,"vr":-0.084,"vl":0.784,"sf":1.263,"clr":70},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.315,"vr":-0.063,"vl":0.786,"sf":1.263,"clr":78},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.32,"vr":-0.085,"vl":0.816,"sf":1.263,"clr":78},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.321,"vr":-0.058,"vl":0.801,"sf":1.263,"clr":73},{"c":"0003_treadmill_jog","f":"jog","cad":160.0,"sl":0.302,"vr":-0.038,"vl":0.805,"sf":1.29,"clr":80},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.305,"vr":-0.064,"vl":0.762,"sf":1.29,"clr":72},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.31,"vr":-0.09,"vl":0.775,"sf":1.25,"clr":65},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.309,"vr":-0.078,"vl":0.773,"sf":1.25,"clr":69},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.317,"vr":-0.092,"vl":0.81,"sf":1.263,"clr":75},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.314,"vr":-0.051,"vl":0.784,"sf":1.263,"clr":77},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.311,"vr":-0.116,"vl":0.779,"sf":1.25,"clr":76},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.325,"vr":-0.044,"vl":0.813,"sf":1.25,"clr":65},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.321,"vr":-0.075,"vl":0.802,"sf":1.25,"clr":84},{"c":"0003_treadmill_jog","f":"jog","cad":156.5,"sl":0.301,"vr":-0.086,"vl":0.784,"sf":1.277,"clr":93},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.313,"vr":-0.094,"vl":0.8,"sf":1.29,"clr":75},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.305,"vr":-0.086,"vl":0.779,"sf":1.277,"clr":70},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.322,"vr":-0.106,"vl":0.806,"sf":1.263,"clr":63},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.302,"vr":-0.044,"vl":0.772,"sf":1.263,"clr":68},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.308,"vr":-0.068,"vl":0.786,"sf":1.277,"clr":77},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.31,"vr":-0.056,"vl":0.792,"sf":1.277,"clr":68},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.322,"vr":-0.102,"vl":0.805,"sf":1.263,"clr":83},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.301,"vr":-0.027,"vl":0.769,"sf":1.263,"clr":77},{"c":"0003_treadmill_jog","f":"jog","cad":144.0,"sl":0.346,"vr":-0.067,"vl":0.83,"sf":1.237,"clr":82},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.3,"vr":-0.069,"vl":0.765,"sf":1.237,"clr":82},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.303,"vr":-0.099,"vl":0.756,"sf":1.263,"clr":74},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.313,"vr":-0.067,"vl":0.782,"sf":1.25,"clr":75},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.319,"vr":-0.085,"vl":0.798,"sf":1.25,"clr":79},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.311,"vr":-0.051,"vl":0.794,"sf":1.263,"clr":69},{"c":"0003_treadmill_jog","f":"jog","cad":156.5,"sl":0.317,"vr":-0.067,"vl":0.828,"sf":1.29,"clr":78},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.319,"vr":-0.05,"vl":0.814,"sf":1.29,"clr":71},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.328,"vr":-0.069,"vl":0.839,"sf":1.277,"clr":74},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.301,"vr":-0.058,"vl":0.768,"sf":1.277,"clr":81},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.308,"vr":-0.071,"vl":0.769,"sf":1.263,"clr":81},{"c":"0003_treadmill_jog","f":"jog","cad":146.9,"sl":0.312,"vr":-0.056,"vl":0.763,"sf":1.237,"clr":72},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.303,"vr":-0.105,"vl":0.774,"sf":1.25,"clr":73},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.31,"vr":-0.053,"vl":0.791,"sf":1.277,"clr":81},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.314,"vr":-0.109,"vl":0.8,"sf":1.277,"clr":77},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.318,"vr":-0.068,"vl":0.794,"sf":1.263,"clr":78},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.32,"vr":-0.096,"vl":0.817,"sf":1.263,"clr":68},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.314,"vr":-0.08,"vl":0.786,"sf":1.263,"clr":83},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.311,"vr":-0.094,"vl":0.794,"sf":1.263,"clr":69},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.3,"vr":-0.095,"vl":0.749,"sf":1.263,"clr":74},{"c":"0003_treadmill_jog","f":"jog","cad":146.9,"sl":0.323,"vr":-0.093,"vl":0.792,"sf":1.237,"clr":72},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.317,"vr":-0.059,"vl":0.81,"sf":1.25,"clr":76},{"c":"0003_treadmill_jog","f":"jog","cad":150.0,"sl":0.304,"vr":-0.092,"vl":0.759,"sf":1.263,"clr":65},{"c":"0003_treadmill_jog","f":"jog","cad":153.2,"sl":0.308,"vr":-0.063,"vl":0.786,"sf":1.263,"clr":64},{"c":"0003_treadmill_jog","f":"jog","cad":146.9,"sl":0.317,"vr":-0.074,"vl":0.775,"sf":1.25,"clr":78},{"c":"0005_normal_walk1","f":"inplace","cad":118.0,"sl":0.331,"vr":-0.071,"vl":0.65,"sf":null,"clr":69},{"c":"0005_normal_walk1","f":"inplace","cad":105.9,"sl":0.308,"vr":-0.064,"vl":0.543,"sf":0.93,"clr":76},{"c":"0005_normal_walk1","f":"inplace","cad":112.5,"sl":0.335,"vr":-0.048,"vl":0.629,"sf":0.909,"clr":66},{"c":"0007_normal_walk3","f":"inplace","cad":114.3,"sl":0.332,"vr":-0.054,"vl":0.631,"sf":null,"clr":61},{"c":"0007_normal_walk3","f":"inplace","cad":109.1,"sl":0.319,"vr":-0.073,"vl":0.581,"sf":0.93,"clr":79},{"c":"0007_normal_walk3","f":"inplace","cad":114.3,"sl":0.338,"vr":-0.055,"vl":0.644,"sf":0.93,"clr":61},{"c":"0008_normal_walk4","f":"inplace","cad":110.8,"sl":0.323,"vr":-0.063,"vl":0.597,"sf":null,"clr":70},{"c":"0008_normal_walk4","f":"inplace","cad":110.8,"sl":0.324,"vr":-0.001,"vl":0.597,"sf":0.923,"clr":56},{"c":"0008_normal_walk4","f":"inplace","cad":109.1,"sl":0.321,"vr":-0.076,"vl":0.584,"sf":0.916,"clr":73},{"c":"0008_normal_walk4","f":"inplace","cad":112.5,"sl":0.332,"vr":-0.031,"vl":0.622,"sf":0.923,"clr":81},{"c":"0009_normal_jog1","f":"jog","cad":156.5,"sl":0.346,"vr":-0.059,"vl":0.902,"sf":null,"clr":69},{"c":"0026_circle_walk","f":"over","cad":84.7,"sl":0.334,"vr":1.165,"vl":0.472,"sf":null,"clr":76},{"c":"0026_circle_walk","f":"over","cad":98.6,"sl":0.284,"vr":1.055,"vl":0.467,"sf":0.759,"clr":76},{"c":"0026_circle_walk","f":"over","cad":94.7,"sl":0.339,"vr":1.204,"vl":0.535,"sf":0.805,"clr":92},{"c":"0026_circle_walk","f":"over","cad":101.4,"sl":0.29,"vr":1.016,"vl":0.49,"sf":0.816,"clr":47},{"c":"0026_circle_walk","f":"over","cad":93.5,"sl":0.328,"vr":1.241,"vl":0.511,"sf":0.811,"clr":78},{"c":"0026_circle_walk","f":"over","cad":98.6,"sl":0.287,"vr":1.14,"vl":0.472,"sf":0.8,"clr":68},{"c":"0026_circle_walk","f":"over","cad":92.3,"sl":0.35,"vr":1.184,"vl":0.539,"sf":0.795,"clr":77},{"c":"0026_circle_walk","f":"over","cad":97.3,"sl":0.31,"vr":1.081,"vl":0.502,"sf":0.789,"clr":68},{"c":"0026_circle_walk","f":"over","cad":94.7,"sl":0.337,"vr":1.142,"vl":0.532,"sf":0.8,"clr":73},{"c":"0026_circle_walk","f":"over","cad":101.4,"sl":0.296,"vr":1.049,"vl":0.501,"sf":0.816,"clr":60},{"c":"0026_circle_walk","f":"over","cad":97.3,"sl":0.323,"vr":1.258,"vl":0.525,"sf":0.828,"clr":81},{"c":"0026_circle_walk","f":"over","cad":97.3,"sl":0.285,"vr":1.172,"vl":0.462,"sf":0.811,"clr":69},{"c":"0026_circle_walk","f":"over","cad":98.6,"sl":0.318,"vr":1.228,"vl":0.522,"sf":0.816,"clr":90},{"c":"0026_circle_walk","f":"over","cad":94.7,"sl":0.278,"vr":1.027,"vl":0.439,"sf":0.805,"clr":68},{"c":"0026_circle_walk","f":"over","cad":97.3,"sl":0.318,"vr":1.165,"vl":0.515,"sf":0.8,"clr":75},{"c":"0026_circle_walk","f":"over","cad":100.0,"sl":0.267,"vr":0.953,"vl":0.445,"sf":0.822,"clr":53},{"c":"0026_circle_walk","f":"over","cad":92.3,"sl":0.324,"vr":1.206,"vl":0.499,"sf":0.8,"clr":75},{"c":"0026_circle_walk","f":"over","cad":98.6,"sl":0.273,"vr":1.112,"vl":0.449,"sf":0.795,"clr":58},{"c":"0026_circle_walk","f":"over","cad":96.0,"sl":0.32,"vr":1.202,"vl":0.513,"sf":0.811,"clr":80},{"c":"0026_circle_walk","f":"over","cad":93.5,"sl":0.301,"vr":1.11,"vl":0.468,"sf":0.789,"clr":67},{"c":"0026_circle_walk","f":"over","cad":96.0,"sl":0.342,"vr":1.173,"vl":0.547,"sf":0.789,"clr":73},{"c":"0026_circle_walk","f":"over","cad":104.3,"sl":0.267,"vr":0.917,"vl":0.465,"sf":0.833,"clr":59},{"c":"0026_circle_walk","f":"over","cad":92.3,"sl":0.317,"vr":1.187,"vl":0.487,"sf":0.816,"clr":67},{"c":"0026_circle_walk","f":"over","cad":100.0,"sl":0.274,"vr":1.108,"vl":0.457,"sf":0.8,"clr":63},{"c":"103_07","f":"over","cad":105.9,"sl":0.328,"vr":1.209,"vl":0.579,"sf":null,"clr":48},{"c":"103_07","f":"over","cad":112.5,"sl":0.341,"vr":1.353,"vl":0.639,"sf":0.909,"clr":37},{"c":"103_07","f":"over","cad":116.1,"sl":0.321,"vr":1.342,"vl":0.621,"sf":0.952,"clr":50},{"c":"103_07","f":"over","cad":102.9,"sl":0.327,"vr":1.344,"vl":0.56,"sf":0.909,"clr":58},{"c":"103_07","f":"over","cad":109.1,"sl":0.331,"vr":1.414,"vl":0.602,"sf":0.882,"clr":50},{"c":"103_07","f":"over","cad":109.1,"sl":0.316,"vr":1.323,"vl":0.575,"sf":0.909,"clr":60},{"c":"36_01","f":"terrain","cad":86.7,"sl":0.285,"vr":0.922,"vl":0.413,"sf":null,"clr":50},{"c":"36_01","f":"terrain","cad":84.7,"sl":0.305,"vr":0.691,"vl":0.431,"sf":0.714,"clr":312},{"c":"36_01","f":"terrain","cad":64.3,"sl":0.335,"vr":0.971,"vl":0.359,"sf":0.609,"clr":480},{"c":"36_01","f":"terrain","cad":69.2,"sl":0.292,"vr":0.655,"vl":0.337,"sf":0.556,"clr":325},{"c":"36_01","f":"terrain","cad":107.5,"sl":0.302,"vr":1.046,"vl":0.54,"sf":0.702,"clr":67},{"c":"36_11","f":"terrain","cad":90.0,"sl":0.024,"vr":0.36,"vl":0.037,"sf":null,"clr":41},{"c":"36_11","f":"terrain","cad":77.4,"sl":0.271,"vr":0.359,"vl":0.35,"sf":null,"clr":44},{"c":"36_11","f":"terrain","cad":76.6,"sl":0.287,"vr":0.79,"vl":0.367,"sf":0.642,"clr":68},{"c":"36_11","f":"terrain","cad":78.3,"sl":0.23,"vr":0.644,"vl":0.299,"sf":0.645,"clr":331},{"c":"36_11","f":"terrain","cad":80.9,"sl":0.276,"vr":0.848,"vl":0.373,"sf":null,"clr":60},{"c":"36_11","f":"terrain","cad":81.8,"sl":0.255,"vr":0.849,"vl":0.347,"sf":0.678,"clr":54},{"c":"36_11","f":"terrain","cad":100.0,"sl":0.042,"vr":0.168,"vl":0.07,"sf":0.75,"clr":62},{"c":"36_11","f":"terrain","cad":66.1,"sl":0.32,"vr":0.676,"vl":0.352,"sf":null,"clr":247},{"c":"36_11","f":"terrain","cad":81.8,"sl":0.263,"vr":0.654,"vl":0.358,"sf":0.609,"clr":189},{"c":"36_11","f":"terrain","cad":266.7,"sl":0.029,"vr":0.019,"vl":0.131,"sf":null,"clr":205},{"c":"36_11","f":"terrain","cad":78.3,"sl":0.044,"vr":0.577,"vl":0.058,"sf":0.556,"clr":431},{"c":"36_11","f":"terrain","cad":105.9,"sl":0.281,"vr":0.63,"vl":0.496,"sf":0.75,"clr":421},{"c":"36_11","f":"terrain","cad":78.3,"sl":0.224,"vr":0.487,"vl":0.292,"sf":0.522,"clr":361},{"c":"36_11","f":"terrain","cad":72.7,"sl":0.024,"vr":0.332,"vl":0.029,"sf":0.628,"clr":426},{"c":"36_11","f":"terrain","cad":85.7,"sl":0.042,"vr":0.131,"vl":0.06,"sf":null,"clr":372},{"c":"36_11","f":"terrain","cad":96.0,"sl":0.296,"vr":0.474,"vl":0.473,"sf":null,"clr":249},{"c":"36_11","f":"terrain","cad":86.7,"sl":0.249,"vr":0.531,"vl":0.36,"sf":0.759,"clr":324},{"c":"36_11","f":"terrain","cad":66.1,"sl":0.32,"vr":0.796,"vl":0.352,"sf":0.625,"clr":493},{"c":"36_11","f":"terrain","cad":75.8,"sl":0.013,"vr":0.177,"vl":0.016,"sf":0.588,"clr":291},{"c":"36_11","f":"terrain","cad":97.3,"sl":0.27,"vr":0.336,"vl":0.438,"sf":null,"clr":47},{"c":"36_11","f":"terrain","cad":91.1,"sl":0.022,"vr":0.52,"vl":0.033,"sf":0.784,"clr":61},{"c":"36_11","f":"terrain","cad":83.7,"sl":0.244,"vr":0.262,"vl":0.341,"sf":0.727,"clr":208},{"c":"36_11","f":"terrain","cad":79.1,"sl":0.097,"vr":0.604,"vl":0.128,"sf":0.678,"clr":211},{"c":"36_11","f":"terrain","cad":102.9,"sl":0.293,"vr":0.723,"vl":0.502,"sf":0.745,"clr":251},{"c":"36_11","f":"terrain","cad":85.7,"sl":0.255,"vr":0.495,"vl":0.364,"sf":0.779,"clr":351},{"c":"36_11","f":"terrain","cad":69.2,"sl":0.037,"vr":0.466,"vl":0.042,"sf":0.638,"clr":443},{"c":"RPO 114_08","f":"rpo","cad":101.4,"sl":0.31,"vr":0.694,"vl":0.523,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":87.8,"sl":0.355,"vr":0.501,"vl":0.52,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":69.9,"sl":0.156,"vr":0.455,"vl":0.182,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":101.4,"sl":0.24,"vr":0.405,"vl":0.406,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":81.8,"sl":0.189,"vr":0.394,"vl":0.258,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":96.0,"sl":0.285,"vr":0.397,"vl":0.456,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":130.9,"sl":0.081,"vr":0.049,"vl":0.176,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":80.0,"sl":0.277,"vr":0.348,"vl":0.37,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":101.4,"sl":0.106,"vr":0.359,"vl":0.179,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":92.3,"sl":0.329,"vr":0.379,"vl":0.506,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":86.7,"sl":0.124,"vr":0.387,"vl":0.18,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":96.0,"sl":0.338,"vr":0.483,"vl":0.54,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":93.5,"sl":0.324,"vr":0.644,"vl":0.505,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":120.0,"sl":0.315,"vr":0.768,"vl":0.63,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":122.0,"sl":0.281,"vr":0.785,"vl":0.572,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":109.1,"sl":0.3,"vr":0.705,"vl":0.545,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":118.0,"sl":0.174,"vr":0.64,"vl":0.343,"sf":null,"clr":null},{"c":"RPO 114_08","f":"rpo","cad":112.5,"sl":0.025,"vr":0.385,"vl":0.048,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":91.1,"sl":0.398,"vr":0.608,"vl":0.604,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":67.3,"sl":0.201,"vr":0.481,"vl":0.225,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":71.3,"sl":0.361,"vr":0.448,"vl":0.429,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":69.9,"sl":0.324,"vr":0.459,"vl":0.377,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":78.3,"sl":0.229,"vr":0.425,"vl":0.299,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":64.9,"sl":0.252,"vr":0.322,"vl":0.273,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":80.0,"sl":0.106,"vr":0.326,"vl":0.141,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":63.7,"sl":0.256,"vr":0.371,"vl":0.272,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":65.5,"sl":0.318,"vr":0.362,"vl":0.347,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":61.0,"sl":0.323,"vr":0.33,"vl":0.329,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":67.3,"sl":0.228,"vr":0.486,"vl":0.255,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":83.7,"sl":0.377,"vr":0.547,"vl":0.526,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":109.1,"sl":0.31,"vr":0.652,"vl":0.564,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":104.3,"sl":0.325,"vr":0.701,"vl":0.565,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":101.4,"sl":0.27,"vr":0.635,"vl":0.457,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":92.3,"sl":0.128,"vr":0.45,"vl":0.196,"sf":null,"clr":null},{"c":"RPO 114_09","f":"rpo","cad":85.7,"sl":0.115,"vr":-0.071,"vl":0.164,"sf":null,"clr":null},{"c":"RPO 36_01","f":"rpo","cad":87.8,"sl":0.365,"vr":0.743,"vl":0.534,"sf":null,"clr":null},{"c":"RPO 36_01","f":"rpo","cad":84.7,"sl":0.471,"vr":0.633,"vl":0.665,"sf":null,"clr":null},{"c":"RPO 36_01","f":"rpo","cad":62.6,"sl":0.437,"vr":0.793,"vl":0.456,"sf":null,"clr":null},{"c":"RPO 36_01","f":"rpo","cad":71.3,"sl":0.423,"vr":0.527,"vl":0.503,"sf":null,"clr":null},{"c":"RPO 36_01","f":"rpo","cad":105.9,"sl":0.415,"vr":0.834,"vl":0.732,"sf":null,"clr":null},{"c":"RPO 36_01","f":"rpo","cad":97.3,"sl":0.348,"vr":0.941,"vl":0.564,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":91.1,"sl":0.026,"vr":0.121,"vl":0.04,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":75.0,"sl":0.368,"vr":0.252,"vl":0.459,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":75.8,"sl":0.381,"vr":0.641,"vl":0.481,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":80.0,"sl":0.364,"vr":0.551,"vl":0.485,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":75.0,"sl":0.029,"vr":0.098,"vl":0.036,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":75.8,"sl":-0.024,"vr":0.124,"vl":-0.03,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":66.1,"sl":0.375,"vr":0.147,"vl":0.412,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":80.0,"sl":0.379,"vr":0.663,"vl":0.506,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":82.8,"sl":0.345,"vr":0.686,"vl":0.475,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":102.9,"sl":0.035,"vr":0.105,"vl":0.061,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":64.9,"sl":0.417,"vr":0.57,"vl":0.451,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":84.7,"sl":0.368,"vr":0.539,"vl":0.519,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":122.0,"sl":0.042,"vr":-0.028,"vl":0.086,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":79.1,"sl":0.339,"vr":0.322,"vl":0.448,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":79.1,"sl":0.061,"vr":0.498,"vl":0.081,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":97.3,"sl":0.384,"vr":0.469,"vl":0.623,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":78.3,"sl":0.348,"vr":0.457,"vl":0.454,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":74.2,"sl":0.024,"vr":0.112,"vl":0.029,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":76.6,"sl":0.363,"vr":0.282,"vl":0.463,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":84.7,"sl":0.032,"vr":0.132,"vl":0.045,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":94.7,"sl":0.374,"vr":0.374,"vl":0.591,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":87.8,"sl":0.336,"vr":0.432,"vl":0.492,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":63.2,"sl":0.442,"vr":0.677,"vl":0.465,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":82.8,"sl":-0.005,"vr":0.151,"vl":-0.007,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":97.3,"sl":0.369,"vr":0.278,"vl":0.598,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":93.5,"sl":0.017,"vr":0.441,"vl":0.027,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":80.0,"sl":0.354,"vr":0.213,"vl":0.472,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":80.9,"sl":0.118,"vr":0.497,"vl":0.158,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":101.4,"sl":0.359,"vr":0.56,"vl":0.607,"sf":null,"clr":null},{"c":"RPO 36_11","f":"rpo","cad":88.9,"sl":0.316,"vr":0.404,"vl":0.468,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":105.9,"sl":0.47,"vr":1.056,"vl":0.83,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":116.1,"sl":0.486,"vr":1.236,"vl":0.941,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":130.9,"sl":0.382,"vr":1.275,"vl":0.834,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":122.0,"sl":0.543,"vr":1.245,"vl":1.105,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":116.1,"sl":0.534,"vr":1.401,"vl":1.034,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.498,"vr":1.363,"vl":0.948,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":116.1,"sl":0.517,"vr":1.263,"vl":1.0,"sf":null,"clr":null},{"c":"RPO B10_-__Walk_tu","f":"rpo","cad":112.5,"sl":0.391,"vr":1.163,"vl":0.734,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":109.1,"sl":0.492,"vr":1.105,"vl":0.895,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":112.5,"sl":0.507,"vr":1.26,"vl":0.951,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":122.0,"sl":0.449,"vr":1.283,"vl":0.913,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":128.6,"sl":0.322,"vr":1.085,"vl":0.689,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":78.3,"sl":0.441,"vr":0.249,"vl":0.575,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":97.3,"sl":0.573,"vr":1.157,"vl":0.93,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":120.0,"sl":0.509,"vr":1.406,"vl":1.019,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.563,"vr":1.444,"vl":1.073,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":118.0,"sl":0.506,"vr":1.454,"vl":0.996,"sf":null,"clr":null},{"c":"RPO B11_-__Walk_tu","f":"rpo","cad":116.1,"sl":0.485,"vr":1.245,"vl":0.938,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":100.0,"sl":0.525,"vr":1.07,"vl":0.875,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":109.1,"sl":0.549,"vr":1.356,"vl":0.998,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":109.1,"sl":0.458,"vr":1.331,"vl":0.833,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":110.8,"sl":0.46,"vr":0.837,"vl":0.849,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":109.1,"sl":0.577,"vr":1.351,"vl":1.049,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":122.0,"sl":0.553,"vr":1.483,"vl":1.126,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":118.0,"sl":0.496,"vr":1.414,"vl":0.976,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":112.5,"sl":0.511,"vr":1.279,"vl":0.957,"sf":null,"clr":null},{"c":"RPO B13_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.41,"vr":1.188,"vl":0.78,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":105.9,"sl":0.481,"vr":1.17,"vl":0.849,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.55,"vr":1.356,"vl":1.047,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":116.1,"sl":0.525,"vr":1.452,"vl":1.016,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":120.0,"sl":0.551,"vr":1.406,"vl":1.101,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.558,"vr":1.377,"vl":1.062,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":124.1,"sl":0.576,"vr":1.513,"vl":1.192,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":120.0,"sl":0.513,"vr":1.484,"vl":1.027,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.55,"vr":1.403,"vl":1.048,"sf":null,"clr":null},{"c":"RPO B14_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.47,"vr":1.384,"vl":0.895,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":96.0,"sl":0.506,"vr":1.076,"vl":0.809,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":109.1,"sl":0.553,"vr":1.305,"vl":1.005,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":112.5,"sl":0.526,"vr":1.367,"vl":0.986,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":110.8,"sl":0.431,"vr":1.181,"vl":0.795,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":86.7,"sl":0.638,"vr":0.913,"vl":0.923,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":114.3,"sl":0.565,"vr":1.497,"vl":1.076,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":118.0,"sl":0.563,"vr":1.507,"vl":1.108,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":118.0,"sl":0.51,"vr":1.434,"vl":1.002,"sf":null,"clr":null},{"c":"RPO B15_-__Walk_tu","f":"rpo","cad":118.0,"sl":0.48,"vr":1.254,"vl":0.944,"sf":null,"clr":null},{"c":"RPO B9_-__Walk_tur","f":"rpo","cad":105.9,"sl":0.473,"vr":1.078,"vl":0.835,"sf":null,"clr":null},{"c":"RPO B9_-__Walk_tur","f":"rpo","cad":114.3,"sl":0.496,"vr":1.239,"vl":0.944,"sf":null,"clr":null},{"c":"RPO B9_-__Walk_tur","f":"rpo","cad":128.6,"sl":0.428,"vr":1.206,"vl":0.918,"sf":null,"clr":null},{"c":"RPO B9_-__Walk_tur","f":"rpo","cad":110.8,"sl":0.465,"vr":0.612,"vl":0.858,"sf":null,"clr":null},{"c":"RPO B9_-__Walk_tur","f":"rpo","cad":105.9,"sl":0.569,"vr":1.236,"vl":1.004,"sf":null,"clr":null},{"c":"RPO B9_-__Walk_tur","f":"rpo","cad":118.0,"sl":0.495,"vr":1.356,"vl":0.975,"sf":null,"clr":null},{"c":"RPO B9_-__Walk_tur","f":"rpo","cad":114.3,"sl":0.492,"vr":1.245,"vl":0.937,"sf":null,"clr":null},{"c":"RPO C4_-_run_to_wa","f":"rpo","cad":126.3,"sl":0.579,"vr":1.666,"vl":1.22,"sf":null,"clr":null},{"c":"RPO C4_-_run_to_wa","f":"rpo","cad":112.5,"sl":0.557,"vr":1.457,"vl":1.045,"sf":null,"clr":null},{"c":"RPO C4_-_run_to_wa","f":"rpo","cad":112.5,"sl":0.585,"vr":1.55,"vl":1.098,"sf":null,"clr":null},{"c":"RPO C4_-_run_to_wa","f":"rpo","cad":122.0,"sl":0.587,"vr":1.579,"vl":1.195,"sf":null,"clr":null},{"c":"RPO C4_-_run_to_wa","f":"rpo","cad":116.1,"sl":0.564,"vr":1.636,"vl":1.091,"sf":null,"clr":null}],"clips":[{"c":"0000_treadmill_norm","f":"inplace","fps":120.0,"dur":23.7,"n":40,"w32":2,"w67":0.5,"w67a":2,"cad":[96.0,105.88235294117648,110.8125],"sl":[0.26574726972894985,0.28270880913387475,0.30192761220453523],"sf":[0.8330459770114943,0.8759124087591241,0.9090909090909091],"vr":-0.03180346216478193,"vl":0.4988978984715437,"slip":0.7666205572265006,"planted":0.009507042253521126,"raised":0.0,"clr":70.49902733415365},{"c":"0002_treadmill_slow","f":"inplace","fps":120.0,"dur":23.6,"n":31,"w32":2,"w67":0.5,"w67a":2,"cad":[74.25,80.89887640449437,87.84505109043769],"sl":[0.22288687774849142,0.24660964654661902,0.2636230838424836],"sf":[0.640772556604847,0.6779877425944842,0.7112214708368555],"vr":-0.044637093699827796,"vl":0.33250738860218293,"slip":0.5299708228793627,"planted":0.04704633887513265,"raised":0.0,"clr":70.01526392996311},{"c":"0003_treadmill_jog","f":"jog","fps":120.0,"dur":24.7,"n":61,"w32":5,"w67":1,"w67a":5,"cad":[146.9387755102041,153.19148936170214,156.52173913043478],"sl":[0.30020516437086064,0.31340687354015184,0.33062707149945186],"sf":[1.2371134020618557,1.2631578947368423,1.2903225806451613],"vr":-0.07367559901105736,"vl":0.800187762230175,"slip":1.3328620648885798,"planted":0.004045853000674309,"raised":0.0,"clr":73.85267596691847},{"c":"0005_normal_walk1","f":"inplace","fps":120.0,"dur":2.4,"n":3,"w32":2,"w67":0.5,"w67a":2,"cad":[106.21323529411765,112.5,117.75614754098362],"sl":[0.30898955392377114,0.3305417843073726,0.3351909918610577],"sf":[0.9096194503171247,0.919661733615222,0.9297040169133193],"vr":-0.0641575605094808,"vl":0.6197658455763235,"slip":1.0497962377175467,"planted":0.0034602076124567475,"raised":0.0,"clr":69.35342028737068},{"c":"0007_normal_walk3","f":"inplace","fps":120.0,"dur":2.4,"n":3,"w32":2,"w67":0.5,"w67a":2,"cad":[109.35064935064933,114.28571428571428,114.28571428571428],"sl":[0.3200515612084908,0.33150853653845247,0.3377070859732987],"sf":[0.9302325581395349,0.9302325581395349,0.9302325581395349],"vr":-0.05483278853910613,"vl":0.6314448315018141,"slip":1.08121822536304,"planted":0.010309278350515464,"raised":0.0,"clr":60.8383622020483},{"c":"0008_normal_walk4","f":"inplace","fps":120.0,"dur":2.6,"n":4,"w32":2,"w67":0.5,"w67a":2,"cad":[109.21678321678321,110.76923076923077,112.3701923076923],"sl":[0.32135589185175917,0.3233489708721368,0.33103628063306034],"sf":[0.916382853787434,0.9230769230769231,0.9230769230769231],"vr":-0.04688825094015347,"vl":0.5969519462254833,"slip":1.0384744323619444,"planted":0.022222222222222223,"raised":0.0,"clr":71.90256789326668},{"c":"0009_normal_jog1","f":"jog","fps":120.0,"dur":1.0,"n":1,"w32":5,"w67":1,"w67a":5,"cad":[156.52173913043478,156.52173913043478,156.52173913043478],"sl":[0.3457429244229386,0.3457429244229386,0.3457429244229386],"sf":null,"vr":-0.0587045444678796,"vl":0.9019380637120137,"slip":1.4304018242309804,"planted":0.008403361344537815,"raised":0.0,"clr":69.41061392426491},{"c":"0026_circle_walk","f":"over","fps":120.0,"dur":16.6,"n":24,"w32":2,"w67":3,"w67a":2,"cad":[89.07692307692308,97.29729729729729,102.6576852418861],"sl":[0.2671663351932542,0.3131570326152655,0.3453596138339552],"sf":[0.7759826782145237,0.8053691275167785,0.8301724137931035],"vr":1.1535401974822521,"vl":0.5078222150517819,"slip":0.41860511091184693,"planted":0.017042606516290727,"raised":0.0,"clr":70.61449177563189},{"c":"103_07","f":"over","fps":60.0,"dur":3.9,"n":6,"w32":1,"w67":0,"w67a":0,"cad":[103.23529411764704,109.09090909090908,115.67540322580646],"sl":[0.3166435684194142,0.3274945462732466,0.3396400985215535],"sf":[0.8850267379679144,0.9090909090909091,0.948051948051948],"vr":1.3432204931254272,"vl":0.595444629587721,"slip":0.48360555174420466,"planted":0.0,"raised":0.0,"clr":49.62403606623411},{"c":"36_01","f":"terrain","fps":120.0,"dur":4.6,"n":5,"w32":3,"w67":4,"w67a":3,"cad":[64.78021978021977,84.70588235294117,105.39111670562848],"sl":[0.28610544767055557,0.30165747391627784,0.33188638686748234],"sf":[0.5595741680767061,0.6554457209012379,0.7133458646616542],"vr":0.9224202992691881,"vl":0.42586937494062754,"slip":0.3355468970635967,"planted":0.0017953321364452424,"raised":0.19748653500897667,"clr":311.9428679347038},{"c":"36_11","f":"terrain","fps":120.0,"dur":34.7,"n":26,"w32":1,"w67":3,"w67a":1,"cad":[66.05504587155963,81.81818181818183,166.1764705882353],"sl":[0.018395171417568277,0.24665658014974376,0.3199037209783836],"sf":[0.5361111111111111,0.6615636960087479,0.782149223325694],"vr":0.5074731485660564,"vl":0.3363498820223779,"slip":0.20084889224989286,"planted":0.3606046065259117,"raised":0.45993282149712095,"clr":248.13305586576462}],"rpo_planted":[{"c":"114_08","planted":0.5597014925373134},{"c":"114_09","planted":0.6673773987206824},{"c":"127_04","planted":0.4820627802690583},{"c":"127_06","planted":0.005780346820809248},{"c":"36_01","planted":0.059245960502693},{"c":"36_11","planted":0.6338771593090211},{"c":"A1-_Stand_stageii","planted":1.0},{"c":"B10_-__Walk_turn_left_45_stageii","planted":0.18245125348189414},{"c":"B11_-__Walk_turn_left_135_stageii","planted":0.1514762516046213},{"c":"B13_-__Walk_turn_right_90_stageii","planted":0.09198813056379822},{"c":"B14_-__Walk_turn_right_45_t2_stageii","planted":0.14080459770114942},{"c":"B15_-__Walk_turn_around_stageii","planted":0.20199778024417314},{"c":"B4_-_Stand_to_Walk_backwards_stageii","planted":0.189873417721519},{"c":"B5_-__Walk_backwards_stageii","planted":0.055384615384615386},{"c":"B9_-__Walk_turn_left_90_stageii","planted":0.10430463576158941},{"c":"C12_-_run_turn_left_45_stageii","planted":0.0},{"c":"C17_-_run_change_direction_stageii","planted":0.0},{"c":"C1_-_stand_to_run_stageii","planted":0.48065173116089616},{"c":"C3_-_run_stageii","planted":0.0},{"c":"C4_-_run_to_walk_a_stageii","planted":0.0},{"c":"C5_-_walk_to_run_stageii","planted":0.0},{"c":"move_back","planted":0.7916666666666666},{"c":"move_l","planted":0.6035714285714285},{"c":"move_r","planted":0.536},{"c":"run_start_180_R_001__A345","planted":0.3370165745856354},{"c":"run_stop_180_R_001__A345","planted":0.6446280991735537},{"c":"turn_l","planted":1.0},{"c":"turn_r","planted":0.9916317991631799}],"pooled":{"x1_all":{"cadence_spm":{"mean":111.50912685638043,"sd":28.95470754660499,"cv":0.259662221047588,"p2_5":64.28571428571428,"p5":66.05504587155963,"p50":107.46268656716417,"p95":156.52173913043478,"p97_5":156.52173913043478},"stride_freq":{"mean":0.8999492470201158,"sd":0.22980234981089984,"cv":0.2553503440019693,"p2_5":0.5509746746584823,"p5":0.5555555555555556,"p50":0.8759124087591241,"p95":1.2765957446808511,"p97_5":1.2765957446808511},"step_len":{"mean":0.30352634210370355,"sd":0.03684887552913779,"cv":0.12140256187895519,"p2_5":0.23092214116320423,"p5":0.24660817399347498,"p50":0.3077659499848268,"p95":0.3435245640000261,"p97_5":0.3447996717960565},"v_root":{"mean":0.26459044250741764,"sd":0.48540488710454943,"cv":1.8345518549519844,"p2_5":-0.097001958805689,"p5":-0.09156093850209061,"p50":-0.04170803313853867,"p95":1.1962379958764804,"p97_5":1.2910926698327194},"v_legs":{"mean":0.5462611989868968,"sd":0.17404923857396265,"cv":0.3186190761795944,"p2_5":0.294874456870711,"p5":0.31754654475869404,"p50":0.5000734664224992,"p95":0.8221796984753547,"p97_5":0.8254233080910095},"clearance":{"mean":0.11255386760368238,"sd":0.11230266797575617,"cv":0.9977681830640354,"p2_5":0.04949427342069088,"p5":0.05022022100275429,"p50":0.07111127022349636,"p95":0.43518751469934464,"p97_5":0.4802816405573986},"step_width":{"mean":0.37186668270329204,"sd":0.03904856598372212,"cv":0.10500689575053568,"p2_5":0.3125270992786044,"p5":0.3147281889126214,"p50":0.36362872914822253,"p95":0.44481497266258385,"p97_5":0.4452606784781166},"slip":{"mean":0.8294775634932925,"sd":0.41145892281900004,"cv":0.4960458738463844,"p2_5":0.2629691957829892,"p5":0.26902164080360086,"p50":0.7764171778437068,"p95":1.4208335557214031,"p97_5":1.4256176899761916}},"x1_walk":{"cadence_spm":{"mean":95.95038074045189,"sd":16.216039279519528,"cv":0.16900442868886897,"p2_5":64.28571428571428,"p5":64.28571428571428,"p50":102.85714285714285,"p95":114.28571428571428,"p97_5":115.77534673608838},"stride_freq":{"mean":0.7870470650359608,"sd":0.12457134024318359,"cv":0.1582768626898975,"p2_5":0.5555555555555556,"p5":0.5555555555555556,"p50":0.8163265306122448,"p95":0.9302325581395349,"p97_5":0.9302325581395349},"step_len":{"mean":0.2964163149267502,"sd":0.03977097884263046,"cv":0.13417270521178493,"p2_5":0.22522308209574313,"p5":0.2409061108817761,"p50":0.3010368964063035,"p95":0.3354059341787622,"p97_5":0.3377889514258073},"v_root":{"mean":0.39046374470923445,"sd":0.5157505250240627,"cv":1.3208666156908504,"p2_5":-0.07555080653482427,"p5":-0.07238496214085229,"p50":-0.020561252617119444,"p95":1.2119259080215112,"p97_5":1.3379118226457627},"v_legs":{"mean":0.45023217057303666,"sd":0.09266733731211371,"cv":0.20582122595586763,"p2_5":0.2856859296995897,"p5":0.3049004307262394,"p50":0.4661129787799454,"p95":0.5768307014697688,"p97_5":0.5797289537433769},"clearance":{"mean":0.12761144923293993,"sd":0.128475572610518,"cv":1.0067715191918298,"p2_5":0.04756979260776768,"p5":0.04971848046566933,"p50":0.0713538717374618,"p95":0.4631324096904594,"p97_5":0.4802854550231983},"step_width":{"mean":0.3660097517131193,"sd":0.037844896607514465,"cv":0.10339860189620721,"p2_5":0.31094404064548087,"p5":0.31417776297037037,"p50":0.36073030477163354,"p95":0.4360511188600694,"p97_5":0.43692315577666524},"slip":{"mean":0.6233686656516859,"sd":0.28477677653748296,"cv":0.45683524410032683,"p2_5":0.260776247738585,"p5":0.2664540709160677,"p50":0.52898075856813,"p95":1.0800656354853009,"p97_5":1.0812138050197617}},"x1_unw":{"cadence_spm":{"mean":107.3800531256068,"sd":24.46303742428912,"cv":0.22781733396680026,"p2_5":65.12622419061256,"p5":69.00805614201931,"p50":105.88235294117648,"p95":156.52173913043478,"p97_5":156.52173913043478},"stride_freq":{"mean":0.8726931697071296,"sd":0.1903800223142713,"cv":0.2181523001700147,"p2_5":0.5492492287056585,"p5":0.6091370558375635,"p50":0.8793867512225679,"p95":1.2631578947368423,"p97_5":1.2765957446808511},"step_len":{"mean":0.29862577669859625,"sd":0.05070139658693123,"cv":0.1697823849885011,"p2_5":0.16222074479105428,"p5":0.23002795387711805,"p50":0.3143917185938659,"p95":0.34195383685493724,"p97_5":0.3441340872277496},"v_root":{"mean":0.32817424234151665,"sd":0.5420287652973835,"cv":1.6516493233290312,"p2_5":-0.09313520381560816,"p5":-0.0800595280282973,"p50":-0.03632548916580375,"p95":1.3417637034695464,"p97_5":1.3482685499482474},"v_legs":{"mean":0.5158410424724824,"sd":0.15865836692066884,"cv":0.3075722051122609,"p2_5":0.22329159033656873,"p5":0.2871111110186482,"p50":0.5026102831410189,"p95":0.8167759101307109,"p97_5":0.8231809803814033},"clearance":{"mean":0.09798135789880368,"sd":0.09540138858175591,"cv":0.9736687736078082,"p2_5":0.046677890475123454,"p5":0.047673927229679364,"p50":0.0694015061335235,"p95":0.32480166471014305,"p97_5":0.4456449986374076},"step_width":{"mean":0.37111879525798186,"sd":0.0401296789714314,"cv":0.1081316265416722,"p2_5":0.29687037993555515,"p5":0.31321654854235637,"p50":0.3659253267946772,"p95":0.44295154222495575,"p97_5":0.44494429165057625},"slip":{"mean":0.7638948642814075,"sd":0.3806219466151494,"cv":0.49826483252142134,"p2_5":0.18932403088933145,"p5":0.26081502587357913,"p50":0.7462766488223977,"p95":1.4049785232918337,"p97_5":1.4223103879031511}},"rpo_amp":{"cadence_spm":{"mean":173.26723043038632,"sd":13.099453436132368,"cv":0.07560260185145248,"p2_5":141.1764705882353,"p5":143.847871771857,"p50":169.4142198567804,"p95":188.28045888373978,"p97_5":188.87707154713306},"stride_freq":{"mean":1.456475745677492,"sd":0.08745852002861576,"cv":0.060048044252143516,"p2_5":1.2903225806451613,"p5":1.2903225806451613,"p50":1.4261753665814212,"p95":1.545930622114358,"p97_5":1.5521860902779583},"step_len":{"mean":0.6389505608640256,"sd":0.13496957133281454,"cv":0.2112363296939609,"p2_5":-0.001332476322714722,"p5":0.21091120512379133,"p50":0.6608112929306635,"p95":0.7243703892161845,"p97_5":0.7248094446264821},"v_root":{"mean":2.8939530835396607,"sd":0.7259320673834285,"cv":0.25084444924570937,"p2_5":0.7846321020394587,"p5":1.1544293840976099,"p50":2.7577791132321154,"p95":3.6472130150031976,"p97_5":3.673846907403287},"v_legs":{"mean":1.7600762270356,"sd":0.23386654770001014,"cv":0.13287296544758107,"p2_5":1.1775303377020834,"p5":1.215037864087695,"p50":1.6768423845505886,"p95":2.0252277975042925,"p97_5":2.0403266402835554},"clearance":{"mean":0.23717453630557253,"sd":0.058218830306256984,"cv":0.24546830032060699,"p2_5":0.14732437431812287,"p5":0.14732437431812287,"p50":0.23089835751858093,"p95":0.31565896157214346,"p97_5":0.3234947161564693},"step_width":{"mean":0.17938236747938394,"sd":0.03397546506206679,"cv":0.18940247884715608,"p2_5":0.11107280548423491,"p5":0.11107280548423491,"p50":0.17044425739706864,"p95":0.22303122503153078,"p97_5":0.2295506600498072},"slip":{"mean":0.6220737686936582,"sd":0.2678530176715753,"cv":0.430580794676588,"p2_5":0.2122135598313869,"p5":0.2122135598313869,"p50":0.5645009593642967,"p95":0.8916354757641441,"p97_5":0.8998037161559183}},"rpo_walk":{"cadence_spm":{"mean":102.31197070931513,"sd":18.51467314873808,"cv":0.18096292174198522,"p2_5":62.17172396138316,"p5":64.86486486486487,"p50":109.09090909090908,"p95":123.46674141905295,"p97_5":127.84177952306308},"stride_freq":{"mean":0.8587027632336444,"sd":0.15351740517841925,"cv":0.1787782824877771,"p2_5":0.5392972602548252,"p5":0.5540154943773945,"p50":0.9160305343511451,"p95":1.0297949703352762,"p97_5":1.0558269239507865},"step_len":{"mean":0.4306234953119031,"sd":0.13697007432920394,"cv":0.3180738529605676,"p2_5":0.03952963699504305,"p5":0.11651239195016068,"p50":0.47021063054178286,"p95":0.5780821183257513,"p97_5":0.5855970312553621},"v_root":{"mean":0.9886328767911657,"sd":0.43991697001610086,"cv":0.444975056305989,"p2_5":0.13002340887865005,"p5":0.25169734807580724,"p50":1.12791552682511,"p95":1.5392159869855981,"p97_5":1.5980230373960485},"v_legs":{"mean":0.7173000567051849,"sd":0.2760067345514324,"cv":0.38478560258203487,"p2_5":0.20489310545824682,"p5":0.27089004809952316,"p50":0.7767776540042406,"p95":1.0545290998399883,"p97_5":1.0777087208576486},"clearance":{"mean":0.2033598018409805,"sd":0.12766965301351751,"cv":0.6278018165721377,"p2_5":0.0561489390114309,"p5":0.08567885263816563,"p50":0.14792504568690418,"p95":0.493442335435435,"p97_5":0.513663850925933},"step_width":{"mean":0.23823197504648516,"sd":0.059095979518653405,"cv":0.24806065393666096,"p2_5":0.13537650445914712,"p5":0.1447111930095454,"p50":0.236828429656648,"p95":0.34512014611048664,"p97_5":0.3554972697407878},"slip":{"mean":0.19442399084622813,"sd":0.11673329027901619,"cv":0.6004057923661371,"p2_5":0.05389884110437007,"p5":0.05889187130282144,"p50":0.19930643569266335,"p95":0.3042818953334545,"p97_5":0.30674986405387783}}},"ts":{"103_07":{"t":[0.0,0.033,0.067,0.1,0.133,0.167,0.2,0.233,0.267,0.3,0.333,0.367,0.4,0.433,0.467,0.5,0.533,0.567,0.6,0.633,0.667,0.7,0.733,0.767,0.8,0.833,0.867,0.9,0.933,0.967,1.0,1.033,1.067,1.1,1.133,1.167,1.2,1.233,1.267,1.3,1.333,1.367,1.4,1.433,1.467,1.5,1.533,1.567,1.6,1.633,1.667,1.7,1.733,1.767,1.8,1.833,1.867,1.9,1.933,1.967,2.0,2.033,2.067,2.1,2.133,2.167,2.2,2.233,2.267,2.3,2.333,2.367,2.4,2.433,2.467,2.5,2.533,2.567,2.6,2.633,2.667,2.7,2.733,2.767,2.8,2.833,2.867,2.9,2.933,2.967,3.0,3.033,3.067,3.1,3.133,3.167,3.2,3.233,3.267,3.3,3.333,3.367],"L":[2.466,2.693,2.737,2.77,2.9,3.015,2.956,2.68,2.121,1.342,0.928,1.014,0.912,0.652,0.606,0.499,0.382,0.425,0.503,0.498,0.504,0.497,0.504,0.53,0.599,0.709,0.856,1.059,1.377,1.815,1.952,2.238,2.936,3.103,3.103,2.998,3.081,3.25,3.306,3.004,2.247,1.367,0.902,1.01,1.085,0.717,0.587,0.591,0.472,0.39,0.429,0.48,0.476,0.492,0.479,0.483,0.51,0.573,0.685,0.839,1.001,1.272,1.666,1.814,2.003,2.62,3.204,3.31,3.155,3.087,3.2,3.296,3.209,2.81,2.172,1.428,1.097,1.231,0.909,0.622,0.666,0.594,0.387,0.366,0.484,0.453,0.465,0.458,0.485,0.526,0.574,0.672,0.812,0.977,1.227,1.617,1.777,2.011,2.638,2.917,2.904,2.8],"R":[0.365,0.415,0.428,0.43,0.46,0.466,0.479,0.528,0.609,0.7,0.822,0.984,1.257,1.57,1.71,2.17,2.88,3.246,3.278,3.17,3.017,3.149,3.276,3.039,2.315,1.437,0.881,1.069,1.269,0.742,0.558,0.53,0.389,0.44,0.444,0.458,0.462,0.483,0.51,0.546,0.582,0.657,0.767,0.929,1.176,1.472,1.702,1.909,2.423,2.846,3.054,3.178,3.212,3.087,3.153,3.133,2.88,2.315,1.482,0.847,0.869,1.251,1.003,0.637,0.649,0.471,0.405,0.464,0.496,0.511,0.511,0.532,0.574,0.631,0.682,0.763,0.916,1.075,1.361,1.553,1.586,2.127,2.929,3.316,3.245,3.272,3.089,3.049,3.046,2.887,2.371,1.631,0.996,1.156,1.097,0.743,0.573,0.571,0.406,0.391,0.432,0.437],"root":[1.2,1.118,1.182,1.183,1.193,1.246,1.304,1.349,1.372,1.416,1.494,1.544,1.544,1.6,1.708,1.662,1.433,1.29,1.219,1.233,1.326,1.321,1.366,1.411,1.446,1.508,1.607,1.688,1.681,1.651,1.729,1.677,1.351,1.171,1.219,1.306,1.351,1.381,1.429,1.449,1.43,1.452,1.533,1.602,1.636,1.625,1.689,1.749,1.556,1.394,1.331,1.222,1.185,1.283,1.337,1.348,1.372,1.413,1.479,1.567,1.65,1.697,1.685,1.727,1.765,1.59,1.362,1.254,1.333,1.433,1.419,1.441,1.48,1.503,1.524,1.576,1.636,1.641,1.621,1.679,1.771,1.764,1.47,1.228,1.212,1.118,1.189,1.291,1.313,1.354,1.395,1.471,1.566,1.625,1.619,1.572,1.614,1.599,1.359,1.131,1.125,1.222],"zL":[0.078,0.086,0.093,0.097,0.093,0.085,0.079,0.077,0.078,0.073,0.061,0.054,0.055,0.062,0.076,0.055,0.052,0.049,0.055,0.056,0.052,0.05,0.049,0.047,0.046,0.046,0.048,0.051,0.061,0.062,0.069,0.084,0.097,0.085,0.086,0.089,0.087,0.079,0.074,0.076,0.08,0.074,0.06,0.05,0.053,0.052,0.05,0.051,0.049,0.049,0.049,0.056,0.057,0.056,0.056,0.055,0.054,0.054,0.054,0.056,0.061,0.071,0.068,0.071,0.078,0.096,0.097,0.092,0.091,0.095,0.089,0.081,0.077,0.077,0.077,0.07,0.055,0.054,0.052,0.064,0.071,0.05,0.054,0.055,0.057,0.064,0.062,0.06,0.059,0.058,0.057,0.057,0.058,0.06,0.065,0.069,0.08,0.086,0.088,0.085,0.081,0.082],"zR":[0.061,0.061,0.062,0.061,0.06,0.059,0.058,0.058,0.057,0.055,0.055,0.058,0.058,0.059,0.072,0.079,0.09,0.088,0.083,0.081,0.085,0.082,0.078,0.078,0.085,0.082,0.069,0.054,0.055,0.057,0.068,0.061,0.062,0.066,0.065,0.064,0.063,0.061,0.059,0.056,0.054,0.052,0.052,0.057,0.068,0.066,0.06,0.075,0.109,0.112,0.108,0.1,0.094,0.091,0.087,0.082,0.083,0.086,0.085,0.072,0.061,0.06,0.061,0.071,0.069,0.063,0.063,0.065,0.066,0.064,0.062,0.06,0.058,0.056,0.055,0.055,0.055,0.064,0.058,0.062,0.078,0.094,0.112,0.112,0.104,0.095,0.092,0.089,0.085,0.084,0.087,0.085,0.073,0.058,0.056,0.063,0.082,0.076,0.058,0.062,0.06,0.056],"rz":[0.623,0.638,0.646,0.65,0.651,0.647,0.641,0.633,0.626,0.618,0.612,0.61,0.609,0.612,0.619,0.59,0.593,0.605,0.623,0.636,0.639,0.637,0.632,0.625,0.619,0.613,0.608,0.603,0.608,0.608,0.617,0.596,0.603,0.621,0.639,0.647,0.648,0.645,0.638,0.629,0.621,0.613,0.606,0.604,0.609,0.607,0.604,0.593,0.593,0.603,0.613,0.625,0.639,0.643,0.642,0.639,0.633,0.628,0.623,0.618,0.615,0.619,0.616,0.623,0.605,0.594,0.605,0.628,0.646,0.65,0.649,0.644,0.637,0.629,0.622,0.614,0.607,0.61,0.604,0.612,0.604,0.576,0.587,0.603,0.623,0.639,0.646,0.645,0.642,0.637,0.631,0.626,0.62,0.614,0.613,0.618,0.634,0.615,0.596,0.616,0.632,0.638]},"0000_treadmill_norm":{"t":[0.0,0.033,0.067,0.1,0.133,0.167,0.2,0.233,0.267,0.3,0.333,0.367,0.4,0.433,0.467,0.5,0.533,0.567,0.6,0.633,0.667,0.7,0.733,0.767,0.8,0.833,0.867,0.9,0.933,0.967,1.0,1.033,1.067,1.1,1.133,1.167,1.2,1.233,1.267,1.3,1.333,1.367,1.4,1.433,1.467,1.5,1.533,1.567,1.6,1.633,1.667,1.7,1.733,1.767,1.8,1.833,1.867,1.9,1.933,1.967,2.0,2.033,2.067,2.1,2.133,2.167,2.2,2.233,2.267,2.3,2.333,2.367,2.4,2.433,2.467,2.5,2.533,2.567,2.6,2.633,2.667,2.7,2.733,2.767,2.8,2.833,2.867,2.9,2.933,2.967,3.0,3.033,3.067,3.1,3.133,3.167,3.2,3.233,3.267,3.3,3.333,3.367],"L":[1.412,1.459,1.458,1.521,1.302,0.882,0.393,0.43,0.207,0.378,0.559,0.729,0.777,0.821,0.799,0.813,0.842,0.827,0.824,0.846,0.801,0.761,0.767,0.731,0.625,0.499,0.235,0.285,0.594,0.646,0.682,0.941,1.186,1.329,1.4,1.486,1.501,1.362,1.043,0.584,0.241,0.229,0.243,0.495,0.652,0.741,0.777,0.824,0.812,0.821,0.87,0.81,0.798,0.822,0.795,0.806,0.73,0.653,0.579,0.31,0.142,0.394,0.638,0.621,0.88,1.004,1.192,1.266,1.387,1.421,1.422,1.247,0.856,0.359,0.348,0.132,0.291,0.528,0.662,0.724,0.746,0.779,0.779,0.771,0.779,0.753,0.771,0.743,0.775,0.723,0.698,0.632,0.49,0.355,0.172,0.463,0.638,0.663,0.866,1.08,1.24,1.375],"R":[0.747,0.78,0.761,0.756,0.74,0.705,0.712,0.674,0.602,0.441,0.215,0.258,0.552,0.699,0.907,1.116,1.352,1.461,1.446,1.56,1.46,1.336,0.828,0.185,0.437,0.167,0.434,0.602,0.746,0.761,0.847,0.813,0.754,0.783,0.783,0.752,0.752,0.741,0.754,0.709,0.702,0.591,0.425,0.146,0.274,0.591,0.679,0.926,1.208,1.4,1.497,1.48,1.537,1.497,1.319,0.787,0.201,0.464,0.162,0.391,0.597,0.734,0.778,0.813,0.812,0.782,0.755,0.806,0.758,0.767,0.731,0.762,0.715,0.702,0.672,0.572,0.399,0.156,0.233,0.533,0.653,0.928,1.209,1.341,1.487,1.481,1.519,1.516,1.329,0.85,0.206,0.443,0.21,0.343,0.54,0.659,0.712,0.788,0.788,0.763,0.774,0.769],"root":[0.045,0.059,0.059,0.039,0.029,0.028,0.047,0.039,0.069,0.098,0.14,0.181,0.153,0.108,0.096,0.055,0.065,0.096,0.085,0.093,0.063,0.056,0.089,0.086,0.064,0.135,0.15,0.144,0.139,0.045,0.061,0.071,0.057,0.031,0.036,0.042,0.005,0.026,0.047,0.039,0.051,0.095,0.105,0.167,0.241,0.224,0.126,0.049,0.043,0.058,0.086,0.105,0.069,0.028,0.051,0.083,0.08,0.042,0.154,0.16,0.144,0.173,0.118,0.096,0.085,0.093,0.096,0.099,0.056,0.035,0.031,0.034,0.031,0.017,0.051,0.113,0.139,0.17,0.233,0.22,0.126,0.072,0.036,0.049,0.045,0.054,0.04,0.033,0.049,0.064,0.089,0.05,0.13,0.128,0.14,0.151,0.085,0.066,0.096,0.059,0.086,0.077],"zL":[0.119,0.109,0.098,0.088,0.082,0.082,0.085,0.076,0.063,0.054,0.049,0.048,0.048,0.047,0.047,0.047,0.047,0.047,0.048,0.048,0.048,0.049,0.05,0.053,0.061,0.076,0.087,0.091,0.091,0.095,0.12,0.137,0.138,0.131,0.119,0.105,0.093,0.084,0.082,0.082,0.074,0.061,0.052,0.046,0.046,0.046,0.045,0.046,0.045,0.047,0.047,0.046,0.046,0.045,0.045,0.046,0.048,0.054,0.068,0.08,0.086,0.093,0.093,0.105,0.123,0.129,0.127,0.118,0.107,0.094,0.083,0.077,0.077,0.078,0.07,0.058,0.049,0.045,0.045,0.045,0.043,0.044,0.044,0.044,0.045,0.046,0.047,0.047,0.047,0.049,0.052,0.058,0.07,0.082,0.086,0.09,0.088,0.098,0.115,0.123,0.123,0.115],"zR":[0.051,0.051,0.052,0.051,0.05,0.05,0.05,0.049,0.049,0.048,0.051,0.058,0.06,0.075,0.093,0.101,0.095,0.084,0.074,0.065,0.058,0.055,0.057,0.061,0.054,0.054,0.055,0.053,0.053,0.053,0.051,0.051,0.051,0.052,0.052,0.052,0.051,0.05,0.05,0.048,0.046,0.045,0.044,0.05,0.057,0.062,0.08,0.1,0.103,0.095,0.083,0.073,0.064,0.056,0.054,0.058,0.06,0.054,0.052,0.051,0.05,0.049,0.05,0.048,0.047,0.047,0.048,0.048,0.047,0.047,0.048,0.047,0.046,0.046,0.045,0.045,0.045,0.049,0.057,0.062,0.081,0.098,0.101,0.093,0.081,0.071,0.062,0.055,0.053,0.057,0.06,0.053,0.052,0.052,0.05,0.05,0.049,0.048,0.047,0.047,0.047,0.048],"rz":[0.654,0.654,0.652,0.647,0.642,0.637,0.634,0.627,0.62,0.614,0.612,0.615,0.616,0.62,0.63,0.635,0.636,0.636,0.635,0.632,0.627,0.622,0.618,0.617,0.616,0.623,0.627,0.629,0.63,0.635,0.644,0.652,0.656,0.658,0.658,0.655,0.65,0.644,0.638,0.632,0.624,0.616,0.609,0.608,0.611,0.614,0.621,0.631,0.635,0.636,0.636,0.634,0.631,0.625,0.619,0.615,0.613,0.612,0.618,0.621,0.623,0.627,0.63,0.635,0.643,0.648,0.651,0.652,0.651,0.648,0.643,0.637,0.632,0.628,0.621,0.615,0.609,0.608,0.612,0.614,0.621,0.63,0.634,0.634,0.634,0.633,0.631,0.626,0.621,0.618,0.616,0.615,0.62,0.624,0.625,0.627,0.628,0.633,0.641,0.646,0.65,0.652]},"36_01":{"t":[0.0,0.033,0.067,0.1,0.133,0.167,0.2,0.233,0.267,0.3,0.333,0.367,0.4,0.433,0.467,0.5,0.533,0.567,0.6,0.633,0.667,0.7,0.733,0.767,0.8,0.833,0.867,0.9,0.933,0.967,1.0,1.033,1.067,1.1,1.133,1.167,1.2,1.233,1.267,1.3,1.333,1.367,1.4,1.433,1.467,1.5,1.533,1.567,1.6,1.633,1.667,1.7,1.733,1.767,1.8,1.833,1.867,1.9,1.933,1.967,2.0,2.033,2.067,2.1,2.133,2.167,2.2,2.233,2.267,2.3,2.333,2.367,2.4,2.433,2.467,2.5,2.533,2.567,2.6,2.633,2.667,2.7,2.733,2.767,2.8,2.833,2.867,2.9,2.933,2.967,3.0,3.033,3.067,3.1,3.133,3.167,3.2,3.233,3.267,3.3,3.333,3.367,3.4,3.433,3.467,3.5,3.533,3.567,3.6,3.633,3.667,3.7,3.733,3.767,3.8,3.833,3.867,3.9,3.933,3.967,4.0,4.033,4.067,4.1,4.133,4.167,4.2,4.233,4.267,4.3,4.333,4.367,4.4,4.433,4.467,4.5,4.533,4.567],"L":[2.198,2.084,1.802,1.1,0.78,0.798,0.937,0.605,0.553,0.489,0.423,0.344,0.343,0.354,0.319,0.317,0.33,0.305,0.308,0.293,0.316,0.346,0.347,0.389,0.469,0.597,0.755,0.991,1.406,1.646,1.75,1.961,2.049,2.217,2.189,2.243,2.073,2.19,2.108,2.101,1.941,1.876,1.617,1.156,0.998,0.83,0.603,0.263,0.478,0.61,0.406,0.39,0.399,0.4,0.349,0.246,0.238,0.279,0.295,0.259,0.275,0.332,0.283,0.317,0.336,0.317,0.386,0.373,0.334,0.357,0.429,0.474,0.617,0.752,0.854,0.875,0.77,0.806,0.661,1.042,1.006,0.965,0.87,0.672,0.636,0.638,0.897,1.553,1.72,1.514,1.512,1.526,1.709,1.988,2.177,2.33,2.517,2.472,2.148,0.965,0.443,1.03,0.729,0.558,0.485,0.414,0.298,0.383,0.399,0.378,0.392,0.37,0.402,0.413,0.421,0.461,0.505,0.635,0.766,0.966,1.225,1.446,1.578,1.753,1.928,2.177,2.157,2.226,2.335,2.37,2.51,2.592,2.45,2.066,1.409,0.917,1.02,0.994],"R":[0.342,0.367,0.378,0.414,0.444,0.543,0.655,0.785,0.994,1.15,1.178,1.241,1.479,1.744,2.039,2.073,2.165,2.276,2.314,2.354,2.447,2.453,2.071,1.447,0.872,0.595,0.783,0.63,0.494,0.498,0.352,0.352,0.34,0.305,0.275,0.309,0.31,0.341,0.332,0.379,0.36,0.376,0.418,0.39,0.426,0.393,0.403,0.418,0.436,0.567,0.725,0.858,0.788,0.836,0.76,0.718,0.576,0.839,1.121,1.457,1.857,1.992,2.137,2.223,2.113,2.154,2.18,2.228,2.235,2.262,2.254,1.889,1.585,1.271,1.103,0.811,0.592,0.374,0.477,0.672,0.272,0.378,0.373,0.14,0.265,0.291,0.335,0.306,0.25,0.347,0.243,0.229,0.235,0.242,0.252,0.301,0.352,0.387,0.444,0.468,0.59,0.926,1.239,1.545,1.443,1.852,2.422,2.349,2.525,2.674,2.578,2.633,2.642,2.645,2.391,1.893,1.037,0.505,0.687,1.103,0.898,0.532,0.497,0.425,0.391,0.402,0.375,0.384,0.4,0.359,0.401,0.376,0.408,0.473,0.428,0.604,0.665,0.908],"root":[0.902,0.914,0.932,0.917,0.939,1.058,1.13,1.143,1.176,1.154,1.194,1.151,1.008,0.936,0.897,0.916,0.911,0.872,0.854,0.857,0.912,0.986,1.002,0.984,0.996,1.06,1.117,1.164,1.188,1.265,1.164,0.872,0.858,0.862,0.801,0.831,0.835,0.807,0.763,0.732,0.708,0.711,0.711,0.718,0.75,0.796,0.852,0.883,0.917,0.961,0.96,1.112,1.353,1.223,1.018,0.845,0.914,0.997,0.93,0.895,0.877,0.946,0.895,0.872,0.971,0.97,0.955,0.948,0.966,1.006,1.08,1.273,1.307,1.216,1.24,1.353,1.436,1.465,1.311,0.698,0.825,0.991,0.847,0.792,0.736,0.711,0.69,0.629,0.641,0.599,0.556,0.557,0.593,0.642,0.653,0.711,0.839,0.986,1.058,1.052,1.121,1.238,1.3,1.368,1.372,1.271,1.105,1.049,0.995,0.964,1.031,1.05,1.081,1.12,1.147,1.151,1.145,1.203,1.293,1.383,1.41,1.316,1.34,1.274,1.131,1.092,1.083,1.091,1.062,1.041,1.045,1.081,1.15,1.181,1.169,1.198,1.248,1.267],"zL":[0.078,0.081,0.086,0.088,0.081,0.072,0.063,0.058,0.057,0.057,0.063,0.062,0.053,0.049,0.046,0.045,0.045,0.046,0.049,0.049,0.048,0.047,0.047,0.048,0.051,0.052,0.057,0.066,0.07,0.076,0.085,0.099,0.138,0.183,0.225,0.265,0.3,0.328,0.346,0.355,0.358,0.355,0.352,0.353,0.351,0.348,0.338,0.334,0.332,0.333,0.33,0.328,0.325,0.314,0.313,0.316,0.327,0.336,0.347,0.356,0.365,0.376,0.387,0.395,0.401,0.408,0.415,0.422,0.425,0.428,0.429,0.427,0.418,0.408,0.396,0.382,0.364,0.348,0.332,0.327,0.315,0.303,0.299,0.299,0.299,0.294,0.298,0.313,0.338,0.364,0.37,0.354,0.321,0.276,0.225,0.175,0.132,0.099,0.084,0.078,0.07,0.062,0.059,0.068,0.069,0.051,0.053,0.056,0.051,0.051,0.048,0.046,0.046,0.046,0.046,0.048,0.051,0.047,0.053,0.058,0.061,0.058,0.064,0.073,0.075,0.087,0.097,0.102,0.102,0.1,0.091,0.08,0.073,0.073,0.074,0.067,0.051,0.048],"zR":[0.05,0.051,0.051,0.052,0.053,0.052,0.052,0.052,0.052,0.053,0.058,0.064,0.073,0.087,0.095,0.099,0.1,0.096,0.092,0.083,0.074,0.067,0.067,0.071,0.072,0.065,0.06,0.065,0.07,0.082,0.083,0.064,0.056,0.052,0.05,0.05,0.049,0.049,0.05,0.052,0.054,0.054,0.056,0.059,0.062,0.068,0.067,0.066,0.067,0.072,0.075,0.078,0.085,0.094,0.121,0.16,0.202,0.252,0.304,0.355,0.398,0.432,0.46,0.486,0.509,0.525,0.53,0.526,0.515,0.495,0.471,0.444,0.422,0.399,0.368,0.332,0.286,0.235,0.181,0.123,0.08,0.055,0.049,0.05,0.05,0.05,0.05,0.053,0.055,0.055,0.055,0.054,0.052,0.05,0.05,0.051,0.055,0.054,0.054,0.055,0.063,0.065,0.064,0.07,0.078,0.102,0.113,0.114,0.117,0.113,0.104,0.094,0.084,0.078,0.079,0.085,0.086,0.067,0.058,0.055,0.053,0.053,0.063,0.066,0.053,0.05,0.05,0.05,0.052,0.057,0.058,0.056,0.054,0.052,0.054,0.056,0.053,0.057],"rz":[0.639,0.634,0.631,0.629,0.626,0.622,0.618,0.616,0.617,0.618,0.625,0.619,0.613,0.62,0.628,0.633,0.637,0.639,0.642,0.641,0.636,0.629,0.624,0.621,0.622,0.619,0.62,0.628,0.633,0.645,0.64,0.635,0.65,0.659,0.666,0.673,0.68,0.685,0.689,0.694,0.695,0.694,0.694,0.694,0.695,0.696,0.692,0.688,0.687,0.692,0.696,0.701,0.7,0.693,0.708,0.737,0.766,0.791,0.821,0.853,0.884,0.915,0.942,0.966,0.984,0.998,1.008,1.016,1.018,1.014,1.004,0.987,0.968,0.946,0.917,0.883,0.845,0.804,0.75,0.697,0.665,0.637,0.621,0.616,0.619,0.624,0.624,0.634,0.652,0.659,0.666,0.669,0.67,0.67,0.668,0.665,0.659,0.646,0.634,0.627,0.627,0.624,0.621,0.629,0.622,0.606,0.615,0.627,0.635,0.642,0.642,0.639,0.636,0.631,0.627,0.624,0.623,0.613,0.614,0.615,0.615,0.615,0.625,0.625,0.619,0.629,0.639,0.643,0.647,0.653,0.651,0.645,0.638,0.632,0.629,0.626,0.616,0.615]}}};
+const FAM = {
+  inplace:{n:'BMLrub 原地/跑步机步行', v:'--s-inplace'},
+  over:{n:'平地步行 (0026 / 103_07)', v:'--s-over'},
+  terrain:{n:'CMU36 踏台', v:'--s-terrain'},
+  jog:{n:'BMLrub 原地慢跑', v:'--s-jog'},
+  rpo:{n:'上游 rpo_lab 步行（参照）', v:'--s-rpo'}
+};
+const C = v => `var(${v})`;
+const NS='http://www.w3.org/2000/svg';
+function E(tag, attrs={}, parent){const e=document.createElementNS(NS,tag);for(const k in attrs){if(attrs[k]!=null)e.setAttribute(k,attrs[k]);}if(parent)parent.appendChild(e);return e;}
+function T(parent,x,y,txt,attrs={}){const t=E('text',Object.assign({x,y,'font-size':12,style:'fill:var(--ink2)'},attrs),parent);t.textContent=txt;return t;}
+const lin=(d0,d1,r0,r1)=>{const f=v=>r0+(v-d0)/(d1-d0)*(r1-r0);f.d=[d0,d1];return f;};
+const logs=(d0,d1,r0,r1)=>{const a=Math.log10(d0),b=Math.log10(d1);const f=v=>r0+(Math.log10(v)-a)/(b-a)*(r1-r0);f.d=[d0,d1];return f;};
+function nice(a,b,n=5){const span=b-a, raw=span/n, p=Math.pow(10,Math.floor(Math.log10(raw)));const m=[1,2,2.5,5,10].find(m=>m*p>=raw)*p;const out=[];for(let v=Math.ceil(a/m-1e-9)*m;v<=b+1e-9;v+=m)out.push(+v.toFixed(6));return out;}
+const fmt=(v,d=2)=>(+v).toFixed(d);
+// tooltip
+const tip=document.getElementById('tip');
+function showTip(ev,html){tip.innerHTML=html;tip.hidden=false;const pad=14;let x=ev.clientX+pad,y=ev.clientY+pad;const r=tip.getBoundingClientRect();if(x+r.width>innerWidth-8)x=ev.clientX-r.width-pad;if(y+r.height>innerHeight-8)y=ev.clientY-r.height-pad;tip.style.left=x+'px';tip.style.top=y+'px';}
+function hideTip(){tip.hidden=true;}
+function hover(el,fn){el.addEventListener('pointerenter',e=>showTip(e,fn()));el.addEventListener('pointermove',e=>showTip(e,fn()));el.addEventListener('pointerleave',hideTip);}
+// frame
+function frame(id,h,m={t:12,r:16,b:40,l:52}){const host=document.getElementById(id);host.innerHTML='';const W=Math.max(280,host.clientWidth);const svg=E('svg',{width:W,height:h,viewBox:`0 0 ${W} ${h}`,role:'img'},host);return {svg,W,H:h,m,iw:W-m.l-m.r,ih:h-m.t-m.b};}
+function axes(f,x,y,o={}){const g=E('g',{},f.svg);const {m}=f;
+  const yt=o.yt||nice(...y.d,o.yn||5), xt=o.xt||nice(...x.d,o.xn||6);
+  yt.forEach(v=>{const yy=y(v);if(yy<m.t-1||yy>m.t+f.ih+1)return;E('line',{x1:m.l,x2:m.l+f.iw,y1:yy,y2:yy,style:'stroke:var(--grid)'},g);T(g,m.l-6,yy+4,o.yf?o.yf(v):v,{'text-anchor':'end','font-size':11,class:'num',style:'fill:var(--muted)'});});
+  E('line',{x1:m.l,x2:m.l+f.iw,y1:m.t+f.ih,y2:m.t+f.ih,style:'stroke:var(--muted)'},g);
+  xt.forEach(v=>{const xx=x(v);if(xx<m.l-1||xx>m.l+f.iw+1)return;E('line',{x1:xx,x2:xx,y1:m.t+f.ih,y2:m.t+f.ih+4,style:'stroke:var(--muted)'},g);T(g,xx,m.t+f.ih+17,o.xf?o.xf(v):v,{'text-anchor':'middle','font-size':11,class:'num',style:'fill:var(--muted)'});});
+  if(o.xl)T(g,m.l+f.iw/2,f.H-6,o.xl,{'text-anchor':'middle','font-size':12});
+  if(o.yl){const t=T(g,0,0,o.yl,{'text-anchor':'middle','font-size':12,transform:`translate(13,${m.t+f.ih/2}) rotate(-90)`});}
+  return g;}
+function clip(f){const id='cp'+Math.random().toString(36).slice(2);const cp=E('clipPath',{id},E('defs',{},f.svg));E('rect',{x:f.m.l,y:f.m.t,width:f.iw,height:f.ih},cp);return `url(#${id})`;}
+function legend(id,items,state,onToggle){const host=document.getElementById(id);host.innerHTML='';items.forEach(it=>{const b=document.createElement('button');b.type='button';if(state){b.setAttribute('aria-pressed',state[it.k]!==false);b.onclick=()=>{state[it.k]=state[it.k]===false;b.setAttribute('aria-pressed',state[it.k]!==false);onToggle();};}else b.style.cursor='default';b.innerHTML=`<span class="sw ${it.sq?'sq':''}" style="background:${C(it.v)}${it.line?';height:3px;border-radius:2px;width:16px':''}"></span>${it.n}`;host.appendChild(b);});}
+function seg(id,opts,cur,on){const host=document.getElementById(id);host.innerHTML='';opts.forEach(o=>{const b=document.createElement('button');b.type='button';b.textContent=o.n;b.setAttribute('aria-pressed',o.k===cur);b.onclick=()=>{[...host.children].forEach(c=>c.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');on(o.k);};host.appendChild(b);});}
+
+// ---------- derived ----------
+const clips=DATA.clips, byClip=Object.fromEntries(clips.map(c=>[c.c,c]));
+const x1steps=DATA.steps.filter(s=>s.f!=='rpo'), rpoSteps=DATA.steps.filter(s=>s.f==='rpo');
+const totW=clips.reduce((a,c)=>a+c.w32,0);
+x1steps.forEach(s=>{const c=byClip[s.c];s.w=c.w32/totW/c.dur*(60/s.cad);});
+rpoSteps.forEach(s=>s.w=60/s.cad);
+const P=DATA.pooled;
+const L=0.62, WRh=0.0063, sc=Math.sqrt(0.9/L), WRx=WRh*(L/0.9)/sc;
+
+// ---------- KPIs ----------
+const kpis=[
+ {lab:'步行步长 95% 区间',val:'0.23–0.34<small> m</small>',cmp:'1.0 m/s 目标 0.46–0.55 m',st:'bad',stl:'不覆盖'},
+ {lab:'1.0 m/s 无滑移所需最低步频',val:'171<small> 步/分</small>',cmp:'目标约 109–130 步/分',st:'bad',stl:'推向小步快走'},
+ {lab:'有一只脚踩实的帧',val:'2.4<small>%</small>',cmp:'真实步行 60–80%',st:'bad',stl:'脚一直在滑'},
+ {lab:'平地片段 根速度 / 腿速度',val:'2.2<small>×</small>',cmp:'无滑移应为 1.0×',st:'bad',stl:'重定向伪影'},
+ {lab:'判别器窗口 / 步态周期',val:'40<small> ms / 1.1 s</small>',cmp:'建议 ≥ 半个周期',st:'bad',stl:'看不到节律'}
+];
+document.getElementById('kpis').innerHTML=kpis.map(k=>`<div class="kpi"><div class="lab">${k.lab}</div><div class="val">${k.val}</div><div class="cmp">${k.cmp}</div><span class="pill ${k.st}">${k.stl}</span></div>`).join('');
+
+// ---------- 1. scatter ----------
+const scState={};
+function drawScatter(){const f=frame('c-scatter',Math.min(520,Math.max(360,document.getElementById('c-scatter').clientWidth*0.55)),{t:12,r:20,b:42,l:56});
+  const x=lin(50,240,f.m.l,f.m.l+f.iw), y=lin(-0.05,0.8,f.m.t+f.ih,f.m.t);
+  axes(f,x,y,{xl:'步频 (步/分)',yl:'步长 (m)',yf:v=>v.toFixed(1)});
+  const cp=clip(f);const g=E('g',{'clip-path':cp},f.svg);
+  // target box
+  E('rect',{x:x(105),y:y(0.55),width:x(135)-x(105),height:y(0.40)-y(0.55),style:'fill:var(--band);stroke:var(--s-target);stroke-dasharray:4 3'},g);
+  T(g,x(135)+4,y(0.55)+12,'1.0 m/s 目标邻域',{'font-size':11,style:'fill:var(--s-target)'});
+  [0.5,1.0,1.5].forEach(v=>{let d='';for(let c=50;c<=240;c+=2){const sl=60*v/c;d+=(d?'L':'M')+x(c)+','+y(sl);}E('path',{d,style:'fill:none;stroke:var(--muted);stroke-dasharray:5 4;stroke-width:1'},g);const cc=232;T(g,x(cc),y(60*v/cc)-5,`v=${v} m/s`,{'text-anchor':'end','font-size':11,class:'num',style:'fill:var(--muted)'});});
+  // human line
+  E('path',{d:`M${x(90)},${y(WRx*90)}L${x(170)},${y(WRx*170)}`,style:'stroke:var(--ink);stroke-width:2;fill:none'},g);
+  const order=['rpo','inplace','over','terrain','jog'];
+  order.forEach(k=>{if(scState[k]===false)return;DATA.steps.filter(s=>s.f===k).forEach(s=>{const c=E('circle',{cx:x(s.cad),cy:y(s.sl),r:k==='rpo'?3.2:4,style:`fill:${C(FAM[k].v)};stroke:var(--surface);stroke-width:1`},g);
+    hover(c,()=>`<b>${s.c}</b><br>步频 <span class="mono">${fmt(s.cad,0)}</span> 步/分 · 步长 <span class="mono">${fmt(s.sl)}</span> m<br>根速度 <span class="mono">${fmt(s.vr)}</span> · 腿速度 <span class="mono">${fmt(s.vl)}</span> m/s`);});});
+  // targets
+  const star=(cx,cy,r)=>{let d='';for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*0.45:r;d+=(i?'L':'M')+(cx+rr*Math.cos(a))+','+(cy+rr*Math.sin(a));}return d+'Z';};
+  const s1=E('path',{d:star(x(129),y(0.46),10),style:'fill:var(--ink);stroke:var(--surface);stroke-width:1.5'},f.svg);
+  hover(s1,()=>`<b>Froude 缩放的人类步态 @1.0 m/s</b><br>129 步/分 · 0.46 m · 单脚 1.08 Hz`);
+  const dm=E('rect',{x:x(109)-7,y:y(0.55)-7,width:14,height:14,transform:`rotate(45 ${x(109)} ${y(0.55)})`,style:'fill:var(--s-target);stroke:var(--surface);stroke-width:1.5'},f.svg);
+  hover(dm,()=>`<b>v70c 目标 @1.0 m/s</b><br>T=1.10 s → 109 步/分 · 0.55 m`);
+  T(f.svg,x(129)+13,y(0.46)+4,'人类 Froude 缩放',{'font-size':11.5,style:'fill:var(--ink)'});
+  T(f.svg,x(109)-12,y(0.55)-10,'v70c 目标',{'text-anchor':'end','font-size':11.5,style:'fill:var(--s-target)'});
+  T(f.svg,x(170)+4,y(WRx*170)+4,'人类 walk ratio',{'font-size':11,style:'fill:var(--ink)'});
+}
+legend('lg-scatter',['inplace','over','terrain','jog','rpo'].map(k=>({k,n:FAM[k].n+` (${DATA.steps.filter(s=>s.f===k).length})`,v:FAM[k].v})).concat([{k:'_h',n:'人类 walk ratio（Froude 缩放）',v:'--ink',line:true}]),scState,drawScatter);
+
+// ---------- 2. histograms ----------
+function hist(arr,lo,hi,bw){const n=Math.round((hi-lo)/bw),b=new Array(n).fill(0);let tot=0;arr.forEach(([v,w])=>{const i=Math.floor((v-lo)/bw);if(i>=0&&i<n){b[i]+=w;}tot+=w;});return b.map(v=>v/tot);}
+function drawHist(id,key,lo,hi,bw,xl,band,q,d){const f=frame(id,270,{t:36,r:14,b:42,l:46});
+  const hx=hist(x1steps.map(s=>[s[key],s.w]),lo,hi,bw), hr=hist(rpoSteps.map(s=>[s[key],s.w]),lo,hi,bw);
+  const ymax=Math.max(...hx,...hr)*1.12;
+  const x=lin(lo,hi,f.m.l,f.m.l+f.iw), y=lin(0,ymax,f.m.t+f.ih,f.m.t);
+  E('rect',{x:x(band[0]),y:f.m.t,width:x(band[1])-x(band[0]),height:f.ih,style:'fill:var(--band)'},f.svg);
+  axes(f,x,y,{xl,yl:'占比',yf:v=>Math.round(v*100)+'%',yn:4});
+  const bwpx=x(lo+bw)-x(lo);
+  hx.forEach((v,i)=>{if(!v)return;const r=E('rect',{x:x(lo+i*bw)+1,y:y(v),width:Math.max(1,bwpx-2),height:y(0)-y(v),rx:2,style:'fill:var(--s-inplace)'},f.svg);hover(r,()=>`X1 · ${fmt(lo+i*bw,d)}–${fmt(lo+(i+1)*bw,d)}<br><span class="mono">${(v*100).toFixed(1)}%</span>`);});
+  let dd='';hr.forEach((v,i)=>{const x0=x(lo+i*bw),x1=x(lo+(i+1)*bw);dd+=(dd?'L':'M')+x0+','+y(v)+'L'+x1+','+y(v);});E('path',{d:dd,style:'fill:none;stroke:var(--s-rpo);stroke-width:2'},f.svg);
+  // 95% interval bar
+  const yy=26;E('line',{x1:x(q[0]),x2:x(q[2]),y1:yy,y2:yy,style:'stroke:var(--ink);stroke-width:2'},f.svg);E('circle',{cx:x(q[1]),cy:yy,r:4,style:'fill:var(--ink)'},f.svg);
+  T(f.svg,f.m.l,12,`X1 95% 区间 ${fmt(q[0],d)}–${fmt(q[2],d)}，中位 ${fmt(q[1],d)}`,{'font-size':11,class:'num',style:'fill:var(--ink)'});
+}
+legend('lg-hcad',[{n:'X1 v32（柱）',v:'--s-inplace',sq:true},{n:'rpo_lab 步行（线）',v:'--s-rpo',line:true},{n:'1.0 m/s 目标',v:'--s-target',sq:true}]);
+legend('lg-hsl',[{n:'X1 v32（柱）',v:'--s-inplace',sq:true},{n:'rpo_lab 步行（线）',v:'--s-rpo',line:true},{n:'1.0 m/s 目标',v:'--s-target',sq:true}]);
+function drawHists(){const pa=P.x1_all;drawHist('c-hcad','cad',50,200,5,'步频 (步/分)',[109,130],[pa.cadence_spm.p2_5,pa.cadence_spm.p50,pa.cadence_spm.p97_5],0);
+  drawHist('c-hsl','sl',0,0.8,0.025,'步长 (m)',[0.46,0.55],[pa.step_len.p2_5,pa.step_len.p50,pa.step_len.p97_5],2);}
+
+// ---------- 3. per-clip ranges ----------
+const rangeOrder=['0002_treadmill_slow','0000_treadmill_norm','0005_normal_walk1','0007_normal_walk3','0008_normal_walk4','0026_circle_walk','103_07','36_01','36_11','0003_treadmill_jog','0009_normal_jog1'];
+const RM={cad:{n:'步频 (步/分)',lo:55,hi:175,band:[109,130],d:0},sl:{n:'步长 (m)',lo:0,hi:0.6,band:[0.46,0.55],d:2},sf:{n:'单脚步态频率 (Hz)',lo:0.4,hi:1.4,band:[0.91,1.08],d:2}};
+let rangeKey='cad';
+function drawRange(){const narrow=document.getElementById('c-range').clientWidth<560;const rowH=26;const f=frame('c-range',rangeOrder.length*rowH+56,{t:10,r:16,b:42,l:narrow?128:160});
+  const M=RM[rangeKey];const x=lin(M.lo,M.hi,f.m.l,f.m.l+f.iw);
+  E('rect',{x:x(M.band[0]),y:f.m.t,width:x(M.band[1])-x(M.band[0]),height:f.ih,style:'fill:var(--band)'},f.svg);
+  const y=i=>f.m.t+rowH*i+rowH/2;
+  axes(f,x,lin(0,1,f.m.t+f.ih,f.m.t),{xl:M.n,yt:[]});
+  rangeOrder.forEach((n,i)=>{const c=byClip[n];T(f.svg,f.m.l-8,y(i)+4,narrow?n.replace('_treadmill','_tm').replace('normal_',''):n,{'text-anchor':'end','font-size':11.5,class:'num',style:'fill:var(--ink2)'});
+    E('line',{x1:f.m.l,x2:f.m.l+f.iw,y1:y(i),y2:y(i),style:'stroke:var(--grid)'},f.svg);
+    const v=c[rangeKey];if(!v)return;const col=C(FAM[c.f].v);
+    E('line',{x1:x(v[0]),x2:x(v[2]),y1:y(i),y2:y(i),style:`stroke:${col};stroke-width:4;stroke-linecap:round`},f.svg);
+    const dot=E('circle',{cx:x(v[1]),cy:y(i),r:5.5,style:`fill:${col};stroke:var(--surface);stroke-width:2`},f.svg);
+    const hit=E('rect',{x:f.m.l,y:y(i)-rowH/2,width:f.iw,height:rowH,style:'fill:transparent'},f.svg);
+    hover(hit,()=>`<b>${n}</b> · ${FAM[c.f].n}<br>${M.n}: 中位 <span class="mono">${fmt(v[1],M.d)}</span>，95% <span class="mono">${fmt(v[0],M.d)}–${fmt(v[2],M.d)}</span><br>${c.n} 步 · ${c.dur} s · 权重 ${c.w32}`);});
+}
+seg('seg-range',[{k:'cad',n:'步频'},{k:'sl',n:'步长'},{k:'sf',n:'单脚频率'}],'cad',k=>{rangeKey=k;drawRange();});
+
+// ---------- 4. scaling ----------
+function drawScale(id,key,yl,lo,hi,d,human){const f=frame(id,260,{t:12,r:12,b:42,l:48});
+  const x=lin(0.2,1.2,f.m.l,f.m.l+f.iw), y=lin(lo,hi,f.m.t+f.ih,f.m.t);
+  axes(f,x,y,{xl:'腿部速度 (m/s)',yl,yn:4,yf:v=>d?v.toFixed(d):v});
+  let p='';for(let v=0.3;v<=1.2;v+=0.02){p+=(p?'L':'M')+x(v)+','+y(human(v));}E('path',{d:p,style:'fill:none;stroke:var(--ink);stroke-width:2'},f.svg);
+  T(f.svg,x(1.18),y(human(1.18))+(key==='cad'?16:-8),'人类 (缩放)',{'text-anchor':'end','font-size':11,style:'fill:var(--ink)'});
+  clips.forEach(c=>{const val=c[key][1];const pt=E('circle',{cx:x(c.vl),cy:y(val),r:6,style:`fill:${C(FAM[c.f].v)};stroke:var(--surface);stroke-width:2`},f.svg);
+    hover(pt,()=>`<b>${c.c}</b><br>腿速度 <span class="mono">${fmt(c.vl)}</span> m/s · ${key==='cad'?'步频':'步长'} <span class="mono">${fmt(val,d)}</span>`);});
+}
+function drawScales(){drawScale('c-scale-cad','cad','步频 (步/分)',60,180,0,v=>Math.sqrt(60*v/WRx));drawScale('c-scale-sl','sl','步长 (m)',0.1,0.6,1,v=>WRx*Math.sqrt(60*v/WRx));}
+
+// ---------- 5. root vs legs ----------
+function drawSlip(){const f=frame('c-slip',300,{t:12,r:14,b:42,l:48});
+  const x=lin(-0.2,1.6,f.m.l,f.m.l+f.iw), y=lin(0,1.2,f.m.t+f.ih,f.m.t);
+  axes(f,x,y,{xl:'根节点世界速度 (m/s)',yl:'腿部速度 = 步长×步频 (m/s)',yn:4,yf:v=>v.toFixed(1)});
+  const cp=clip(f);const g=E('g',{'clip-path':cp},f.svg);
+  E('line',{x1:x(0),y1:y(0),x2:x(1.2),y2:y(1.2),style:'stroke:var(--ink);stroke-width:1.5'},g);
+  T(g,x(0.62),y(0.70),'无滑移',{'font-size':11.5,style:'fill:var(--ink)',transform:`rotate(${-Math.atan2(y(0)-y(1.2),x(1.2)-x(0))*180/Math.PI} ${x(0.62)} ${y(0.70)})`});
+  x1steps.forEach(s=>{const c=E('circle',{cx:x(s.vr),cy:y(s.vl),r:3.6,style:`fill:${C(FAM[s.f].v)};stroke:var(--surface);stroke-width:1`},g);hover(c,()=>`<b>${s.c}</b><br>根 <span class="mono">${fmt(s.vr)}</span> · 腿 <span class="mono">${fmt(s.vl)}</span> m/s`);});
+  T(f.svg,x(0.02),y(1.12),'原地片段：根≈0，腿在走',{'font-size':11,style:'fill:var(--s-inplace)'});
+  T(f.svg,x(1.58),y(0.33),'平地：腿 ≈ 0.45 × 根',{'text-anchor':'end','font-size':11,style:'fill:var(--s-over)'});
+}
+
+// ---------- 6. planted ----------
+function drawPlanted(){const rows=clips.slice().sort((a,b)=>a.planted-b.planted).map(c=>({n:c.c,v:c.planted,f:c.f}));
+  const ref=[['B14_-__Walk_turn_right_45_t2_stageii','rpo B14 转弯走'],['B9_-__Walk_turn_left_90_stageii','rpo B9 转弯走'],['114_08','rpo 114_08 走']].map(([k,n])=>({n,v:DATA.rpo_planted.find(r=>r.c===k).planted,f:'rpo'}));
+  const all=rows.concat(ref);const rowH=21;const narrow=document.getElementById('c-planted').clientWidth<420;
+  const f=frame('c-planted',all.length*rowH+66,{t:22,r:40,b:42,l:narrow?118:140});
+  const x=lin(0,1,f.m.l,f.m.l+f.iw);
+  E('rect',{x:x(0.6),y:f.m.t,width:x(0.8)-x(0.6),height:f.ih,style:'fill:var(--band)'},f.svg);
+  axes(f,x,lin(0,1,0,1),{xl:'踩实帧占比',xt:[0,0.2,0.4,0.6,0.8,1],xf:v=>Math.round(v*100)+'%',yt:[]});
+  T(f.svg,x(0.7),f.m.t-7,'真实步行 60–80%',{'text-anchor':'middle','font-size':10.5,style:'fill:var(--s-target)'});
+  all.forEach((r,i)=>{const yy=f.m.t+i*rowH;const lab=narrow?r.n.replace('_treadmill','_tm').replace('normal_',''):r.n;T(f.svg,f.m.l-6,yy+rowH/2+4,lab,{'text-anchor':'end','font-size':11,class:'num',style:'fill:var(--ink2)'});
+    const w=Math.max(2,x(r.v)-x(0));const b=E('rect',{x:x(0),y:yy+3,width:w,height:rowH-6,rx:3,style:`fill:${C(FAM[r.f].v)}`},f.svg);
+    T(f.svg,x(0)+w+5,yy+rowH/2+4,(r.v*100).toFixed(r.v<0.1?1:0)+'%',{'font-size':11,class:'num',style:'fill:var(--ink2)'});
+    hover(b,()=>`<b>${r.n}</b><br>踩实帧 <span class="mono">${(r.v*100).toFixed(1)}%</span>${r.n==='36_11'?'<br>多为站在台子上的静止帧':''}`);});
+  if(ref.length){const yy=f.m.t+rows.length*rowH;E('line',{x1:f.m.l-130,x2:f.m.l+f.iw,y1:yy,y2:yy,style:'stroke:var(--rule);stroke-dasharray:3 3'},f.svg);}
+}
+
+// ---------- 7. time series ----------
+let tsKey='103_07';const tsState={};
+function drawTS(){const d=DATA.ts[tsKey];const f=frame('c-ts',280,{t:12,r:16,b:42,l:48});
+  const tmax=d.t[d.t.length-1];const vmax=tsKey==='0000_treadmill_norm'?1.8:3.4;
+  const x=lin(0,tmax,f.m.l,f.m.l+f.iw), y=lin(0,vmax,f.m.t+f.ih,f.m.t);
+  E('rect',{x:f.m.l,y:y(0.1),width:f.iw,height:y(0)-y(0.1),style:'fill:var(--band)'},f.svg);
+  axes(f,x,y,{xl:'时间 (s)',yl:'世界水平速度 (m/s)',yn:4,yf:v=>v.toFixed(1),xf:v=>v.toFixed(1)});
+  const line=(arr,v,w,dash)=>{let p='';arr.forEach((a,i)=>p+=(i?'L':'M')+x(d.t[i])+','+y(a));E('path',{d:p,style:`fill:none;stroke:${C(v)};stroke-width:${w};${dash?'stroke-dasharray:6 4':''}`},f.svg);};
+  if(tsState.root!==false)line(d.root,'--ink',2,true);
+  if(tsState.L!==false)line(d.L,'--s-inplace',2);
+  if(tsState.R!==false)line(d.R,'--s-over',2);
+  const minA=d.L.map((v,i)=>Math.min(v,d.R[i]));const mn=Math.min(...minA);
+  T(f.svg,f.m.l+f.iw-4,y(0.1)-6,`两踝较小者最低 ${mn.toFixed(2)} m/s`,{'text-anchor':'end','font-size':11.5,class:'num',style:'fill:var(--s-target)'});
+  // hover crosshair
+  const cross=E('line',{y1:f.m.t,y2:f.m.t+f.ih,style:'stroke:var(--muted);stroke-width:1',visibility:'hidden'},f.svg);
+  const hit=E('rect',{x:f.m.l,y:f.m.t,width:f.iw,height:f.ih,style:'fill:transparent'},f.svg);
+  const at=ev=>{const r=f.svg.getBoundingClientRect();const tx=(ev.clientX-r.left-f.m.l)/f.iw*tmax;let i=d.t.findIndex(t=>t>=tx);if(i<0)i=d.t.length-1;return i;};
+  hit.addEventListener('pointermove',ev=>{const i=at(ev);cross.setAttribute('x1',x(d.t[i]));cross.setAttribute('x2',x(d.t[i]));cross.setAttribute('visibility','visible');
+    showTip(ev,`t = <span class="mono">${d.t[i].toFixed(2)}</span> s<br>左踝 <span class="mono">${d.L[i].toFixed(2)}</span> · 右踝 <span class="mono">${d.R[i].toFixed(2)}</span><br>根 <span class="mono">${d.root[i].toFixed(2)}</span> m/s`);});
+  hit.addEventListener('pointerleave',()=>{cross.setAttribute('visibility','hidden');hideTip();});
+}
+seg('seg-ts',[{k:'103_07',n:'103_07 平地'},{k:'0000_treadmill_norm',n:'0000 跑步机'}],tsKey,k=>{tsKey=k;drawTS();});
+legend('lg-ts',[{k:'L',n:'左踝',v:'--s-inplace',line:true},{k:'R',n:'右踝',v:'--s-over',line:true},{k:'root',n:'根节点',v:'--ink',line:true}],tsState,drawTS);
+
+// ---------- 8. terrain ----------
+function drawTerrain(){const d=DATA.ts['36_01'];const f=frame('c-terrain',260,{t:12,r:14,b:42,l:48});
+  const x=lin(0,d.t[d.t.length-1],f.m.l,f.m.l+f.iw), y=lin(0,1.2,f.m.t+f.ih,f.m.t);
+  axes(f,x,y,{xl:'时间 (s)',yl:'高度 (m)',yn:4,yf:v=>v.toFixed(1),xf:v=>v.toFixed(0)});
+  const base=Math.min(...d.rz);E('line',{x1:f.m.l,x2:f.m.l+f.iw,y1:y(base),y2:y(base),style:'stroke:var(--muted);stroke-dasharray:4 3'},f.svg);
+  T(f.svg,f.m.l+4,y(base)+14,'平地站立根高',{'font-size':10.5,style:'fill:var(--muted)'});
+  [['rz','--ink','根节点'],['zL','--s-inplace','左踝'],['zR','--s-over','右踝']].forEach(([k,v,n])=>{let p='';d[k].forEach((a,i)=>p+=(i?'L':'M')+x(d.t[i])+','+y(a));E('path',{d:p,style:`fill:none;stroke:${C(v)};stroke-width:2`},f.svg);
+    const li=d[k].length-1;T(f.svg,x(d.t[li])-2,y(d[k][li])-6,n,{'text-anchor':'end','font-size':11,style:`fill:${C(v)}`});});
+  const pk=d.rz.indexOf(Math.max(...d.rz));T(f.svg,x(d.t[pk]),y(d.rz[pk])-10,`+${(Math.max(...d.rz)-base).toFixed(2)} m`,{'text-anchor':'middle','font-size':11.5,class:'num',style:'fill:var(--ink)'});
+}
+
+// ---------- 9. composition ----------
+const compFams=['inplace','jog','over','terrain'];
+function drawComp(){const sets=[['v32 主线','w32'],['v67 设计','w67'],['v67 实际','w67a']];
+  const f=frame('c-comp',sets.length*54+44,{t:8,r:12,b:36,l:76});
+  const x=lin(0,1,f.m.l,f.m.l+f.iw);
+  axes(f,x,lin(0,1,0,1),{xt:[0,0.25,0.5,0.75,1],xf:v=>Math.round(v*100)+'%',yt:[]});
+  sets.forEach(([n,k],i)=>{const tot=clips.reduce((a,c)=>a+c[k],0);let acc=0;const yy=f.m.t+i*54+10;
+    T(f.svg,f.m.l-8,yy+17,n,{'text-anchor':'end','font-size':11.5,style:'fill:var(--ink2)'});
+    compFams.forEach(fk=>{const v=clips.filter(c=>c.f===fk).reduce((a,c)=>a+c[k],0)/tot;if(!v)return;const x0=x(acc),w=x(acc+v)-x0;
+      const r=E('rect',{x:x0+1,y:yy,width:Math.max(0,w-2),height:26,rx:3,style:`fill:${C(FAM[fk].v)}`},f.svg);
+      if(w>34)T(f.svg,x0+w/2,yy+17,Math.round(v*100)+'%',{'text-anchor':'middle','font-size':11,class:'num',style:'fill:#fff;font-weight:500'});
+      hover(r,()=>`<b>${n}</b><br>${FAM[fk].n}: <span class="mono">${(v*100).toFixed(0)}%</span>`);acc+=v;});});
+}
+legend('lg-comp',compFams.map(k=>({k,n:FAM[k].n,v:FAM[k].v,sq:true})));
+
+// ---------- 10. window ----------
+function drawWindow(){const f=frame('c-window',250,{t:14,r:20,b:40,l:110});
+  const T0=1.10,duty=0.66;const x=lin(0,T0,f.m.l,f.m.l+f.iw);
+  axes(f,x,lin(0,1,0,1),{xl:'一个步态周期内的时间 (s)',xt:[0,0.2,0.4,0.6,0.8,1.0,1.1],xf:v=>v.toFixed(1),yt:[]});
+  const rows=[['左脚',0,'--s-inplace'],['右脚',0.5,'--s-over']];
+  rows.forEach(([n,ph,v],i)=>{const yy=f.m.t+i*30;T(f.svg,f.m.l-8,yy+16,n,{'text-anchor':'end','font-size':12});
+    const segs=[];const s0=ph*T0,s1=s0+duty*T0;if(s1<=T0)segs.push([s0,s1]);else{segs.push([s0,T0]);segs.push([0,s1-T0]);}
+    E('rect',{x:x(0),y:yy+4,width:f.iw,height:18,rx:3,style:'fill:var(--grid)'},f.svg);
+    segs.forEach(([a,b])=>E('rect',{x:x(a),y:yy+4,width:x(b)-x(a),height:18,rx:3,style:`fill:${C(v)}`},f.svg));});
+  T(f.svg,f.m.l+f.iw,f.m.t+74,'色块 = 支撑相，灰 = 摆动相',{'text-anchor':'end','font-size':11,style:'fill:var(--muted)'});
+  const wins=[['主线 3 帧 @50Hz',0.04,'--s-target'],['v67 曾用 30 帧',0.60,'--ink2'],['建议 ≥ 半周期',0.55,'--ok']];
+  wins.forEach(([n,w,v],i)=>{const yy=f.m.t+92+i*30;T(f.svg,f.m.l-8,yy+14,n,{'text-anchor':'end','font-size':11.5});
+    const r=E('rect',{x:x(0.30),y:yy+3,width:Math.max(3,x(0.30+w)-x(0.30)),height:16,rx:3,style:`fill:${C(v)}`},f.svg);
+    T(f.svg,x(0.30+w)+6,yy+15,`${Math.round(w*1000)} ms · ${(w/T0*100).toFixed(0)}% 周期`,{'font-size':11,class:'num',style:'fill:var(--ink2)'});
+    hover(r,()=>`<b>${n}</b><br>窗口 ${Math.round(w*1000)} ms，覆盖周期的 ${(w/T0*100).toFixed(0)}%`);});
+}
+
+// ---------- 11. metrics table ----------
+const MET=[
+ [1,'覆盖','步频分布 (步/分)','60 / 异侧着地间隔','判别器只认可数据里出现过的节律','103 [64, 116]','目标落在 P10–P90 内，邻域 ±10 步/分 ≥ 30 s','warn','109 在区间内，129 不在'],
+ [2,'覆盖','单脚步态频率 (Hz)','1 / 同侧着地间隔','与训练中观测的髋摆动频率直接可比','0.82 [0.56, 0.93]','同上','warn','目标 0.91–1.08 只覆盖下沿'],
+ [3,'覆盖','步长分布 (m)','着地瞬间两踝航向系前后距','步长上限决定无滑移下的最低步频','0.30 [0.23, 0.34]','1.0 m/s 附近覆盖 0.40–0.55','bad','不覆盖'],
+ [4,'覆盖','(步频, 步长) 二维覆盖','10 步/分 × 0.05 m 网格内加权步数','独立调两者需要二维展开','3 个簇；r = 0.06','目标邻域每格 ≥ 10 步；同一等速线 ≥ 3 种组合','bad','不覆盖'],
+ [5,'覆盖','步频、步长随速度的斜率','按速度分档回归','决定加速时加步频还是加步长','走→跑：步频 +46%，步长 +10%','两者都随速度上升','bad','只靠步频'],
+ [6,'覆盖','walk ratio (m·min/步)','步长 / 步频','刻画大步慢走还是小步快走','≈ 0.0029','Froude 缩放到 X1 ≈ 0.0036','bad','偏小步'],
+ [7,'覆盖','根世界速度分布 (m/s)','航向系前向速度，按步平均','指令速度区间必须有对应演示','双峰：≈0 和 0.9–1.35','指令范围内每 0.25 m/s 一档有数据','bad','中间空档'],
+ [8,'一致性','运动学速度比','(步长×步频/60) ÷ 根速度','无滑移时 ≈ 1；偏离 = 根平移与腿脚不匹配','原地 ∞；平地 ≈ 0.45','0.9–1.1','bad','重定向伪影'],
+ [9,'一致性','支撑中段滑移 (m/s)','支撑 25–75% 踝世界水平速度中位数','世界系速度进判别器，滑脚演示惩罚踩实','0.53 [0.26, 1.08]','< 0.1','bad','一直在滑'],
+ [10,'一致性','踩实帧占比','至少一踝世界速度 < 0.1 m/s 的帧（加权）','同上，且与拖步直接相关','2.4%','步行 ≥ 60%','bad','几乎没有'],
+ [11,'一致性','非平地帧占比','根抬升 > 8 cm 或双脚离地 > 8 cm','平地训练不可达，污染步态分布','3.9%（CMU36 单片 20–46%）','0','bad','含踏台'],
+ [12,'一致性','帧率与播放速度','pkl fps 与源动捕帧率对照','2 倍播放 = 2 倍步频','103_07 = 60 fps，正确','与源一致','ok','通过'],
+ [13,'一致性','片内变异系数','片内步频、步长 CV','低 CV = 干净的周期样本','步频约 ±5%','< 10%','ok','通过'],
+ [14,'一致性','左右对称','左/右步长与步时之比','不对称让两侧节律不同','镜像保证','0.95–1.05','ok','通过'],
+ [15,'一致性','权重集中度','各片段/各类占采样概率','少数片段主导时风格由它们决定','74% 权重在原地片段','单类 ≤ 50%，单源 ≤ 20%','warn','类别失衡'],
+ [16,'可观测','判别器窗口 / 步态周期','AMP_NUM_STEPS × 控制周期 ÷ 步态周期','窗口太短看不到节律','40 ms / 1.1 s ≈ 0.04','≥ 0.5','bad','看不到'],
+ [17,'可观测','摆动离地高度 (mm)','摆动期踝最高点 − 支撑高度','与步长共同决定步幅风格；长尾 = 非平地','71 [48, 480]','平地 40–120，无长尾','warn','有长尾']
+];
+const STL={bad:'不达标',warn:'部分',ok:'达标'};
+let catKey='全部';
+function drawTable(){const tb=document.querySelector('#tbl tbody');tb.innerHTML=MET.filter(m=>catKey==='全部'||m[1]===catKey).map(m=>`<tr><td class="v">${m[0]}</td><td><b>${m[2]}</b><div class="cat">${m[1]} · ${m[3]}</div></td><td><span class="why">${m[4]}</span></td><td class="v">${m[5]}</td><td>${m[6]}</td><td><span class="pill ${m[7]}">${STL[m[7]]}</span><div class="cat" style="margin-top:3px">${m[8]}</div></td></tr>`).join('');}
+seg('seg-cat',['全部','覆盖','一致性','可观测'].map(k=>({k,n:k})),'全部',k=>{catKey=k;drawTable();});
+(function(){const cnt={bad:0,warn:0,ok:0};MET.forEach(m=>cnt[m[7]]++);const v={bad:'--bad',warn:'--warn',ok:'--ok'};
+  document.getElementById('scorebar').innerHTML=['bad','warn','ok'].map(k=>`<span style="flex:${cnt[k]};background:${C(v[k])}"></span>`).join('');
+  document.getElementById('scoreleg').innerHTML=['bad','warn','ok'].map(k=>`<span class="pill ${k}">${STL[k]} ${cnt[k]}</span>`).join('');})();
+
+// ---------- 12. compare & amount ----------
+function drawCmp(){const pw=P.x1_walk,pr=P.rpo_walk;const rows=[
+  ['步频 (步/分)',[pw.cadence_spm,pr.cadence_spm],50,140,0],
+  ['步长 (m)',[pw.step_len,pr.step_len],0,0.7,2],
+  ['腿部速度 (m/s)',[pw.v_legs,pr.v_legs],0,1.2,2],
+  ['支撑滑移 (m/s)',[pw.slip,pr.slip],0,1.2,2]];
+  const f=frame('c-cmp',rows.length*80+10,{t:6,r:16,b:4,l:16});
+  rows.forEach(([n,vals,lo,hi,d],i)=>{const yy=f.m.t+i*80;T(f.svg,f.m.l,yy+12,n,{'font-size':12,style:'fill:var(--ink)'});
+    const x=lin(lo,hi,f.m.l+4,f.m.l+f.iw-4);
+    E('line',{x1:x(lo),x2:x(hi),y1:yy+52,y2:yy+52,style:'stroke:var(--rule)'},f.svg);
+    nice(lo,hi,4).forEach(v=>{E('line',{x1:x(v),x2:x(v),y1:yy+52,y2:yy+56,style:'stroke:var(--muted)'},f.svg);T(f.svg,x(v),yy+67,d===0?v:(+v).toFixed(1),{'text-anchor':'middle','font-size':10,class:'num',style:'fill:var(--muted)'});});
+    vals.forEach((q,j)=>{const y0=yy+24+j*14,col=j?'--s-rpo':'--s-inplace';
+      E('line',{x1:x(q.p2_5),x2:x(q.p97_5),y1:y0,y2:y0,style:`stroke:${C(col)};stroke-width:4;stroke-linecap:round`},f.svg);
+      const c=E('circle',{cx:x(q.p50),cy:y0,r:5,style:`fill:${C(col)};stroke:var(--surface);stroke-width:2`},f.svg);
+      hover(c,()=>`<b>${j?'rpo_lab 步行':'X1 v32 步行'}</b> · ${n}<br>中位 <span class="mono">${fmt(q.p50,d)}</span>，95% <span class="mono">${fmt(q.p2_5,d)}–${fmt(q.p97_5,d)}</span>`);});});
+}
+legend('lg-cmp',[{n:'X1 v32 步行（上）',v:'--s-inplace'},{n:'rpo_lab 步行（下）',v:'--s-rpo'}]);
+function drawAmount(){const rows=[['AMP (Peng 2021) Locomotion',434],['X1 v32（本项目）',140],['rpo_lab 步行子集',110],['AMP for hardware (A1)',4.5]];
+  const narrow=document.getElementById('c-amount').clientWidth<420;const f=frame('c-amount',rows.length*34+50,{t:8,r:44,b:40,l:narrow?150:190});
+  const x=logs(1,1000,f.m.l,f.m.l+f.iw);axes(f,x,lin(0,1,0,1),{xl:'秒（对数）',xt:[1,10,100,1000],yt:[]});
+  rows.forEach(([n,v],i)=>{const yy=f.m.t+i*34;T(f.svg,f.m.l-8,yy+20,n,{'text-anchor':'end','font-size':11.5,style:'fill:var(--ink2)'});
+    E('rect',{x:x(1),y:yy+8,width:x(v)-x(1),height:18,rx:3,style:`fill:${C(n.startsWith('X1')?'--s-inplace':'--s-rpo')}`},f.svg);
+    T(f.svg,x(v)+5,yy+21,v+' s',{'font-size':11,class:'num',style:'fill:var(--ink2)'});});
+}
+document.getElementById('tbl-os').innerHTML=[
+ ['X1 v32（本项目）','X1 29DOF','11 源片段，约 140 s；74% 权重原地','数据分布：步长 0.30 m，踩实帧 2.4%'],
+ ['<a href="https://github.com/Roboparty/legged_lab" target="_blank" rel="noopener">Roboparty rpo_lab</a>','RPO','步行子集 11 片段约 110 s；上游 AMP 默认只用 7 个站/跑/侧移片段','数据分布：步长 0.47 m，踩实帧 10–20%'],
+ ['<a href="https://arxiv.org/pdf/2104.02180" target="_blank" rel="noopener">AMP, Peng 2021</a>','仿真人形','Locomotion 56 片段 / 434 s / 8 人','数据分布；判别器只看相邻两帧'],
+ ['<a href="https://arxiv.org/pdf/2203.15103" target="_blank" rel="noopener">AMP for hardware 2022</a>','Unitree A1','共 4.5 s 德牧动捕','按能效涌现，不受数据控制'],
+ ['<a href="https://arxiv.org/pdf/2605.18611" target="_blank" rel="noopener">State-dependent AMP 2026</a>','G1','3 个 LAFAN1 片段','按指令速度切换 walk/run 参考'],
+ ['<a href="https://arxiv.org/pdf/2604.19102" target="_blank" rel="noopener">Selective AMP 2026</a>','人形','未公开片段数','相位驱动的正弦参考显式规定周期（步行 0.8 s）'],
+ ['<a href="https://arxiv.org/pdf/2509.20696" target="_blank" rel="noopener">RuN 2025</a>','G1','AMASS 筛出 400 段 + 镜像','按速度直方图重采样，速度条件化生成']
+].map(r=>`<tr>${r.map((c,i)=>`<td>${i===0?'<b>'+c+'</b>':c}</td>`).join('')}</tr>`).join('');
+
+// ---------- render ----------
+function renderAll(){drawScatter();drawHists();drawRange();drawScales();drawSlip();drawPlanted();drawTS();drawTerrain();drawComp();drawWindow();drawCmp();drawAmount();}
+drawTable();renderAll();
+let rt;let lastW=innerWidth;addEventListener('resize',()=>{if(Math.abs(innerWidth-lastW)<4)return;lastW=innerWidth;clearTimeout(rt);rt=setTimeout(renderAll,150);});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(renderAll);
+</script>
+
+</body></html>
