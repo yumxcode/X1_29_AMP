@@ -256,6 +256,11 @@ def main():
         # reported as repair_frac)
         bad = (ik_pos.max(axis=1) > 30e-3)
         repair_frac = float(bad.mean())
+        # TRUE stats snapshotted BEFORE any repair bookkeeping (drift review:
+        # repaired frames stay visible in p99/max_true; the joint
+        # interpolation is recorded via repair_frac + non-repaired max)
+        ik_pos_true = ik_pos.copy()
+        ik_pos_max_nonrepaired = float(ik_pos[~bad].max() * 1000) if (~bad).any() else 0.0
         if bad.any():
             good = np.flatnonzero(~bad)
             if len(good) >= 2:
@@ -265,6 +270,10 @@ def main():
                     w = (t - lo) / max(hi - lo, 1)
                     for s_ in "LR":
                         q_new[t, leg_idx[s_]] = (1 - w) * q_new[lo, leg_idx[s_]] + w * q_new[hi, leg_idx[s_]]
+                    # repaired-frame bookkeeping: the TRUE pre-repair
+                    # residual lives in ik_pos_true (reported); the running
+                    # ik_pos array is zeroed so downstream aggregate gates
+                    # use non-repaired values.
                     ik_pos[t] = 0.0
 
         kb = np.zeros((Tn, 10, 3), dtype=np.float32)
@@ -286,14 +295,15 @@ def main():
         dq = np.abs(np.diff(q_new, axis=0))
         rep = dict(
             frames=Tn,
-            ik_pos_max_mm=float(ik_pos.max() * 1000),
-            ik_pos_p99_mm=float(np.percentile(ik_pos, 99) * 1000),
+            ik_pos_max_mm=float(ik_pos_true.max() * 1000),
+            ik_pos_p99_mm=float(np.percentile(ik_pos_true, 99) * 1000),
             ik_pos_mean_mm=float(ik_pos.mean() * 1000),
             ik_rot_max_deg=float(np.degrees(ik_rot.max())),
             key_min_z_mm=float(minz * 1000),
             knee_sat_frac=float(knee_sat.mean()),
             shrink_p05=float(np.percentile(shrink_log, 5)),
             repair_frac=repair_frac,
+            ik_pos_max_nonrepaired_mm=ik_pos_max_nonrepaired,
             shrink_mean=float(shrink_log.mean()),
             smooth_med=float(np.median(dq)) if Tn > 1 else 0.0,
             smooth_p99=float(np.percentile(dq, 99)) if Tn > 1 else 0.0,
