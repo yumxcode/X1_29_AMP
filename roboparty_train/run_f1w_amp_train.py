@@ -200,9 +200,11 @@ def phase_train() -> int:
 
     resume_ckpt = os.environ.get("F1_RESUME_CKPT", "").strip()
     if not resume_ckpt:
+        import re as _re
         def _num(p):
-            s = p.stem[len("model_"):]
-            return int(s) if s.isdigit() else -1
+            # platform-mounted names: model_1500_20261110185133A467.pt
+            m = _re.match(r"model_(\d+)", p.stem)
+            return int(m.group(1)) if m else -1
         cands = sorted((p for p in REPO_ROOT.glob("model_*.pt") if _num(p) >= 0), key=_num)
         if cands:
             resume_ckpt = str(cands[-1])
@@ -223,7 +225,7 @@ def phase_train() -> int:
         dst = resume_run / (src.stem + ".bin")
         shutil.copy2(src, dst)
         cmd += ["--resume", "--load_run", "_resume_src",
-                "--checkpoint", src.stem + ".bin",
+                "--checkpoint", src.stem + ".bin",  # regex; src.stem renamed .bin above
                 "--max_iterations", os.environ.get("F1_FINE_TUNE_ITERS", "1500")]
         print(f"[RESUME] fine-tune from {src.name} (+.bin stealth rename) "
               f"+{os.environ.get('F1_FINE_TUNE_ITERS', '1500')}")
