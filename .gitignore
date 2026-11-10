@@ -133,3 +133,4 @@ tmux-client-*.log
 # STLs; the flattened binary set F1_29DOF_weilai/mjcf/meshes IS tracked and
 # covers both MuJoCo MJCF and the Isaac URDF). SYS-SPEC source URDF tracked.
 F1_29DOF_weilai/meshes/
+MUJOCO_LOG.TXT
