@@ -30,3 +30,7 @@ X1_CONTROL_HZ=50
 F1W_ITERS=6000
 # play rollout at the contract run target
 F1W_PLAY_VEL=1.6
+
+# resume budget: v1e died at ~1650 iters on balance; resume from model_1500
+# needs 4500 more to reach the 6000 plan
+F1W_FINE_TUNE_ITERS=4500
