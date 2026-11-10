@@ -1,0 +1,17 @@
+{
+ "ckpt": "roboparty_train/checkpoints/f1w_v1h_model_5998.pt",
+ "cmd": [
+  0.3,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 37,
+ "survived_s": 0.74,
+ "mean_vxy_err": 0.9051528639657487,
+ "mean_yaw_err": 1.261329582264894,
+ "distance_m": 0.39622643191568246,
+ "final_base_z": 0.29983118792641217,
+ "fell": true
+}

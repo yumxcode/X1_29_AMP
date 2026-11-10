@@ -1,0 +1,17 @@
+{
+ "ckpt": "roboparty_train/checkpoints/model_8397_v95.pt",
+ "cmd": [
+  1.0,
+  0.0,
+  0.0
+ ],
+ "duration_s": 8.0,
+ "settle_s": 0.5,
+ "survived_steps": 375,
+ "survived_s": 7.5,
+ "mean_vxy_err": 0.11976535189176081,
+ "mean_yaw_err": 0.2451757681371612,
+ "distance_m": 6.743344157450606,
+ "final_base_z": 0.5954409478416987,
+ "fell": false
+}

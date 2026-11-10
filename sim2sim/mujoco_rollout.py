@@ -390,13 +390,12 @@ def load_policy(ckpt_path: Path):
     ck = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     sd = ck["model_state_dict"]
     actor_sd = {k[len("actor."):]: v for k, v in sd.items() if k.startswith("actor.")}
-    layers, i = [], 1
-    while f"{i}.weight" in actor_sd:
-        w = actor_sd[f"{i}.weight"].float().numpy()
-        b = actor_sd.get(f"{i}.bias")
-        b = b.float().numpy() if b is not None else None
-        layers.append((w, b))
-        i += 1
+    # rsl_rl Sequential indices may be 0-based (F1w: actor.0/2/4/6 with ELU
+    # at odd indices) or 1-based (X1 arc) — collect numerically.
+    idxs = sorted(int(k.split(".")[0]) for k in actor_sd if k.endswith(".weight"))
+    layers = [(actor_sd[f"{i}.weight"].float().numpy(),
+               actor_sd[f"{i}.bias"].float().numpy() if f"{i}.bias" in actor_sd else None)
+              for i in idxs]
     mean = sd["actor_obs_normalizer._mean"].float().numpy().squeeze(0)
     std = sd["actor_obs_normalizer._std"].float().numpy().squeeze(0)
     meta = {k: ck.get(k) for k in ("it", "infos")}
@@ -415,27 +414,44 @@ def run_policy(layers, mean, std, obs):
 
 
 def find_sole_geoms(model):
-    """Identify, per foot, the 4 vendor collision-class sole spheres
-    (contype=1, r=0.002) on each ankle_roll_link body, ordered
-    [front_l, front_r, back_l, back_r] by local-frame z (+0.07 front,
-    -0.07 heel) then x. Returns {foot_body_name: [4 geom ids]} and the
-    floor geom id. Used by --log for gait-quality analysis."""
+    """Identify, per foot, the 4 vendor sole spheres on each ankle_roll
+    body and the floor geom id.
+
+    X1: 4 collision-class spheres (contype=1, r=0.002) serve both as
+    position probes and contact points.
+    F1w (weilai): the vendor xml has (a) 4 NON-colliding measurement
+    spheres at the sole plane (contype=0, z=-0.0297) and (b) a separate
+    collision mesh + 4 low spheres — contacts can land on ANY of them.
+    We therefore return sole_gids = the measurement spheres (positions,
+    sorted [heel_l, heel_r, toe_l, toe_r] matching the X1 column
+    semantics — gait_metrics LABELING CAVEAT: cols [0,1] are the heel
+    end) AND foot_colliders = per-foot list of ALL colliding geom ids of
+    that body (contact attribution). Used by --log for gait analysis."""
     import mujoco
     floor = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
     out = {}
+    colliders = {}
     for b in range(model.nbody):
         name = model.body(b).name
         if not (name.endswith("ankle_roll_link") or name.endswith("ankle_roll")):
             continue
         g0, gnum = int(model.body_geomadr[b]), int(model.body_geomnum[b])
-        gids = [g for g in range(g0, g0 + gnum)
-                if model.geom_contype[g] and model.geom_type[g] == mujoco.mjtGeom.mjGEOM_SPHERE
-                and model.geom_size[g, 0] < 0.01]
-        if len(gids) != 4:
-            raise RuntimeError(f"{name}: expected 4 sole spheres, got {len(gids)}")
-        gids.sort(key=lambda g: (model.geom_pos[g, 2] < 0, model.geom_pos[g, 0] < 0))
-        out[name] = gids
-    return out, floor
+        spheres = [g for g in range(g0, g0 + gnum)
+                   if model.geom_type[g] == mujoco.mjtGeom.mjGEOM_SPHERE
+                   and model.geom_size[g, 0] < 0.01]
+        colliding = [g for g in range(g0, g0 + gnum) if model.geom_contype[g]]
+        if len(spheres) >= 4:
+            probes = [g for g in spheres if not model.geom_contype[g]] or spheres
+            if len(probes) < 4:                       # mixed case: fall back
+                probes = spheres
+            probes = sorted(probes[:4], key=lambda g: (model.geom_pos[g, 0] < 0,
+                                                       model.geom_pos[g, 1] < 0))
+            out[name] = probes
+        elif spheres:                                  # X1: exactly 4 colliders
+            out[name] = sorted(spheres[:4], key=lambda g: (model.geom_pos[g, 2] < 0,
+                                                           model.geom_pos[g, 0] < 0))
+        colliders[name] = colliding
+    return out, floor, colliders
 
 
 class SoftRenderer:
@@ -614,9 +630,16 @@ def main():
                 n_damped += 1
         print(f"[INFO] ankle damping x{args.ankle_damp} ({n_damped} joints)")
     data = mujoco.MjData(model)
-    soles, floor_id = find_sole_geoms(model)
+    soles, floor_id, foot_colliders = find_sole_geoms(model)
     foot_names = sorted(soles)          # [left_..., right_...]
     sole_gids = np.array([soles[f] for f in foot_names])  # (2, 4)
+    # f1w: contacts may land on the foot collision mesh — attribute any
+    # contact geom owned by a foot body to that foot row (contact_dist
+    # reports the per-foot min; gait segmentation uses sole z anyway)
+    geom2foot = {}
+    for f, fname in enumerate(foot_names):
+        for g in foot_colliders.get(fname, []):
+            geom2foot[g] = f
 
     # joint indices (MuJoCo) and lab->mj mapping
     mj_names = [model.joint(i).name for i in range(model.njnt)]
@@ -842,16 +865,22 @@ def main():
                 print(f"[FALL] step {step} t={step*CONTROL_DT:.2f}s base_z={base_z:.3f} tilt={tilt:.1f}")
                 break
         if LOG:
-            cd = np.zeros((2, 4))
+            cd = np.full((2, 4), np.inf)
             for ci in range(data.ncon):
                 c = data.contact[ci]
                 g1, g2 = c.geom1, c.geom2
                 if g1 != floor_id and g2 != floor_id:
                     continue
                 other = g2 if g1 == floor_id else g1
-                fi, si = np.argwhere(sole_gids == other)[0]
-                if cd[fi, si] == 0.0 or c.dist < cd[fi, si]:
-                    cd[fi, si] = c.dist        # negative = penetration
+                fi = geom2foot.get(int(other))
+                if fi is None:
+                    fi_row = np.argwhere(sole_gids == other)
+                    if len(fi_row):
+                        fi = int(fi_row[0][0])
+                if fi is None:
+                    continue
+                cd[fi, :] = min(cd[fi, 0], c.dist)   # per-foot min, broadcast
+            cd[cd == np.inf] = 0.0
             L["t"].append(step * CONTROL_DT)
             # re-read at END of step (q/dq locals are from step start)
             L["q"].append(data.qpos[qadr].copy())

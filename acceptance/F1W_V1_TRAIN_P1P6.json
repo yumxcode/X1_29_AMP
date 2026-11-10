@@ -1,0 +1,65 @@
+{
+ "verdict": "FAIL",
+ "checks": {
+  "P1_iters": {
+   "pass": true,
+   "detail": "5999 iterations logged, last=5998 / 6000 plan"
+  },
+  "P2a_ep_len": {
+   "pass": true,
+   "detail": "ep_len 978.2 >= 950"
+  },
+  "P2b_timeout": {
+   "pass": true,
+   "detail": "timeout 0.952 >= 0.95"
+  },
+  "P2c_base_contact": {
+   "pass": false,
+   "detail": "base_contact 0.0012 <= 0.0"
+  },
+  "P2d_bad_sum": {
+   "pass": false,
+   "detail": "bad_orientation 0.0276 + base_height 0.0207 = 0.0483 <= 0.03"
+  },
+  "P3a_lin_kernel": {
+   "pass": false,
+   "detail": "lin kernel 0.2632 >= 0.82"
+  },
+  "P3b_ang_kernel": {
+   "pass": true,
+   "detail": "ang kernel 0.9706 >= 0.5"
+  },
+  "P3c_err_xy": {
+   "pass": false,
+   "detail": "error_vel_xy 2.2215 <= 0.44"
+  },
+  "P3d_err_yaw": {
+   "pass": true,
+   "detail": "error_vel_yaw 0.4805 <= 0.95"
+  },
+  "P4_ratio": {
+   "pass": true,
+   "detail": "last100 26.66 >= 0.90 x rolling-best 27.31"
+  },
+  "P5a_style": {
+   "pass": false,
+   "detail": "style 0.0061 >= 0.15"
+  },
+  "P5b_disc_loss": {
+   "pass": true,
+   "detail": "disc_loss 0.0001 <= 0.05"
+  }
+ },
+ "fails": [
+  "P2c_base_contact",
+  "P2d_bad_sum",
+  "P3a_lin_kernel",
+  "P3c_err_xy",
+  "P5a_style"
+ ],
+ "provenance": {
+  "metrics": "rsl_rl TensorBoard scalars via gm task data get (same runner metrics as train stdout; stdout file not retrievable from the platform)",
+  "stitch": "v1e TASK_20261110_162 (0-1644) + v1g TASK_20261110_210 (1500-2999) + v1h TASK_20261110_233 (2999-5998)",
+  "thresholds": "acceptance/check_amp.py TH dict, verbatim"
+ }
+}
