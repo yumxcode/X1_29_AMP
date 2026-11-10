@@ -72,82 +72,94 @@ def leg_reach(urdf, side):
     return float(np.linalg.norm(T[:3, 3] - hip))
 
 
-def solve_leg(fk, chain, T_base, p_t, R_t, q0, limits, seeds=None, w_rot=None):
-    """Two-stage leg IK (2026-11-10 debug: naive 6-D DLS stalls — the
-    orientation error (X1 sign-convention ankle pose) poisons the step
-    direction and the POSITION residual freezes at 20-50mm even on easy
-    walk frames; position-only DLS converges 234mm->0.01mm in 5 iters).
-    Stage A: position-only convergence (<=0.5 mm).
-    Stage B: bounded orientation refinement (small rot weight, keep the
-             best position along the way; abort on drift)."""
+def solve_leg(fk, chain, T_base, p_t, R_t, q0, limits, seeds=None, w_rot=None, bounds=None):
+    """v9 CONTINUITY-TRUST leg IK.
 
-    def clamp(qs, margin=0.0):
-        return [max(l + margin, min(u - margin, v)) for v, (l, u) in zip(qs, limits)]
+    v1 postmortem (exp_6c5f8f01): the v7 position-DLS converged to
+    mm-accurate solutions in WRONG configuration regimes (60-90 deg
+    offsets vs the X1 source, e.g. hip_yaw pinned at its limit) and
+    hopped between regimes frame to frame -> library joint velocities
+    p95 41-68 rad/s (10x physical) -> the AMP discriminator's joint-vel
+    channels saw an unmatchable demo distribution -> disc_loss ~0 by
+    iter 1500 -> style 0.006 -> non-tracking survival gait.
 
-    def run(qs):
-        qs = clamp(list(qs))
-        best_q, best_e = list(qs), np.inf
-        # ---- stage A: position-only DLS ----
-        for it in range(MAX_ITER):
-            T = fk.fk_chain(chain, qs, T_base)
-            p_c, R_c = T[:3, 3], T[:3, :3]
-            e3 = p_t - p_c
+    v9 design (each element targeted at one measured failure):
+    - TRUST REGION: DLS steps capped at 0.05 rad, 150 iterations (the v7
+      0.5 rad cap x 25 iters let a single near-singular step jump
+      basins: measured 0.4-0.9 rad jumps with 0.01-1.3 mm residual).
+    - LOCAL BEST: the accepted iterate must stay within 0.15 rad of the
+      seed (v7 tracked the global best across the whole wander).
+    - PURE CONTINUITY: the ONLY seed is the previous frame's solution
+      (X1 source pose at t=0). No LEG_SEEDS racing (v7's best-residual
+      pick among multi-branch candidates is exactly what flip-flopped).
+    - FALLBACK (residual > 6 mm): position-priority re-solve then
+      RADIAL PULL-IN of the target about the hip (knee 90 deg cap vs
+      X1 114.6 makes some X1-ankle targets unreachable on the natural
+      branch), still seeded from the previous solution.
+    """
+    lo = [l for l, _ in limits]
+    hi = [u for _, u in limits]
+    if bounds is not None:
+        lo = [max(a, b[0]) for a, b in zip(lo, bounds)]
+        hi = [min(a, b[1]) for a, b in zip(hi, bounds)]
+
+    def clamp_arr(x):
+        return np.clip(x, lo, hi)
+
+    def dls(qs, target, step_cap, iters, seed, halo):
+        qs = clamp_arr(np.asarray(qs, dtype=float))
+        seed = np.asarray(seed, dtype=float)
+        best_q, best_e = qs.copy(), np.inf
+        for it in range(iters):
+            T = fk.fk_chain(chain, list(qs), T_base)
+            e3 = target - T[:3, 3]
             err = float(np.linalg.norm(e3))
-            if err < best_e:
-                best_e, best_q = err, list(qs)
-            if err < 5e-4:
+            if err < best_e and float(np.max(np.abs(qs - seed))) <= halo:
+                best_e, best_q = err, qs.copy()
+            if err < 3e-4:
                 break
             J = np.zeros((3, 6))
             for k in range(6):
                 dq = np.zeros(6)
                 dq[k] = 1e-6
-                Tk = fk.fk_chain(chain, [q + d for q, d in zip(qs, dq)], T_base)
-                J[:, k] = (Tk[:3, 3] - p_c) / 1e-6
-            JJt = J @ J.T + (DAMP ** 2) * np.eye(3)
-            dqv = J.T @ np.linalg.solve(JJt, e3)
-            np.clip(dqv, -STEP_CAP, STEP_CAP, out=dqv)
-            qs = clamp([q + d for q, d in zip(qs, dqv)])
-        # ---- stage B: orientation refinement ----
-        for it in range(8):
-            T = fk.fk_chain(chain, qs, T_base)
-            p_c, R_c = T[:3, 3], T[:3, :3]
-            e = np.concatenate([p_t - p_c, 0.1 * axis_angle(R_t @ R_c.T)])
-            err = float(np.linalg.norm(e[:3]))
-            if err < best_e:
-                best_e, best_q = err, list(qs)
-            elif err > best_e * 1.5 + 1e-3:
-                break
-            J = np.zeros((6, 6))
-            for k in range(6):
-                dq = np.zeros(6)
-                dq[k] = 1e-6
-                Tk = fk.fk_chain(chain, [q + d for q, d in zip(qs, dq)], T_base)
-                J[:, k] = np.concatenate([(Tk[:3, 3] - p_c) / 1e-6,
-                                          axis_angle(Tk[:3, :3] @ R_c.T) / 1e-6])
-            JJt = J @ J.T + (DAMP ** 2) * np.eye(6)
-            dqv = J.T @ np.linalg.solve(JJt, e)
-            np.clip(dqv, -0.1, 0.1, out=dqv)
-            qs = clamp([q + d for q, d in zip(qs, dqv)])
-        T = fk.fk_chain(chain, qs, T_base)
-        err = np.linalg.norm(T[:3, 3] - p_t)
-        if err < best_e:
-            best_e, best_q = err, list(qs)
+                J[:, k] = (fk.fk_chain(chain, [q + d for q, d in zip(qs, dq)], T_base)[:3, 3]
+                           - T[:3, 3]) / 1e-6
+            dqv = J.T @ np.linalg.solve(J @ J.T + (DAMP ** 2) * np.eye(3), e3)
+            np.clip(dqv, -step_cap, step_cap, out=dqv)
+            qs = clamp_arr(qs + dqv)
         return best_q, best_e
 
-    candidates = [q0]
-    if seeds:
-        candidates += list(seeds)
-    best = None
-    for cand in candidates:
-        q, e = run(cand)
-        if best is None or e < best[1]:
-            best = (q, e)
-        if e < TOL_POS * 0.5:
-            break
-    q, e = best
-    T = fk.fk_chain(chain, q, T_base)
+    seed = np.asarray(q0, dtype=float)
+    qs, ep = dls(seed, p_t, 0.05, 150, seed, 0.15)
+    if ep > 3e-3:
+        # v9c KNEE-LOCK RETRY: measured failure mode = period-2 oscillation
+        # between IK branches 30+ deg apart (knee 0 <-> 32 deg on adjacent
+        # walk frames) whenever the continuity solve lands 3-6 mm out and
+        # the wide-halo fallback jumps branches. Locking the knee at the
+        # previous frame's value (+-0.05) and re-solving usually converges
+        # < 3 mm on the SAME branch (the target moved only mm).
+        # lock BOTH oscillating joints: knee (slot 3, +-0.05) and hip_yaw
+        # (slot 2, +-0.10 — measured +-13-14 deg period-2 oscillation)
+        saved = {}
+        for slot, m in ((3, 0.05), (2, 0.10)):
+            lo_s, hi_s = lo[slot], hi[slot]
+            saved[slot] = (lo_s, hi_s)
+            lo[slot] = max(lo_s, float(seed[slot]) - m)
+            hi[slot] = min(hi_s, float(seed[slot]) + m)
+        qs2, ep2 = dls(seed, p_t, 0.05, 150, seed, 0.15)
+        for slot, (lo_s, hi_s) in saved.items():
+            lo[slot], hi[slot] = lo_s, hi_s
+        # HYSTERESIS ACCEPTANCE: the two IK branches have near-TIE residuals
+        # (~0.1-0.3 mm apart); taking whichever is strictly lower flips
+        # branches frame to frame. Stay on the previous frame's branch
+        # whenever it solves within 6 mm — unconditionally.
+        if ep2 <= 6e-3 or ep2 < ep:
+            qs, ep = qs2, ep2
+    if ep > 6e-3:
+        qs, ep = dls(seed, p_t, 0.15, 150, seed, 2.0)
+    T = fk.fk_chain(chain, list(qs), T_base)
     rot_err = np.linalg.norm(axis_angle(R_t @ T[:3, :3].T))
-    return np.array(q), e, rot_err
+    return np.array(qs), ep, rot_err
 
 
 def main():
@@ -172,6 +184,19 @@ def main():
     print(f"[INFO] reach X1={REACH_X1['L']*1000:.1f}mm weilai={REACH_W['L']*1000:.1f}mm "
           f"V_SCALE={V_SCALE['L']:.4f}/{V_SCALE['R']:.4f}")
     limits = {s: [(f1w.joints[j]["lower"], f1w.joints[j]["upper"]) for j in LEG_CHAIN[s]] for s in "LR"}
+    # v8b HIP-YAW IK BOX (v1 negative result root cause, precise): the
+    # position-only DLS finds a solution family with hip_yaw PINNED at its
+    # +-90 deg limit (position residual still <=1.5mm — leg reaching
+    # sideways via saturated hip_yaw + hip_roll). Continuity keeps the
+    # saturated branch for a stretch, then a single-frame 90 deg flip when
+    # leaving it (dof velocity up to 190 rad/s). Running/walking never
+    # uses hip_yaw beyond ~20 deg — clamp the IK search box to +-0.5 rad
+    # (inside the true +-1.571 limit; physically legitimate, removes the
+    # pathological basin). Reported per clip if the box binds.
+    for s in "LR":
+        pre = "left" if s == "L" else "right"
+        iy = LEG_CHAIN[s].index(f"{pre}_hip_yaw_joint")
+        limits[s][iy] = (-0.5, 0.5)
     leg_idx = {s: [lab.index(j) for j in LEG_CHAIN[s]] for s in "LR"}
     os.makedirs(args.dst, exist_ok=True)
 
@@ -203,47 +228,30 @@ def main():
                 hw = Tbase[:3, :3] @ hip_w[sd] + rp[t]
                 d = Tt[:3, 3] - hx1
                 d[2] *= V_SCALE[sd]
+                # v9b REACH CLAMP: near full extension the knee is weakly
+                # determined by position alone and oscillates frame to frame
+                # (measured 2.6deg -> 0.08deg -> 32deg on v9). Clamping the
+                # target radius to 97% of leg reach keeps the knee inside a
+                # well-determined flexed regime.
+                r_t = float(np.linalg.norm(d))
+                r_cap = 0.97 * REACH_W[sd]
+                if r_t > r_cap:
+                    d = d * (r_cap / r_t)
                 R_t = Tt[:3, :3]
+                # v9: pure continuity seed (prev frame / X1 source at t=0);
+                # the solver's internal fallback handles hard frames.
                 seed0 = qprev[sd] if qprev[sd] is not None else [q[t, i] for i in leg_idx[sd]]
-                # knee-deterministic seed variant: near full extension the
-                # knee is weakly determined by position alone; bias it toward
-                # the X1 source knee (sign matches on knees, clamp to limit)
-                kx1 = min(max(q[t, leg_idx[sd][3]], 0.0), limits[sd][3][1] - 0.02)
-                seed_knee = list(seed0); seed_knee[3] = kx1
-                # target-shrink projection: weilai knee caps at 90 deg (X1
-                # 114.6) -> sprint swing-recovery poses are unreachable
-                # (p99 43-113mm pre-projection). Pull the target toward the
-                # hip in 5% steps until reachable (<=3mm). Preserves the
-                # trajectory shape at the largest feasible scale; the shrink
-                # factor is reported per clip (honesty: the demo shows a
-                # less-extreme heel recovery than the source).
-                # Knee-capped projection (weilai knee 90 deg vs X1 114.6):
-                # 1) full-tracking solve (multi-start);
-                # 2) if position residual > 6 mm: POSITION-PRIORITY re-solve
-                #    (orientation weight 0.05 — the disc observes joints, not
-                #    world foot orientation);
-                # 3) still failing: BIDIRECTIONAL radial projection of the
-                #    target about the hip — push OUT (x1.05) when the pose
-                #    demands more flexion than 90 deg, pull IN when
-                #    over-extended; the effective scale is reported.
                 shrink = 1.0
                 qs, ep, er = solve_leg(f1w, LEG_CHAIN[sd], Tbase, hw + d, R_t,
-                                       seed0, limits[sd],
-                                       seeds=LEG_SEEDS + [seed_knee])
+                                       seed0, limits[sd])
                 if ep > 6e-3:
-                    qs, ep, er = solve_leg(f1w, LEG_CHAIN[sd], Tbase, hw + d, R_t,
-                                           qs, limits[sd], w_rot=0.05)
-                    r = float(np.linalg.norm(d))
-                    reach = REACH_W[sd]
-                    # direction LOCKED at entry: flexion-limited (deep
-                    # target) pushes out; over-extended pulls in. No
-                    # mid-loop flip (would ping-pong at the boundary).
-                    step = 1.05 if r < 0.75 * reach else 0.95
-                    while ep > 6e-3 and 0.55 < shrink < 1.30:
-                        shrink *= step
+                    # radial pull-in about the hip until reachable (knee
+                    # 90 deg cap vs X1 114.6): reported per clip
+                    while ep > 6e-3 and 0.55 < shrink < 1.05:
+                        shrink *= 0.95
                         qs, ep, er = solve_leg(f1w, LEG_CHAIN[sd], Tbase,
                                                hw + d * shrink, R_t, qs,
-                                               limits[sd], w_rot=0.05)
+                                               limits[sd])
                 shrink_log[t, si] = shrink
                 qprev[sd] = qs
                 q_new[t, leg_idx[sd]] = qs
