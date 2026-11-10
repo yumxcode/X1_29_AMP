@@ -339,9 +339,12 @@ def _alias_env():
 
 def main():
     t0 = time.time()
-    _alias_env()
     # optional per-run env overrides committed as roboparty_train/f1_env.txt
     # (KEY=VALUE lines) — startScript cannot pass env vars to gm-run.
+    # MUST load BEFORE _alias_env(): F1W_FINE_TUNE_ITERS etc. from the file
+    # need to reach F1_FINE_TUNE_ITERS via the alias map (v1g bug: file was
+    # loaded after aliasing, so the +4500 resume budget silently fell back
+    # to the +1500 default and the task stopped at 3000/6000).
     env_file = SCRIPT_DIR / "f1w_env.txt"
     if env_file.exists():
         for line in env_file.read_text().splitlines():
@@ -351,6 +354,7 @@ def main():
                 os.environ.setdefault(k.strip(), v.strip())
         print(f"[ENV] f1w_env.txt overrides: "
               f"{[l.split('=')[0] for l in env_file.read_text().splitlines() if '=' in l and not l.strip().startswith('#')]}")
+    _alias_env()
     if not phase_dataset_gate():
         sys.exit(2)
     rc = phase_train()
