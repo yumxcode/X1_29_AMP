@@ -128,3 +128,8 @@ pylibs/**/*.dylib
  MUJOCO_LOG.TXT
 *.ses
 tmux-client-*.log
+
+# 2026-11-10 F1 weilai asset pack: raw source meshes kept local (679MB ASCII
+# STLs; the flattened binary set F1_29DOF_weilai/mjcf/meshes IS tracked and
+# covers both MuJoCo MJCF and the Isaac URDF). SYS-SPEC source URDF tracked.
+F1_29DOF_weilai/meshes/
