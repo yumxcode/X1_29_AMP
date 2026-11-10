@@ -9,7 +9,7 @@ retarget_f1w_from_x1lab target-shrink projection; gates: check_retarget
 strict A-G PASS on the X1 pair + check_f1w_retarget R1/R2/R3 on the F1w
 library). This pod pipeline starts at training:
 
-  1. Dataset gate: f1w_lab_v1 (54 clips) + f1w assets + env importable
+  1. Dataset gate: f1w_lab_v1 (52 clips, v7: 82_12 pair excluded) + f1w assets
   2. AMP training: F1W-AMP @ 50 Hz, 4096 envs, PYTHONPATH shadowing
   3. Checkpoint monitor: SDK-visible mirrors (.bin stealth rename on resume)
   4. Play rollout + video (F1W-AMP-Play @ F1W_PLAY_VEL, default 1.6 m/s)
@@ -63,8 +63,8 @@ TAG = time.strftime("%Y%m%d_%H%M%S")
 def phase_dataset_gate() -> bool:
     print("\n=== Phase 1: dataset + assets gate ===")
     pkls = sorted(MOTIONS.glob("*.pkl"))
-    ok = len(pkls) == 54
-    print(f"[{'OK' if ok else 'FAIL'}] f1w_lab_v1 clips: {len(pkls)}/54")
+    ok = len(pkls) == 52
+    print(f"[{'OK' if ok else 'FAIL'}] f1w_lab_v1 clips: {len(pkls)}/52")
     for p in pkls[:3]:
         try:
             c = pickle.load(open(p, "rb"))
