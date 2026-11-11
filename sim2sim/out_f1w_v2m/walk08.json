@@ -1,0 +1,17 @@
+{
+ "ckpt": "roboparty_train/checkpoints/model_2000_v2m.pt",
+ "cmd": [
+  0.8,
+  0.0,
+  0.0
+ ],
+ "duration_s": 12.0,
+ "settle_s": 0.5,
+ "survived_steps": 1,
+ "survived_s": 0.02,
+ "mean_vxy_err": 0.7630603564037546,
+ "mean_yaw_err": 0.4416670421091286,
+ "distance_m": 0.00021978991547526696,
+ "final_base_z": 0.01792495648829819,
+ "fell": true
+}

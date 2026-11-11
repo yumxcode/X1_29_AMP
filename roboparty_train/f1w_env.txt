@@ -39,3 +39,6 @@ X1_TRACK_TERM=0
 X1_STYLE_SCALE=2.5
 F1W_RESUME_WAIT_SEC=60
 F1W_FRESH=1
+
+# verifier item-1 sweep: discriminator recipe family (12 collapses never touched it)
+X1_GP_SCALE=50

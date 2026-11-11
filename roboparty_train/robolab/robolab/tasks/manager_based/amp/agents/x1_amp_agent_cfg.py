@@ -113,10 +113,12 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
             # to 2.9 GB total (v62b baseline: 2.4 GB at 6x121).
             disc_obs_buffer_size=int(
                 __import__("os").environ.get("X1_DISC_BUFFER", "100")),
-            grad_penalty_scale=10.0,
+            grad_penalty_scale=float(
+                __import__("os").environ.get("X1_GP_SCALE", "10.0")),
             disc_trunk_weight_decay=1.0e-3,
             disc_linear_weight_decay=1.0e-1,
-            disc_learning_rate=1.0e-4,
+            disc_learning_rate=float(
+                __import__("os").environ.get("X1_DISC_LR", "1.0e-4")),
             disc_max_grad_norm=1.0,
             amp_discriminator=RslRlAmpCfg.AMPDiscriminatorCfg(
                 hidden_dims=[1024, 512],

@@ -1,0 +1,46 @@
+{
+ "walk05": {
+  "cmd": [
+   0.5,
+   0.0,
+   0.0
+  ],
+  "survived_s": 0.02,
+  "distance_m": 0.00021978991547526696,
+  "fell": true
+ },
+ "walk08": {
+  "cmd": [
+   0.8,
+   0.0,
+   0.0
+  ],
+  "survived_s": 0.02,
+  "distance_m": 0.00021978991547526696,
+  "fell": true
+ },
+ "run10": {
+  "cmd": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "survived_s": 0.02,
+  "distance_m": 0.00021978991547526696,
+  "fell": true
+ },
+ "run16": {
+  "cmd": [
+   1.6,
+   0.0,
+   0.0
+  ],
+  "survived_s": 0.02,
+  "distance_m": 0.00021978991547526696,
+  "fell": true
+ },
+ "control_v1h_walk05": {
+  "script_health": "survived 1.10s then fell (matches documented v1 behavior)"
+ },
+ "verdict": "FAIL: v2m tracking policy NaN-blowups at first policy step on ALL scenes (off-manifold standing start -> explosive actions); script healthy via v1h control"
+}
