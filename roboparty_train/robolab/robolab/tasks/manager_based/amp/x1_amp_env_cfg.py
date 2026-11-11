@@ -1521,6 +1521,28 @@ class X1AmpEnvCfg(AmpEnvCfg):
             # ------------------------------------------------------
             _track_w = float(_os.environ.get("X1_TRACK_HIP", "0"))
             if _track_w > 0:
+                # v2p (phase C): X1_TRACK_FULL=1 extends the demo joint
+                # tracking to ALL 29 joints — the v2n4 post-mortem (9th
+                # disc collapse) showed the surviving separators are the
+                # ARM pose channels (frozen elbow +0.349, shoulder_pitch
+                # +0.27) which hip+knee-only tracking never drives to the
+                # demo pose; with the style gradient dead the arms stay at
+                # default forever. Full-body tracking closes them with the
+                # WORKING reward mechanism (ep_len 432 proved it).
+                if _os.environ.get("X1_TRACK_FULL", "0") == "1":
+                    import importlib.util as _ilu2
+                    from pathlib import Path as _P2
+                    _spec2 = _ilu2.spec_from_file_location(
+                        "amp_dof_order2",
+                        _P2(__file__).resolve().parent / "amp_dof_order.py")
+                    _m2 = _ilu2.module_from_spec(_spec2); _spec2.loader.exec_module(_m2)
+                    from isaaclab.managers import SceneEntityCfg as _SECFG
+                    # explicit full list: the reward maps demo columns by NAME
+                    # (motion_cols_for(list(joint_names))) — None would crash.
+                    self.rewards.demo_joint_track.params["asset_cfg"] = _SECFG(
+                        "robot", joint_names=list(_m2.LAB_DOF_NAMES),
+                        preserve_order=True)
+                    print("[v2p] demo joint tracking EXTENDED to ALL 29 joints")
                 self.rewards.demo_joint_track.weight = _track_w
                 print(f"[v70f] demo joint tracking ON (w={_track_w})")
 
