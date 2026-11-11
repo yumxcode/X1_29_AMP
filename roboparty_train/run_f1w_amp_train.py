@@ -50,7 +50,7 @@ if REPO_ROOT is None:
 print(f"[INFO] REPO_ROOT = {REPO_ROOT}")
 
 EXP = "f1w_amp"
-MOTIONS = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / os.environ.get("F1W_MOTION_DIR", "f1w_lab_v3")
+MOTIONS = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "motions" / os.environ.get("F1W_MOTION_DIR", "f1w_lab_v4")
 ROBOT = REPO_ROOT / "roboparty_train" / "robolab" / "data" / "robots" / "f1w"
 UPLOAD_DIR = REPO_ROOT / "model_upload"
 OUTSIDE_DIR = REPO_ROOT.parent / "f1w_upload" if REPO_ROOT.parent.name == "isaaclab" else Path("/workspace/isaaclab/f1w_upload")
