@@ -204,7 +204,7 @@ def phase_train() -> int:
         print("[FRESH] F1W_FRESH=1: resume detection DISABLED (checkpoints/ dir "
               "permanently holds X1-era + phase artifacts; TASK_20261112_018 "
               "resumed a stale 288-dim X1 ckpt and crashed on this exact gap)")
-    if not resume_ckpt:
+    if not resume_ckpt and os.environ.get("F1W_FRESH", "0") != "1":
         import re as _re
         def _num(p):
             # platform-mounted names: model_1500_20261110185133A467.pt
