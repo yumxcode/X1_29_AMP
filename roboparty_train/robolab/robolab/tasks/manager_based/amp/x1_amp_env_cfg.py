@@ -1019,6 +1019,10 @@ class X1AmpEnvCfg(AmpEnvCfg):
         import os as _os3
         if _os3.environ.get("X1_DISC_VEL", "1") == "0":
             self.observations.disc.key_body_vel_b = None
+            # demo side must shrink with the policy side, else amp.py
+            # resolve_amp_config asserts disc_demo_obs_dim == disc_obs_dim
+            # (TASK_20261111_031 crashed exactly here). v2d ablation fix.
+            self.observations.disc_demo.ref_key_body_vel_b = None
         else:
             self.observations.disc.key_body_vel_b.params = {
                 "asset_cfg": SceneEntityCfg(
