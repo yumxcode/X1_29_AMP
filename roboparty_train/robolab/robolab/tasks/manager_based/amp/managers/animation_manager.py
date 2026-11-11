@@ -65,6 +65,49 @@ class AnimationTerm(ManagerTermBase):
         
         # Get motion data term
         self.motion_data_term: MotionDataTerm = env.motion_data_manager.get_term(cfg.motion_data_term)
+
+        # v80 (F1w disc alignment, 2026-11-11): demo dof arrays are stored in
+        # LAB_DOF_NAMES order; the POLICY disc obs (mdp.joint_pos/joint_vel)
+        # is in the asset's RUNTIME joint order. For f1w these differ (legs-
+        # first URDF vs interleaved lab order) -> the disc compared DIFFERENT
+        # joints' channels between demo and policy: trivially separable,
+        # library-invariant (v1/v2c/v2d/v2e all collapsed identically at iter
+        # 393-622: disc_loss -> 0.0002-0.0004, style -> 0.005-0.007, on
+        # libraries that pass every local physical gate).
+        # Fix: permute the demo BUFFER columns (disc-facing only) into the
+        # asset runtime order BY NAME. The reset event (v70f) and the
+        # demo_joint_track reward consume get_motion_state directly with
+        # their own name mappings — they are NOT affected by this buffer
+        # permutation. X1_DISC_ALIGN=0 (default) keeps the X1 champion path
+        # byte-identical.
+        self._dof_perm_asset = None
+        if os.environ.get("X1_DISC_ALIGN", "0") == "1":
+            try:
+                import importlib.util as _ilu
+                from pathlib import Path as _P
+                _spec = _ilu.spec_from_file_location(
+                    "amp_dof_order",
+                    _P(__file__).resolve().parents[1] / "amp_dof_order.py")
+                _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+                LAB_DOF_NAMES = _m.LAB_DOF_NAMES
+                asset_names = list(env.scene["robot"].data.joint_names)
+                if sorted(asset_names) == sorted(LAB_DOF_NAMES):
+                    n_diff = sum(1 for a, b in zip(asset_names, LAB_DOF_NAMES) if a != b)
+                    print(f"[DISC-ALIGN] asset runtime order vs LAB order: {n_diff}/29 "
+                          f"columns differ | asset[:6]={asset_names[:6]} | lab[:6]={LAB_DOF_NAMES[:6]}")
+                    if n_diff:
+                        self._dof_perm_asset = torch.tensor(
+                            [LAB_DOF_NAMES.index(n) for n in asset_names],
+                            dtype=torch.long, device=env.device)
+                        print("[DISC-ALIGN] demo dof_pos/dof_vel BUFFERS permuted LAB -> asset "
+                              "runtime order (disc demo obs now name-aligned with the policy obs)")
+                    else:
+                        print("[DISC-ALIGN] orders already identical; no permutation applied")
+                else:
+                    print(f"[DISC-ALIGN] WARNING name sets differ "
+                          f"(asset={len(asset_names)}, lab={len(LAB_DOF_NAMES)}); no permutation")
+            except Exception as _e:
+                print(f"[DISC-ALIGN] SKIPPED ({_e}) — demo buffers stay LAB order")
         
         # create buffers
         self.num_steps = len(self.step_indices)
@@ -213,6 +256,13 @@ class AnimationTerm(ManagerTermBase):
             motion_ids=motion_ids_flat,
             motion_times=motion_times_flat
         )
+
+        # v80: name-align the disc-facing dof buffers to the asset runtime
+        # order (see __init__; reset/reward paths are unaffected).
+        if self._dof_perm_asset is not None:
+            for _c in ("dof_pos", "dof_vel"):
+                if _c in motion_data_dict:
+                    motion_data_dict[_c] = motion_data_dict[_c][:, self._dof_perm_asset]
         
         # Reshape and store in buffers
         for component in self.cfg.motion_data_components:
