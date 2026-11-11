@@ -1,0 +1,314 @@
+{
+ "07_01": {
+  "G1_stance_pct": {
+   "L": 52.8,
+   "R": 59.2,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.203,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.0,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 12.47,
+  "gate4": "<=18.5",
+  "R4_jv_max": 17.34,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.889,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.901,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.038,
+   "ptp": 0.049,
+   "max_step": 0.0028
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "103_07": {
+  "G1_stance_pct": {
+   "L": 73.7,
+   "R": 55.1,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.116,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.017,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 15.2,
+  "gate4": "<=18.5",
+  "R4_jv_max": 17.34,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.817,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.945,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.048,
+   "ptp": 0.04,
+   "max_step": 0.0023
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "0005_normal_walk1": {
+  "G1_stance_pct": {
+   "L": 54.3,
+   "R": 62.3,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.158,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.007,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 15.48,
+  "gate4": "<=18.5",
+  "R4_jv_max": 17.32,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.605,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.783,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.056,
+   "ptp": 0.058,
+   "max_step": 0.0039
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "0007_normal_walk3": {
+  "G1_stance_pct": {
+   "L": 52.2,
+   "R": 61.2,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.15,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.012,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 14.71,
+  "gate4": "<=18.5",
+  "R4_jv_max": 15.76,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.774,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.845,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.059,
+   "ptp": 0.058,
+   "max_step": 0.0038
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "0008_normal_walk4": {
+  "G1_stance_pct": {
+   "L": 66.7,
+   "R": 53.3,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.161,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.009,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 14.85,
+  "gate4": "<=18.5",
+  "R4_jv_max": 15.82,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.648,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.873,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.051,
+   "ptp": 0.062,
+   "max_step": 0.0041
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "0026_circle_walk": {
+  "G1_stance_pct": {
+   "L": 49.0,
+   "R": 70.0,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.169,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.021,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 13.5,
+  "gate4": "<=18.5",
+  "R4_jv_max": 21.45,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.672,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.468,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.047,
+   "ptp": 0.085,
+   "max_step": 0.0048
+  },
+  "limits_out_frac": 0.0,
+  "PASS": false
+ },
+ "35_01": {
+  "G1_stance_pct": {
+   "L": 71.8,
+   "R": 40.2,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.148,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.009,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 14.96,
+  "gate4": "<=18.5",
+  "R4_jv_max": 17.65,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.718,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.703,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.044,
+   "ptp": 0.082,
+   "max_step": 0.0046
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "35_06": {
+  "G1_stance_pct": {
+   "L": 68.5,
+   "R": 42.0,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.17,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.006,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 10.95,
+  "gate4": "<=18.5",
+  "R4_jv_max": 31.93,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.687,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.718,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.041,
+   "ptp": 0.068,
+   "max_step": 0.0035
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "35_09": {
+  "G1_stance_pct": {
+   "L": 65.1,
+   "R": 50.5,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.184,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.004,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 10.19,
+  "gate4": "<=18.5",
+  "R4_jv_max": 15.76,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.697,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.808,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.042,
+   "ptp": 0.068,
+   "max_step": 0.0045
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "35_12": {
+  "G1_stance_pct": {
+   "L": 66.2,
+   "R": 42.1,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.175,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.002,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 9.9,
+  "gate4": "<=18.5",
+  "R4_jv_max": 12.2,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.673,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.813,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.038,
+   "ptp": 0.057,
+   "max_step": 0.0028
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "35_16": {
+  "G1_stance_pct": {
+   "L": 63.4,
+   "R": 43.8,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.189,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.004,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 8.97,
+  "gate4": "<=18.5",
+  "R4_jv_max": 9.91,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.685,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.725,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.041,
+   "ptp": 0.062,
+   "max_step": 0.0028
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ },
+ "38_01": {
+  "G1_stance_pct": {
+   "L": 55.4,
+   "R": 69.3,
+   "gate": ">=40"
+  },
+  "G2_swing_p95_m": 0.177,
+  "gate2": "<=0.25",
+  "G3_penetration_m": -0.005,
+  "gate3": ">=-0.02",
+  "R4_jv_p99": 11.67,
+  "gate4": "<=18.5",
+  "R4_jv_max": 15.21,
+  "gate4b": "<=40",
+  "C_prime_v_med": 0.755,
+  "gate5": "0.41-1.0x of X1-side (rho=1 -> ratio 1.0) + cmd band 0.3-1.0",
+  "F_prime_knee_corr": 0.653,
+  "gate6": ">=0.5",
+  "root_shift_m": {
+   "mean": 0.062,
+   "ptp": 0.065,
+   "max_step": 0.0042
+  },
+  "limits_out_frac": 0.0,
+  "PASS": true
+ }
+}

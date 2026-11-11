@@ -25,7 +25,11 @@ from fk_lib import UrdfFK, quat_wxyz_to_R, load_lab_order, KEY10
 F1W_URDF = HERE.parent / "F1_29DOF_weilai/mjcf/robot/f1/f1_isaac.urdf"
 X1_LIB = HERE / "robolab/data/motions/x1_lab_v72"
 SOLE_Z = 0.036          # flat-foot ankle-roll origin height (stand 0.5876 - 0.552)
-WARPS = {"07_01": 1.0, "103_07": 1.0}   # rho=1: no warp; C' ratio=1.0 in band, jv = X1 native (p99 12.47 < 18.5)
+WARPS = {"07_01": 1.0, "103_07": 1.0, "0005_normal_walk1": 1.0, "0007_normal_walk3": 1.0,
+         "0008_normal_walk4": 1.0, "0026_circle_walk": 1.0, "35_01": 1.0, "35_06": 1.0,
+         "35_09": 1.0, "35_12": 1.0, "35_16": 1.0, "38_01": 1.0}
+# v4: 12 clips across families (fnd_c4ad7d1d diversity hypothesis — X1's healthy
+# disc ran on a 22-clip mixture; every F1w collapse used a 2-clip library).
 
 
 def soft_clamp(x, lo, hi, knee=0.02):
@@ -88,7 +92,7 @@ def fk_all_kb(q, rp, rr, fk, lab, kb_names):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dst", default="robolab/data/motions/f1w_lab_v3")
+    ap.add_argument("--dst", default="robolab/data/motions/f1w_lab_v4")
     args = ap.parse_args()
     lab = load_lab_order(str(HERE / "robolab/scripts/tools/retarget/config/x1.yaml"))
     fk = UrdfFK(str(F1W_URDF))
@@ -116,8 +120,6 @@ def main():
         out = {"dof_pos": q.astype(np.float32), "root_pos": rp.astype(np.float32),
                "root_rot": rr.astype(np.float32), "key_body_pos": kb,
                "fps": fps, "loop_mode": d.get("loop_mode", 0)}
-        pickle.dump(out, open(dst / f"{name}.pkl", "wb"))
-
         # ---- gates ----
         thr = SOLE_Z + 0.012 + 0.015   # hover target + stance window
         stL = float((zL < thr).mean()); stR = float((zR < thr).mean())
@@ -150,6 +152,11 @@ def main():
         g["PASS"] = bool(stL >= 0.40 and stR >= 0.40 and swing <= 0.25 and pen >= -0.02
                          and g["R4_jv_p99"] <= 18.5 and g["R4_jv_max"] <= 40
                          and 0.3 <= vmed <= 1.0 and best >= 0.5)
+        if not g["PASS"]:
+            print(f"[DROP] {name}: gates failed — excluded from the library")
+            report[name] = g
+            continue
+        pickle.dump(out, open(dst / f"{name}.pkl", "wb"))
         report[name] = g
         print(name, json.dumps(g))
     json.dump(report, open(dst / "_v3_report.json", "w"), indent=1)

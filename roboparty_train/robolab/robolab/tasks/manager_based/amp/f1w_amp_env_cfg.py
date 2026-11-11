@@ -33,16 +33,20 @@ class F1WAmpEnvCfg(X1AmpEnvCfg):
         # the 1.4-1.8 m/s target band per F1W_RUN_SPEED_TARGET.md)
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
             ROBOLAB_ROOT_DIR, "data", "motions",
-            os.environ.get("F1W_MOTION_DIR", "f1w_lab_v3")
+            os.environ.get("F1W_MOTION_DIR", "f1w_lab_v4")
         )
         self.motion_data.motion_dataset.motion_data_weights = {
-            # v2 milestone library (f1w_lab_v2): GMR-direct construction,
-            # time-warped to X1-side anchored speeds; 2 sources (mirror-free:
-            # weilai joint space is not a structural mirror, pair_sign probe
-            # 207-271mm; mirrors deferred to a root-space construction),
-            # all R4/FK/F'/C' gates PASS (F1W_RUN_REPORT.md sec 8)
             "07_01": 1.0,
             "103_07": 1.0,
+            "0005_normal_walk1": 1.0,
+            "0007_normal_walk3": 1.0,
+            "0008_normal_walk4": 1.0,
+            "35_01": 1.0,
+            "35_06": 1.0,
+            "35_09": 1.0,
+            "35_12": 1.0,
+            "35_16": 1.0,
+            "38_01": 1.0,
         }
 
         if self.__class__.__name__ == "F1WAmpEnvCfg":
