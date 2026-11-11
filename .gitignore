@@ -134,3 +134,9 @@ tmux-client-*.log
 # covers both MuJoCo MJCF and the Isaac URDF). SYS-SPEC source URDF tracked.
 F1_29DOF_weilai/meshes/
 MUJOCO_LOG.TXT
+
+# 2026-11-11 closure: unrelated asset pack (F0.5 — no code/doc references in
+# this repo's F1w pipeline) and local venv/tool caches stay untracked.
+F0.5_29DOF/
+.venv39
+.tools/
