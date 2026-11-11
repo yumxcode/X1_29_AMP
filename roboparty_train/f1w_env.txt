@@ -37,3 +37,4 @@ X1_TRACK_HIP=1.0
 X1_TRACK_TERM=1
 X1_STYLE_SCALE=2.5
 F1W_RESUME_WAIT_SEC=60
+F1_RESUME_CKPT=/workspace/isaaclab/X1_29_AMP/roboparty_train/checkpoints/model_2000_v2m.pt
