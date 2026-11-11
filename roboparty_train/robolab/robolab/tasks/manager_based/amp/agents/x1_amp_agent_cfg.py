@@ -131,7 +131,10 @@ class X1RslRlOnPolicyRunnerAmpCfg(RslRlOnPolicyRunnerCfg):
                 # stay per-step — task_style_lerp then drifts off its 50Hz
                 # calibration. Scale back up with the control rate so the
                 # style:task balance per step (and per sim-time) is unchanged.
-                style_reward_scale=2.5 * (int(__import__("os").environ.get("X1_CONTROL_HZ", "50")) / 50.0),
+                # beyondmimic phase A (sec 10 route 1): X1_STYLE_SCALE=0
+                # turns the style reward OFF (tracking-dominant training);
+                # default 2.5 = byte-identical champion recipe.
+                style_reward_scale=float(__import__("os").environ.get("X1_STYLE_SCALE", "2.5")) * (int(__import__("os").environ.get("X1_CONTROL_HZ", "50")) / 50.0),
                 # v35: 0.6 -> 0.7. History: v21 tested 0.75 (lin +0.003
                 # noise-level, style halved 0.335->0.146 -> P5a FAIL), settled
                 # on 0.6. Today's regime differs: the v31 dataset rebuild made

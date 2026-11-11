@@ -2014,3 +2014,60 @@ def contact_clock_timing(
     wrong_contact = swing_mid_mask(phi, v) & in_contact
     wrong_air = stance_mid_mask(phi, v) & (~in_contact)
     return -(wrong_contact.float() + wrong_air.float()).sum(dim=-1) * gate
+
+
+# ---------------------------------------------------------------------------
+# beyondmimic route (F1W_RUN_REPORT sec 10 route 1, 2026-11-11): tracking IS
+# the task — terminate the episode when the demo-synced joint deviation
+# exceeds a threshold. Pairs with X1_DEMO_RESET_P=1.0 (episode starts ON a
+# demo frame) + X1_TRACK_HIP>0 (tracking reward dominant) + X1_STYLE_SCALE=0
+# (discriminator contribution off in phase A).
+# ---------------------------------------------------------------------------
+
+def bad_demo_tracking(
+    env,
+    threshold_rad: float = 0.6,
+    command_name: str = "base_velocity",
+    min_cmd_speed: float = 0.3,
+):
+    """Terminate when |q - demo_q(t_k)| mean over the tracked leg joints
+    exceeds threshold_rad (per-joint mean, rad). Uses the v70f reset event's
+    phase-locked reference stashes; envs without a demo reset this episode
+    are never terminated by this term."""
+    ok = getattr(env, "_demo_track_ok", None)
+    if ok is None or not bool(ok.any()):
+        return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+    asset = env.scene["robot"]
+    n = env.num_envs
+    t_k = env._demo_track_t0 + env.episode_length_buf * env.step_dt
+    t_k = torch.remainder(t_k, env._demo_track_dur.clamp(min=0.1))
+    st = None
+    for term in getattr(env.animation_manager, "_terms", {}).values():
+        if hasattr(term, "motion_ids") and hasattr(term, "motion_data_term"):
+            st = term.motion_data_term.get_motion_state(env._demo_track_mid, t_k)
+            break
+    if st is None:
+        return torch.zeros(n, dtype=torch.bool, device=env.device)
+    try:
+        from ..amp_dof_order import LAB_DOF_NAMES, motion_cols_for
+    except ImportError:
+        import importlib.util as _ilu
+        from pathlib import Path as _P
+        _spec = _ilu.spec_from_file_location(
+            "amp_dof_order",
+            _P(__file__).resolve().parents[1] / "amp_dof_order.py")
+        _m = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_m)
+        LAB_DOF_NAMES, motion_cols_for = _m.LAB_DOF_NAMES, _m.motion_cols_for
+    asset_names = list(asset.data.joint_names)
+    # leg joints only (hip pitch/roll/yaw + knee + ankle pitch/roll, both sides)
+    legs = [nm for nm in asset_names
+            if ("hip" in nm or "knee" in nm or "ankle" in nm)]
+    cols = motion_cols_for(legs)
+    demo = st["dof_pos"][:, cols]
+    ids = [asset_names.index(nm) for nm in legs]
+    q = asset.data.joint_pos[:, ids]
+    err = (q - demo).abs().mean(dim=-1)
+    cmd = env.command_manager.get_command(command_name)
+    speed = torch.linalg.vector_norm(cmd[:, :2], dim=1)
+    gate = env._demo_track_ok & (speed > min_cmd_speed)
+    return (err > threshold_rad) & gate

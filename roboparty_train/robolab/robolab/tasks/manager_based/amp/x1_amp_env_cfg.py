@@ -1524,6 +1524,25 @@ class X1AmpEnvCfg(AmpEnvCfg):
                 self.rewards.demo_joint_track.weight = _track_w
                 print(f"[v70f] demo joint tracking ON (w={_track_w})")
 
+            # ------------------------------------------------------
+            # beyondmimic route (F1W_RUN_REPORT sec 10 route 1): deviation
+            # termination — tracking IS the task. X1_TRACK_TERM=1 appends a
+            # termination term (bad_demo_tracking, mean |q-demo_q| over leg
+            # joints > threshold). Default 0 = off = byte-identical.
+            # ------------------------------------------------------
+            if _os.environ.get("X1_TRACK_TERM", "0") == "1":
+                from isaaclab.managers import TerminationTermCfg as _DoneTermCfg
+                self.terminations.bad_demo_tracking = _DoneTermCfg(
+                    func=mdp.bad_demo_tracking,
+                    params={
+                        "threshold_rad": float(_os.environ.get("X1_TRACK_TERM_RAD", "0.6")),
+                        "command_name": "base_velocity",
+                        "min_cmd_speed": 0.3,
+                    },
+                )
+                print(f"[BEYONDMIMIC] demo-tracking deviation termination ON "
+                      f"(rad={_os.environ.get('X1_TRACK_TERM_RAD', '0.6')})")
+
         # ------------------------------------------------------
         # v68 sim2real re-identification envelope (x1_armature_pd.md §2,
         # 2026-10-14). The nominal armature/kd in assets/robots/x1.py are now
