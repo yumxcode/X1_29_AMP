@@ -41,4 +41,4 @@ F1W_RESUME_WAIT_SEC=60
 F1W_FRESH=1
 
 # verifier item-1 sweep: discriminator recipe family (12 collapses never touched it)
-X1_GP_SCALE=50
+X1_GP_SCALE=100
