@@ -206,11 +206,15 @@ def phase_train() -> int:
             # platform-mounted names: model_1500_20261110185133A467.pt
             m = _re.match(r"model_(\d+)", p.stem)
             return int(m.group(1)) if m else -1
-        cands = sorted((p for p in REPO_ROOT.glob("model_*.pt") if _num(p) >= 0), key=_num)
-        # v2n lesson (TASK_20261111_274): the platform mounts the checkpoint
-        # ASYNCHRONOUSLY (60MB download) and can lose the race with this
-        # launcher's startup glob — the pod then trains FRESH and silently
-        # discards the resume. F1W_RESUME_WAIT_SEC polls for the mount.
+        cands = sorted((p for p in list(REPO_ROOT.glob("model_*.pt"))
+                        + list((REPO_ROOT / "roboparty_train" / "checkpoints").glob("model_*.pt"))
+                        if _num(p) >= 0), key=_num)
+        # v2n/v2n2 lesson (TASK_20261111_274/298): the platform
+        # checkPointFilePath mount NEVER materialized (600s poll exhausted)
+        # — phase-B resumes now ship the checkpoint IN THE REPO
+        # (roboparty_train/checkpoints/, established 60MB-artifact practice)
+        # so the clone delivers it atomically. F1W_RESUME_WAIT_SEC remains
+        # as a safety net for platform mounts.
         _wait_s = int(os.environ.get("F1W_RESUME_WAIT_SEC", "0"))
         _polled = 0
         while not cands and _wait_s > 0 and _polled < _wait_s:
@@ -218,7 +222,9 @@ def phase_train() -> int:
                   f"({_polled}/{_wait_s}s)...")
             time.sleep(30)
             _polled += 30
-            cands = sorted((p for p in REPO_ROOT.glob("model_*.pt") if _num(p) >= 0), key=_num)
+            cands = sorted((p for p in list(REPO_ROOT.glob("model_*.pt"))
+                            + list((REPO_ROOT / "roboparty_train" / "checkpoints").glob("model_*.pt"))
+                            if _num(p) >= 0), key=_num)
         if cands:
             resume_ckpt = str(cands[-1])
             print(f"[RESUME] auto-detected mounted checkpoint: {resume_ckpt}")
