@@ -208,12 +208,28 @@ class PPOAMP(PPO):
                         _dm, _ds = _d.mean(0), _d.std(0) + 1e-9
                         _sep = (_dm - _pm).abs() / torch.sqrt(_ds**2 + _ps**2)
                         _order = torch.argsort(_sep, descending=True)[:25]
-                        print(f"[DISC-DIAG] shape policy={tuple(_p.shape)} demo={tuple(_d.shape)} dim stats (top 25 by |dmu|/pooled-sigma):")
+                        print(f"[DISC-DIAG] shape policy={tuple(_p.shape)} demo={tuple(_d.shape)} dim stats (top 25 by |dmu|/pooled-sigma):", flush=True)
                         for _i in _order.tolist():
-                            print(f"[DISC-DIAG] ch{_i:4d} sep={float(_sep[_i]):6.2f} demo {float(_dm[_i]):+9.4f}±{float(_ds[_i]):7.4f} policy {float(_pm[_i]):+9.4f}±{float(_ps[_i]):7.4f}")
-                        print(f"[DISC-DIAG] median sep={float(_sep.median()):.2f} max={float(_sep.max()):.2f} zero-std-demo-channels={int((_ds < 1e-6).sum())} zero-std-policy-channels={int((_ps < 1e-6).sum())}")
+                            print(f"[DISC-DIAG] ch{_i:4d} sep={float(_sep[_i]):6.2f} demo {float(_dm[_i]):+9.4f}±{float(_ds[_i]):7.4f} policy {float(_pm[_i]):+9.4f}±{float(_ps[_i]):7.4f}", flush=True)
+                        print(f"[DISC-DIAG] median sep={float(_sep.median()):.2f} max={float(_sep.max()):.2f} zero-std-demo-channels={int((_ds < 1e-6).sum())} zero-std-policy-channels={int((_ps < 1e-6).sum())}", flush=True)
+                        # v81b: the log capture proved unreliable (iter-60 prints
+                        # absent from a 547-iter log) — ALSO save as a model-named
+                        # file so the SDK scan uploads it (model list -> download).
+                        import os as _os, glob as _glob
+                        _cands = _glob.glob("/workspace/isaaclab/X1_29_AMP/logs/rsl_rl/*/*")
+                        _dir = None
+                        for _c in _cands:
+                            if _os.path.isdir(_c) and _glob.glob(_c + "/model_*.pt"):
+                                _dir = _c
+                        if _dir is None:
+                            _dir = "/workspace/isaaclab/X1_29_AMP"
+                        torch.save({"policy_mean": _pm.cpu(), "policy_std": _ps.cpu(),
+                                    "demo_mean": _dm.cpu(), "demo_std": _ds.cpu(),
+                                    "sep": _sep.cpu(), "update": PPOAMP._DIAG_COUNT[0]},
+                                   _os.path.join(_dir, "model_diag.pt"))
+                        print(f"[DISC-DIAG] saved stats to {_dir}/model_diag.pt", flush=True)
                 except Exception as _e:
-                    print(f"[DISC-DIAG] failed: {_e}")
+                    print(f"[DISC-DIAG] failed: {_e}", flush=True)
             PPOAMP._DIAG_COUNT[0] += 1
 
             # Perform symmetric augmentation
