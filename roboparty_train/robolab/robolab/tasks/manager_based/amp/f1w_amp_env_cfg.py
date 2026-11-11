@@ -33,7 +33,7 @@ class F1WAmpEnvCfg(X1AmpEnvCfg):
         # the 1.4-1.8 m/s target band per F1W_RUN_SPEED_TARGET.md)
         self.motion_data.motion_dataset.motion_data_dir = os.path.join(
             ROBOLAB_ROOT_DIR, "data", "motions",
-            os.environ.get("F1W_MOTION_DIR", "f1w_lab_v2")
+            os.environ.get("F1W_MOTION_DIR", "f1w_lab_v3")
         )
         self.motion_data.motion_dataset.motion_data_weights = {
             # v2 milestone library (f1w_lab_v2): GMR-direct construction,
