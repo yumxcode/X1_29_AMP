@@ -195,9 +195,9 @@ class PPOAMP(PPO):
             # including x1_lab_v72 verbatim bytes — the separator lives in the
             # f1w policy-side obs. This prints the top channels by mean-offset in
             # pooled sigma to train_stdout (no file transfer needed).
-            if PPO_AMP._DIAG_COUNT[0] == int(__import__("os").environ.get("DISC_DIAG_AT", "60")) \
-                    and not PPO_AMP._DIAG_DONE[0]:
-                PPO_AMP._DIAG_DONE[0] = True
+            if PPOAMP._DIAG_COUNT[0] == int(__import__("os").environ.get("DISC_DIAG_AT", "60")) \
+                    and not PPOAMP._DIAG_DONE[0]:
+                PPOAMP._DIAG_DONE[0] = True
                 try:
                     with torch.no_grad():
                         _p = disc_obs_batch.detach()
@@ -214,7 +214,7 @@ class PPOAMP(PPO):
                         print(f"[DISC-DIAG] median sep={float(_sep.median()):.2f} max={float(_sep.max()):.2f} zero-std-demo-channels={int((_ds < 1e-6).sum())} zero-std-policy-channels={int((_ps < 1e-6).sum())}")
                 except Exception as _e:
                     print(f"[DISC-DIAG] failed: {_e}")
-            PPO_AMP._DIAG_COUNT[0] += 1
+            PPOAMP._DIAG_COUNT[0] += 1
 
             # Perform symmetric augmentation
             if self.symmetry and self.symmetry["use_data_augmentation"]:
