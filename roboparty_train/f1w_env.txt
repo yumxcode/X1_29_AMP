@@ -8,7 +8,6 @@ X1_CONTACT_CLOCK_W=0.5
 # disc standard (v49b+/v85 lineage)
 X1_DISC_VEL=1
 X1_DISC_LINVEL=1
-X1_AMP_NUM_STEPS=30
 X1_DISC_BUFFER=24
 X1_DISC_VMATCH=1
 X1_VMATCH_TOL=0.15
@@ -40,5 +39,5 @@ X1_STYLE_SCALE=2.5
 F1W_RESUME_WAIT_SEC=60
 F1W_FRESH=1
 
-# verifier item-1 sweep tier 3: disc lr 1e-4 -> 1e-5 (GP family 10/50/100 all falsified)
-X1_DISC_LR=1.0e-5
+# verifier item-1 sweep tier 4: AMP_NUM_STEPS 30 -> 15 (GP 10/50/100 + disc_lr 1e-5 all falsified; 13-15th collapses)
+X1_AMP_NUM_STEPS=15
