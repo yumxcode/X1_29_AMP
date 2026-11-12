@@ -235,7 +235,13 @@ def phase_train() -> int:
     if resume_ckpt:
         src = Path(resume_ckpt)
         if not src.is_file():
-            raise FileNotFoundError(f"F1_RESUME_CKPT not found: {src}")
+            # v2t2r lesson: relative values in f1w_env.txt resolve against the
+            # pod's CWD, not the repo root (TASK_20261112_233 FileNotFoundError).
+            alt = REPO_ROOT / resume_ckpt
+            if alt.is_file():
+                src = alt
+        if not src.is_file():
+            raise FileNotFoundError(f"F1_RESUME_CKPT not found: {src} (CWD={os.getcwd()}, REPO_ROOT={REPO_ROOT})")
         resume_run = REPO_ROOT / "logs" / "rsl_rl" / EXP / "_resume_src"
         resume_run.mkdir(parents=True, exist_ok=True)
         # v1g lesson: NEVER let a scan-visible extension (.pt/.pth/.ckpt)
