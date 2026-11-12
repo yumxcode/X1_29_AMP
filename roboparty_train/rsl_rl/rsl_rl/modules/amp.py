@@ -65,14 +65,31 @@ class AMPDiscriminator(nn.Module):
         self.disc_obs_normalizer = EmpiricalNormalization(shape=self.disc_obs_dim, until=1e8).to(device)
 
         # Build the discriminator network
+        # v2t structural knobs (verify r2 item-1 escalation; default OFF = byte-equivalent):
+        #   X1_DISC_SPECTRAL=1  -> spectral norm on every trunk Linear (Lipschitz-capped
+        #                          separator; the 16 collapses formed sharp separators on
+        #                          small channel subsets that cfg-level GP/lr could not cap).
+        #   X1_DISC_DROPOUT=p   -> structured CHANNEL dropout on the raw disc obs dims
+        #                          (same channel dropped across all history steps, train
+        #                          time only) so no single frozen/geometric channel can be
+        #                          load-bearing for the separator.
+        self.disc_spectral = os.environ.get("X1_DISC_SPECTRAL", "0") == "1"
+        self.disc_channel_dropout = float(os.environ.get("X1_DISC_DROPOUT", "0.0"))
         disc_layers = []
         curr_in_dim = self.input_dim
         for hidden_dim in hidden_dims:
-            disc_layers.append(nn.Linear(curr_in_dim, hidden_dim))
+            lin = nn.Linear(curr_in_dim, hidden_dim)
+            if self.disc_spectral:
+                lin = nn.utils.spectral_norm(lin)
+            disc_layers.append(lin)
             disc_layers.append(activation)
             curr_in_dim = hidden_dim
         self.disc_trunk = nn.Sequential(*disc_layers)
-        self.disc_linear = nn.Linear(hidden_dims[-1], 1)
+        out_lin = nn.Linear(hidden_dims[-1], 1)
+        if self.disc_spectral:
+            out_lin = nn.utils.spectral_norm(out_lin)
+        self.disc_linear = out_lin
+        print(f"AMP Disc structural: spectral_norm={self.disc_spectral} channel_dropout={self.disc_channel_dropout}")
         
         print(f"AMP Discriminator MLP: {self.disc_trunk}")
         print(f"AMP Discriminator Output Layer: {self.disc_linear}")
@@ -91,6 +108,15 @@ class AMPDiscriminator(nn.Module):
         Returns:
             torch.Tensor: Output tensor.
         """
+        if self.disc_channel_dropout > 0.0 and self.training:
+            # structured channel dropout: drop the same raw obs channel across
+            # ALL history steps so no single channel is load-bearing.
+            N = x.shape[0]
+            xg = x.view(N, self.disc_obs_steps_eff, self.disc_obs_dim)
+            keep = 1.0 - self.disc_channel_dropout
+            mask = (torch.rand(N, 1, self.disc_obs_dim, device=x.device) < keep).to(x.dtype)
+            xg = xg * mask / keep
+            x = xg.reshape(N, -1)
         h = self.disc_trunk(x)
         d = self.disc_linear(h)
         return d

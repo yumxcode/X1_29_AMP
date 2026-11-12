@@ -40,4 +40,6 @@ F1W_RESUME_WAIT_SEC=60
 F1W_FRESH=1
 
 # verifier item-1 sweep tier 4: AMP_NUM_STEPS 30 -> 15 (GP 10/50/100 + disc_lr 1e-5 all falsified; 13-15th collapses)
-X1_AMP_NUM_STEPS=15
+X1_AMP_NUM_STEPS=30
+# verifier item-1 escalation tier 5 (code-level): spectral norm ON, everything else = v2q standard
+X1_DISC_SPECTRAL=1
