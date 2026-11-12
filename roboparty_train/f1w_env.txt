@@ -37,10 +37,12 @@ X1_TRACK_FULL=0
 X1_TRACK_TERM=0
 X1_STYLE_SCALE=2.5
 F1W_RESUME_WAIT_SEC=60
-F1W_FRESH=1
+F1W_FRESH=0
+F1W_RESUME_CKPT=roboparty_train/checkpoints/model_1000_v2t2.pt
+F1W_FINE_TUNE_ITERS=5000
 
 # verifier item-1 sweep tier 4: AMP_NUM_STEPS 30 -> 15 (GP 10/50/100 + disc_lr 1e-5 all falsified; 13-15th collapses)
 X1_AMP_NUM_STEPS=30
-# tier 6 (code-level): channel dropout 0.2. NOTE band is 0.3-0.5 (v2r state) — single-variable chain anchors to v2r, not v2q (label fix per drift review)
+# v2t2 RESUME: 128 cut at iter 1484 by account-67 balance death (mid-training external kill, ETA 3:40 left); model_1000 in-repo. Continue the dropout-0.2 full arc to 6000. Band 0.3-0.5, dropout 0.2 unchanged
 X1_DISC_SPECTRAL=0
 X1_DISC_DROPOUT=0.2
